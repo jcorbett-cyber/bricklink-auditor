@@ -62,6 +62,7 @@ with st.sidebar:
                 "Condition":    "New" if r.get("new_or_used")=="N" else "Used",
                 "Quantity":     r.get("quantity",0),
                 "Price":        r.get("unit_price",""),
+                "Remarks":      r.get("remarks",""),
             } for r in remaining])
             st.download_button("📥 Export Remaining CSV", df.to_csv(index=False),
                                "remaining_lots.csv", "text/csv", use_container_width=True)
@@ -86,11 +87,6 @@ if load_btn:
                 st.success(f"✅ Loaded {len(data['data'])} lots!")
             except Exception as e:
                 st.error(f"Error: {e}")
-
-# Show raw field names from first lot to help debug
-if st.session_state.loaded and st.session_state.inventory:
-    with st.expander("🔧 Debug: field names from first lot (you can delete this later)"):
-        st.write(list(st.session_state.inventory[0].keys()))
 
 st.title("🧱 BrickLink Inventory Auditor")
 
@@ -118,28 +114,31 @@ COLS = 6
 for row_items in [inv[i:i+COLS] for i in range(0, len(inv), COLS)]:
     cols = st.columns(COLS)
     for col, lot in zip(cols, row_items):
-        lid      = lot.get("inventory_id", lot.get("lot_id", "unknown"))
+        lid      = lot.get("inventory_id", "unknown")
         item     = lot.get("item", {})
         pno      = item.get("no","")
         pname    = item.get("name","N/A")
         color    = lot.get("color_name","")
+        color_id = lot.get("color_id", 0)
         qty      = lot.get("quantity",0)
         price    = lot.get("unit_price","")
+        remarks  = lot.get("remarks","")
         cond     = "New" if lot.get("new_or_used")=="N" else "Used"
         is_found = lid in st.session_state.checked
         card_cls = "part-card found" if is_found else "part-card"
         badge_cls= "badge-found" if is_found else ("badge-n" if cond=="New" else "badge-u")
         badge_lbl= "✅ Found" if is_found else cond
-        img      = f"https://img.bricklink.com/ItemImage/PN/0/{pno}.png"
+        img      = f"https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png"
 
         with col:
             st.markdown(f"""
             <div class="{card_cls}">
-              <img class="part-img" src="{img}"/>
+              <img class="part-img" src="{img}" onerror="this.style.opacity='0.2'"/>
               <div class="part-name">{pno}</div>
               <div class="part-meta">{pname[:26]}</div>
               <div class="part-meta">{color} · ×{qty}</div>
               <div class="part-meta">${price}</div>
+              {"<div class='part-meta'>📦 "+remarks+"</div>" if remarks else ""}
               <span class="badge {badge_cls}">{badge_lbl}</span>
             </div>""", unsafe_allow_html=True)
 
