@@ -24,6 +24,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+LOGO = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/logo.png"
+
 for key, default in [
     ("inventory", []),
     ("checked", set()),
@@ -57,7 +59,7 @@ def update_quantity_on_bricklink(auth, inventory_id, new_qty):
     return True
 
 with st.sidebar:
-    st.markdown("## 🧱 Brick Audit")
+    st.image(LOGO, width=200)
     st.markdown("### 🔑 API Credentials")
     st.caption("Keys are never saved — session only.")
     ck = st.text_input("Consumer Key",    type="password")
@@ -145,7 +147,11 @@ if load_btn:
             except Exception as e:
                 st.error(f"Error loading inventory: {e}")
 
-st.title("🧱 Brick Audit")
+col_logo, col_title = st.columns([1, 6])
+with col_logo:
+    st.image(LOGO, width=70)
+with col_title:
+    st.title("🧱 Brick Audit")
 
 if not st.session_state.loaded:
     st.info("👈 Enter your API credentials in the sidebar and click Load My Inventory.")
