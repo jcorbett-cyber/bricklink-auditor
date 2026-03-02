@@ -26,6 +26,17 @@ st.markdown("""
 
 LOGO = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/logo.png"
 
+# ── Load credentials from Streamlit Secrets ───────────────────────────────────
+try:
+    CK = st.secrets["BL_CONSUMER_KEY"]
+    CS = st.secrets["BL_CONSUMER_SECRET"]
+    TV = st.secrets["BL_TOKEN_VALUE"]
+    TS = st.secrets["BL_TOKEN_SECRET"]
+    SECRETS_LOADED = True
+except Exception:
+    SECRETS_LOADED = False
+
+# ── Session state ─────────────────────────────────────────────────────────────
 for key, default in [
     ("inventory", []),
     ("checked", set()),
@@ -58,14 +69,22 @@ def update_quantity_on_bricklink(auth, inventory_id, new_qty):
         raise ValueError(data.get("meta", {}).get("description", "Update failed"))
     return True
 
+# ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.image(LOGO, width=200)
-    st.markdown("### 🔑 API Credentials")
-    st.caption("Keys are never saved — session only.")
-    ck = st.text_input("Consumer Key",    type="password")
-    cs = st.text_input("Consumer Secret", type="password")
-    tv = st.text_input("Token Value",     type="password")
-    ts = st.text_input("Token Secret",    type="password")
+
+    if not SECRETS_LOADED:
+        st.warning("⚠️ No saved credentials found. Enter them manually below.")
+        st.markdown("### 🔑 API Credentials")
+        st.caption("Keys are never saved — session only.")
+        ck = st.text_input("Consumer Key",    type="password")
+        cs = st.text_input("Consumer Secret", type="password")
+        tv = st.text_input("Token Value",     type="password")
+        ts = st.text_input("Token Secret",    type="password")
+    else:
+        ck, cs, tv, ts = CK, CS, TV, TS
+        st.success("🔑 Credentials loaded automatically!")
+
     load_btn = st.button("🔄 Load My Inventory", use_container_width=True, type="primary")
 
     st.divider()
@@ -130,6 +149,7 @@ with st.sidebar:
             st.download_button("🚩 Export Flagged CSV", df_flagged.to_csv(index=False),
                                "flagged_lots.csv", "text/csv", use_container_width=True)
 
+# ── Load inventory ────────────────────────────────────────────────────────────
 if load_btn:
     if not all([ck, cs, tv, ts]):
         st.error("Please fill in all four credential fields.")
@@ -147,6 +167,7 @@ if load_btn:
             except Exception as e:
                 st.error(f"Error loading inventory: {e}")
 
+# ── Header ────────────────────────────────────────────────────────────────────
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
     st.image(LOGO, width=70)
@@ -154,9 +175,10 @@ with col_title:
     st.title("🧱 Brick Audit")
 
 if not st.session_state.loaded:
-    st.info("👈 Enter your API credentials in the sidebar and click Load My Inventory.")
+    st.info("👈 Click **Load My Inventory** in the sidebar to get started.")
     st.stop()
 
+# ── Apply filters ─────────────────────────────────────────────────────────────
 inv = st.session_state.inventory
 
 if "New" not in cond_filter:
@@ -178,9 +200,9 @@ if remarks_filter != "All":
     inv = [i for i in inv if (i.get("remarks", "") or "(no remarks)") == remarks_filter]
 
 inv = sorted(inv, key=lambda x: (x.get("remarks", "") or ""))
-
 st.caption(f"Showing {len(inv)} lots")
 
+# ── Draw cards ────────────────────────────────────────────────────────────────
 current_group = None
 COLS = 6
 i = 0
