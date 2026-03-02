@@ -46,7 +46,7 @@ with st.sidebar:
         total = len(st.session_state.inventory)
         found = len(st.session_state.checked)
         pct   = int(found/total*100) if total else 0
-        st.markdown(f"### 📊 Progress")
+        st.markdown("### 📊 Progress")
         st.progress(pct/100)
         st.markdown(f"**{found}/{total}** lots · {pct}%")
         if st.button("🗑️ Reset All Checkmarks", use_container_width=True):
@@ -100,9 +100,9 @@ if not st.session_state.loaded:
     st.stop()
 
 inv = st.session_state.inventory
-if "N" not in [("N" if c=="New" else "U") for c in cond_filter]:
+if "New" not in cond_filter:
     inv = [i for i in inv if i.get("new_or_used") != "N"]
-if "U" not in [("U" if c=="Used" else "N") for c in cond_filter]:
+if "Used" not in cond_filter:
     inv = [i for i in inv if i.get("new_or_used") != "U"]
 if search_term:
     q = search_term.lower()
@@ -119,19 +119,19 @@ COLS = 6
 for row_items in [inv[i:i+COLS] for i in range(0, len(inv), COLS)]:
     cols = st.columns(COLS)
     for col, lot in zip(cols, row_items):
-        lid       = lot["lot_id"]
-        item      = lot.get("item", {})
-        pno       = item.get("no","")
-        pname     = item.get("name","N/A")
-        color     = lot.get("color_name","")
-        qty       = lot.get("quantity",0)
-        price     = lot.get("unit_price","")
-        cond      = "New" if lot.get("new_or_used")=="N" else "Used"
-        is_found  = lid in st.session_state.checked
-        card_cls  = "part-card found" if is_found else "part-card"
-        badge_cls = "badge-found" if is_found else ("badge-n" if cond=="New" else "badge-u")
-        badge_lbl = "✅ Found" if is_found else cond
-        img       = f"https://img.bricklink.com/ItemImage/PN/0/{pno}.png"
+        lid      = lot["lot_id"]
+        item     = lot.get("item", {})
+        pno      = item.get("no","")
+        pname    = item.get("name","N/A")
+        color    = lot.get("color_name","")
+        qty      = lot.get("quantity",0)
+        price    = lot.get("unit_price","")
+        cond     = "New" if lot.get("new_or_used")=="N" else "Used"
+        is_found = lid in st.session_state.checked
+        card_cls = "part-card found" if is_found else "part-card"
+        badge_cls= "badge-found" if is_found else ("badge-n" if cond=="New" else "badge-u")
+        badge_lbl= "✅ Found" if is_found else cond
+        img      = f"https://img.bricklink.com/ItemImage/PN/0/{pno}.png"
 
         with col:
             st.markdown(f"""
@@ -145,15 +145,8 @@ for row_items in [inv[i:i+COLS] for i in range(0, len(inv), COLS)]:
             </div>""", unsafe_allow_html=True)
 
             if col.button("Unmark" if is_found else "✓ Found", key=f"b{lid}", use_container_width=True):
-                if is_found: st.session_state.checked.discard(lid)
-                else: st.session_state.checked.add(lid)
+                if is_found:
+                    st.session_state.checked.discard(lid)
+                else:
+                    st.session_state.checked.add(lid)
                 st.rerun()
-```
-
----
-
-### Step 4 — Launch the app
-
-In Command Prompt / Terminal, type:
-```
-streamlit run Desktop/app.py
