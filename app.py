@@ -24,9 +24,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-LOGO = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/logo.png"
+LOGO = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/Gemini_Generated_Image_mqazexmqazexmqaz.png"
 
-# ── Load credentials from Streamlit Secrets ───────────────────────────────────
 try:
     CK = st.secrets["BL_CONSUMER_KEY"]
     CS = st.secrets["BL_CONSUMER_SECRET"]
@@ -36,7 +35,6 @@ try:
 except Exception:
     SECRETS_LOADED = False
 
-# ── Session state ─────────────────────────────────────────────────────────────
 for key, default in [
     ("inventory", []),
     ("checked", set()),
@@ -69,7 +67,6 @@ def update_quantity_on_bricklink(auth, inventory_id, new_qty):
         raise ValueError(data.get("meta", {}).get("description", "Update failed"))
     return True
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.image(LOGO, width=200)
 
@@ -149,7 +146,6 @@ with st.sidebar:
             st.download_button("🚩 Export Flagged CSV", df_flagged.to_csv(index=False),
                                "flagged_lots.csv", "text/csv", use_container_width=True)
 
-# ── Load inventory ────────────────────────────────────────────────────────────
 if load_btn:
     if not all([ck, cs, tv, ts]):
         st.error("Please fill in all four credential fields.")
@@ -167,7 +163,6 @@ if load_btn:
             except Exception as e:
                 st.error(f"Error loading inventory: {e}")
 
-# ── Header ────────────────────────────────────────────────────────────────────
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
     st.image(LOGO, width=70)
@@ -178,7 +173,6 @@ if not st.session_state.loaded:
     st.info("👈 Click **Load My Inventory** in the sidebar to get started.")
     st.stop()
 
-# ── Apply filters ─────────────────────────────────────────────────────────────
 inv = st.session_state.inventory
 
 if "New" not in cond_filter:
@@ -200,137 +194,136 @@ if remarks_filter != "All":
     inv = [i for i in inv if (i.get("remarks", "") or "(no remarks)") == remarks_filter]
 
 inv = sorted(inv, key=lambda x: (x.get("remarks", "") or ""))
+
 st.caption(f"Showing {len(inv)} lots")
 
-# ── Draw cards ────────────────────────────────────────────────────────────────
-current_group = None
+# ── Group lots by bin before drawing ─────────────────────────────────────────
+from itertools import groupby
+
+def get_group(lot):
+    return lot.get("remarks", "") or "(no remarks)"
+
 COLS = 6
-i = 0
 
-while i < len(inv):
-    lot   = inv[i]
-    group = lot.get("remarks", "") or "(no remarks)"
+for group_name, group_items in groupby(inv, key=get_group):
+    group_lots = list(group_items)
+    bin_total   = len(group_lots)
+    bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
+    bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
+    bin_pct     = int(bin_found / bin_total * 100) if bin_total else 0
 
-    if group != current_group:
-        current_group = group
-        bin_lots    = [x for x in inv if (x.get("remarks", "") or "(no remarks)") == group]
-        bin_total   = len(bin_lots)
-        bin_found   = sum(1 for x in bin_lots if x.get("inventory_id") in st.session_state.checked)
-        bin_flagged = sum(1 for x in bin_lots if x.get("inventory_id") in st.session_state.flagged)
-        bin_pct     = int(bin_found / bin_total * 100) if bin_total else 0
+    # Bin header
+    col_title, col_btn = st.columns([4, 1])
+    with col_title:
+        st.markdown(f"""
+        <div class="bin-header">
+          <p class="bin-title">📦 {group_name}</p>
+          <p class="bin-stats">{bin_found}/{bin_total} found · {bin_pct}%{"&nbsp;&nbsp;🚩 "+str(bin_flagged)+" flagged" if bin_flagged else ""}</p>
+        </div>""", unsafe_allow_html=True)
+    with col_btn:
+        st.write("")
+        st.write("")
+        if st.button("✅ Mark all found", key=f"markall_{group_name}", use_container_width=True):
+            for x in group_lots:
+                st.session_state.checked.add(x.get("inventory_id"))
+            st.rerun()
 
-        col_title, col_btn = st.columns([4, 1])
-        with col_title:
-            st.markdown(f"""
-            <div class="bin-header">
-              <p class="bin-title">📦 {group}</p>
-              <p class="bin-stats">{bin_found}/{bin_total} found · {bin_pct}%{"&nbsp;&nbsp;🚩 "+str(bin_flagged)+" flagged" if bin_flagged else ""}</p>
-            </div>""", unsafe_allow_html=True)
-        with col_btn:
-            st.write("")
-            st.write("")
-            if st.button("✅ Mark all found", key=f"markall_{group}", use_container_width=True):
-                for x in bin_lots:
-                    st.session_state.checked.add(x.get("inventory_id"))
-                st.rerun()
+    # Draw cards in rows of COLS, strictly within this bin only
+    for row_start in range(0, len(group_lots), COLS):
+        row_items = group_lots[row_start:row_start + COLS]
+        cols = st.columns(COLS)
 
-    row_items = inv[i:i+COLS]
-    cols = st.columns(COLS)
-
-    for col, lot in zip(cols, row_items):
-        lid        = lot.get("inventory_id", "unknown")
-        item       = lot.get("item", {})
-        pno        = item.get("no", "")
-        pname      = item.get("name", "N/A")
-        color      = lot.get("color_name", "")
-        color_id   = lot.get("color_id", 0)
-        qty        = lot.get("quantity", 0)
-        price      = lot.get("unit_price", "")
-        cond       = "New" if lot.get("new_or_used") == "N" else "Used"
-        is_found   = lid in st.session_state.checked
-        is_flagged = lid in st.session_state.flagged
-        flag_info  = st.session_state.flagged.get(lid, {})
-
-        if is_flagged:
-            card_cls  = "part-card flagged"
-            badge_cls = "badge-flagged"
-            badge_lbl = "🚩 " + flag_info.get("reason", "Flagged")
-        elif is_found:
-            card_cls  = "part-card found"
-            badge_cls = "badge-found"
-            badge_lbl = "✅ Found"
-        else:
-            card_cls  = "part-card"
-            badge_cls = "badge-n" if cond == "New" else "badge-u"
-            badge_lbl = cond
-
-        img = f"https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png"
-
-        with col:
-            st.markdown(f"""
-            <div class="{card_cls}">
-              <img class="part-img" src="{img}" onerror="this.style.opacity='0.15'"/>
-              <div class="part-name">{pno}</div>
-              <div class="part-meta">{pname[:26]}</div>
-              <div class="part-meta">{color} · ×{qty}</div>
-              <div class="part-meta">${price}</div>
-              <span class="badge {badge_cls}">{badge_lbl}</span>
-            </div>""", unsafe_allow_html=True)
+        for col, lot in zip(cols, row_items):
+            lid        = lot.get("inventory_id", "unknown")
+            item       = lot.get("item", {})
+            pno        = item.get("no", "")
+            pname      = item.get("name", "N/A")
+            color      = lot.get("color_name", "")
+            color_id   = lot.get("color_id", 0)
+            qty        = lot.get("quantity", 0)
+            price      = lot.get("unit_price", "")
+            cond       = "New" if lot.get("new_or_used") == "N" else "Used"
+            is_found   = lid in st.session_state.checked
+            is_flagged = lid in st.session_state.flagged
+            flag_info  = st.session_state.flagged.get(lid, {})
 
             if is_flagged:
-                if col.button("↩ Unflag", key=f"unflag_{lid}", use_container_width=True):
-                    del st.session_state.flagged[lid]
-                    st.rerun()
+                card_cls  = "part-card flagged"
+                badge_cls = "badge-flagged"
+                badge_lbl = "🚩 " + flag_info.get("reason", "Flagged")
             elif is_found:
-                if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
-                    st.session_state.checked.discard(lid)
-                    st.rerun()
+                card_cls  = "part-card found"
+                badge_cls = "badge-found"
+                badge_lbl = "✅ Found"
             else:
-                if col.button("✓ Found", key=f"found_{lid}", use_container_width=True):
-                    st.session_state.checked.add(lid)
-                    st.rerun()
+                card_cls  = "part-card"
+                badge_cls = "badge-n" if cond == "New" else "badge-u"
+                badge_lbl = cond
 
-            if not is_found and not is_flagged:
-                with col.expander("🚩 Flag issue"):
-                    reason = st.radio(
-                        "Issue type",
-                        ["Wrong quantity", "Wrong part in bin"],
-                        key=f"reason_{lid}"
-                    )
-                    if reason == "Wrong quantity":
-                        actual_qty = st.number_input(
-                            f"Actual qty (listed: {qty})",
-                            min_value=0, value=qty,
-                            key=f"qty_{lid}"
+            img = f"https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png"
+
+            with col:
+                st.markdown(f"""
+                <div class="{card_cls}">
+                  <img class="part-img" src="{img}" onerror="this.style.opacity='0.15'"/>
+                  <div class="part-name">{pno}</div>
+                  <div class="part-meta">{pname[:26]}</div>
+                  <div class="part-meta">{color} · ×{qty}</div>
+                  <div class="part-meta">${price}</div>
+                  <span class="badge {badge_cls}">{badge_lbl}</span>
+                </div>""", unsafe_allow_html=True)
+
+                if is_flagged:
+                    if col.button("↩ Unflag", key=f"unflag_{lid}", use_container_width=True):
+                        del st.session_state.flagged[lid]
+                        st.rerun()
+                elif is_found:
+                    if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
+                        st.session_state.checked.discard(lid)
+                        st.rerun()
+                else:
+                    if col.button("✓ Found", key=f"found_{lid}", use_container_width=True):
+                        st.session_state.checked.add(lid)
+                        st.rerun()
+
+                if not is_found and not is_flagged:
+                    with col.expander("🚩 Flag issue"):
+                        reason = st.radio(
+                            "Issue type",
+                            ["Wrong quantity", "Wrong part in bin"],
+                            key=f"reason_{lid}"
                         )
-                        if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
-                            st.session_state.flagged[lid] = {
-                                "reason": "Wrong qty",
-                                "actual_qty": actual_qty,
-                            }
-                            st.rerun()
-                        if st.session_state.auth:
-                            if st.button("💾 Update on BrickLink", key=f"update_{lid}", use_container_width=True):
-                                try:
-                                    auth = make_auth(*st.session_state.auth)
-                                    update_quantity_on_bricklink(auth, lid, actual_qty)
-                                    st.session_state.flagged[lid] = {
-                                        "reason": "Qty updated ✓",
-                                        "actual_qty": actual_qty,
-                                    }
-                                    for x in st.session_state.inventory:
-                                        if x.get("inventory_id") == lid:
-                                            x["quantity"] = actual_qty
-                                    st.success("Updated on BrickLink!")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Failed: {e}")
-                    else:
-                        if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
-                            st.session_state.flagged[lid] = {"reason": "Wrong part"}
-                            st.rerun()
+                        if reason == "Wrong quantity":
+                            actual_qty = st.number_input(
+                                f"Actual qty (listed: {qty})",
+                                min_value=0, value=qty,
+                                key=f"qty_{lid}"
+                            )
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                                st.session_state.flagged[lid] = {
+                                    "reason": "Wrong qty",
+                                    "actual_qty": actual_qty,
+                                }
+                                st.rerun()
+                            if st.session_state.auth:
+                                if st.button("💾 Update on BrickLink", key=f"update_{lid}", use_container_width=True):
+                                    try:
+                                        auth = make_auth(*st.session_state.auth)
+                                        update_quantity_on_bricklink(auth, lid, actual_qty)
+                                        st.session_state.flagged[lid] = {
+                                            "reason": "Qty updated ✓",
+                                            "actual_qty": actual_qty,
+                                        }
+                                        for x in st.session_state.inventory:
+                                            if x.get("inventory_id") == lid:
+                                                x["quantity"] = actual_qty
+                                        st.success("Updated on BrickLink!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Failed: {e}")
+                        else:
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                                st.session_state.flagged[lid] = {"reason": "Wrong part"}
+                                st.rerun()
 
-    next_i = i + COLS
-    if next_i < len(inv) and (inv[next_i].get("remarks", "") or "(no remarks)") != current_group:
-        st.divider()
-    i = next_i
+    st.divider()
