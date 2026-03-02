@@ -81,6 +81,8 @@ if load_btn:
                 if data.get("meta",{}).get("code") != 200:
                     raise ValueError(data.get("meta",{}).get("description","API error"))
                 st.session_state.inventory = data["data"]
+if data["data"]:
+    st.write("Sample lot fields:", list(data["data"][0].keys()))
                 st.session_state.checked   = set()
                 st.session_state.loaded    = True
                 st.success(f"✅ Loaded {len(data['data'])} lots!")
