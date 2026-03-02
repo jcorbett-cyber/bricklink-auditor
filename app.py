@@ -42,6 +42,7 @@ for key, default in [
     ("flagged", {}),
     ("loaded", False),
     ("auth", None),
+    ("show_bulk_confirm", False),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -76,6 +77,61 @@ def update_remarks_on_bricklink(auth, inventory_id, new_remarks):
     if data.get("meta", {}).get("code") != 200:
         raise ValueError(data.get("meta", {}).get("description", "Update failed"))
     return True
+
+def get_pushable_flags():
+    """Return only flags that have actual changes to push to BrickLink."""
+    pushable = []
+    for lot in st.session_state.inventory:
+        lid = lot.get("inventory_id")
+        if lid not in st.session_state.flagged:
+            continue
+        flag = st.session_state.flagged[lid]
+        reason = flag.get("reason", "")
+        if reason in ("Qty updated ✓", "Bin updated ✓"):
+            continue  # already pushed
+        if reason == "Wrong qty" and "actual_qty" in flag:
+            pushable.append({
+                "lid": lid,
+                "pno": lot.get("item", {}).get("no", ""),
+                "name": lot.get("item", {}).get("name", ""),
+                "bin": lot.get("remarks", ""),
+                "change": f"Qty: {lot.get('quantity')} → {flag['actual_qty']}",
+                "type": "qty",
+                "value": flag["actual_qty"],
+            })
+        elif reason == "Wrong bin" and flag.get("correct_bin"):
+            pushable.append({
+                "lid": lid,
+                "pno": lot.get("item", {}).get("no", ""),
+                "name": lot.get("item", {}).get("name", ""),
+                "bin": lot.get("remarks", ""),
+                "change": f"Bin: '{lot.get('remarks', '')}' → '{flag['correct_bin']}'",
+                "type": "bin",
+                "value": flag["correct_bin"],
+            })
+    return pushable
+
+def push_all_flags(auth):
+    pushable = get_pushable_flags()
+    results = {"success": [], "failed": []}
+    for item in pushable:
+        try:
+            if item["type"] == "qty":
+                update_quantity_on_bricklink(auth, item["lid"], item["value"])
+                st.session_state.flagged[item["lid"]]["reason"] = "Qty updated ✓"
+                for x in st.session_state.inventory:
+                    if x.get("inventory_id") == item["lid"]:
+                        x["quantity"] = item["value"]
+            elif item["type"] == "bin":
+                update_remarks_on_bricklink(auth, item["lid"], item["value"])
+                st.session_state.flagged[item["lid"]]["reason"] = "Bin updated ✓"
+                for x in st.session_state.inventory:
+                    if x.get("inventory_id") == item["lid"]:
+                        x["remarks"] = item["value"]
+            results["success"].append(item)
+        except Exception as e:
+            results["failed"].append({**item, "error": str(e)})
+    return results
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -118,9 +174,16 @@ with st.sidebar:
         if flagged_n:
             st.markdown(f"🚩 **{flagged_n}** lots flagged")
 
+        pushable = get_pushable_flags()
+        if pushable:
+            if st.button(f"🚀 Push all {len(pushable)} fixes to BrickLink",
+                         use_container_width=True, type="primary"):
+                st.session_state.show_bulk_confirm = True
+
         if st.button("🗑️ Reset All Checkmarks", use_container_width=True):
             st.session_state.checked = set()
             st.session_state.flagged = {}
+            st.session_state.show_bulk_confirm = False
             st.rerun()
 
         remaining = [i for i in st.session_state.inventory if i.get("inventory_id") not in st.session_state.checked]
@@ -145,15 +208,15 @@ with st.sidebar:
         ]
         if flagged_lots:
             df_flagged = pd.DataFrame([{
-                "Inventory ID":    f.get("inventory_id", ""),
-                "Part #":          f.get("item", {}).get("no", ""),
-                "Name":            f.get("item", {}).get("name", ""),
-                "Color":           f.get("color_name", ""),
-                "Listed Qty":      f.get("quantity", 0),
-                "Actual Qty":      f.get("actual_qty", ""),
-                "Current Bin":     f.get("remarks", ""),
-                "Correct Bin":     f.get("correct_bin", ""),
-                "Flag Reason":     f.get("reason", ""),
+                "Inventory ID": f.get("inventory_id", ""),
+                "Part #":       f.get("item", {}).get("no", ""),
+                "Name":         f.get("item", {}).get("name", ""),
+                "Color":        f.get("color_name", ""),
+                "Listed Qty":   f.get("quantity", 0),
+                "Actual Qty":   f.get("actual_qty", ""),
+                "Current Bin":  f.get("remarks", ""),
+                "Correct Bin":  f.get("correct_bin", ""),
+                "Flag Reason":  f.get("reason", ""),
             } for f in flagged_lots])
             st.download_button("🚩 Export Flagged CSV", df_flagged.to_csv(index=False),
                                "flagged_lots.csv", "text/csv", use_container_width=True)
@@ -186,6 +249,41 @@ with col_title:
 if not st.session_state.loaded:
     st.info("👈 Click **Load My Inventory** in the sidebar to get started.")
     st.stop()
+
+# ── Bulk update summary & confirm ─────────────────────────────────────────────
+if st.session_state.show_bulk_confirm:
+    pushable = get_pushable_flags()
+    if pushable:
+        st.warning(f"### 🚀 Ready to push {len(pushable)} fix(es) to BrickLink")
+        st.markdown("Review the changes below before confirming:")
+
+        df_preview = pd.DataFrame([{
+            "Part #": p["pno"],
+            "Name":   p["name"],
+            "Bin":    p["bin"],
+            "Change": p["change"],
+        } for p in pushable])
+        st.dataframe(df_preview, use_container_width=True, hide_index=True)
+
+        col_confirm, col_cancel = st.columns([1, 1])
+        with col_confirm:
+            if st.button("✅ Confirm — push all to BrickLink", type="primary", use_container_width=True):
+                auth = make_auth(*st.session_state.auth)
+                with st.spinner("Pushing updates to BrickLink…"):
+                    results = push_all_flags(auth)
+                st.session_state.show_bulk_confirm = False
+                if results["success"]:
+                    st.success(f"✅ {len(results['success'])} update(s) pushed successfully!")
+                if results["failed"]:
+                    for f in results["failed"]:
+                        st.error(f"❌ Failed for {f['pno']}: {f['error']}")
+                st.rerun()
+        with col_cancel:
+            if st.button("✖ Cancel", use_container_width=True):
+                st.session_state.show_bulk_confirm = False
+                st.rerun()
+    else:
+        st.session_state.show_bulk_confirm = False
 
 # ── Apply filters ─────────────────────────────────────────────────────────────
 inv = st.session_state.inventory
