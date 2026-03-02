@@ -37,9 +37,9 @@ with st.sidebar:
 
     st.divider()
     st.markdown("### 🔍 Filters")
-    search_term  = st.text_input("Search part # or name")
-    cond_filter  = st.multiselect("Condition", ["New","Used"], default=["New","Used"])
-    show_filter  = st.radio("Show", ["All","✅ Found","⬜ Not yet found"])
+    search_term = st.text_input("Search part # or name")
+    cond_filter = st.multiselect("Condition", ["New","Used"], default=["New","Used"])
+    show_filter = st.radio("Show", ["All","✅ Found","⬜ Not yet found"])
 
     st.divider()
     if st.session_state.inventory:
@@ -52,16 +52,16 @@ with st.sidebar:
         if st.button("🗑️ Reset All Checkmarks", use_container_width=True):
             st.session_state.checked = set()
             st.rerun()
-        remaining = [i for i in st.session_state.inventory if i["lot_id"] not in st.session_state.checked]
+        remaining = [i for i in st.session_state.inventory if i.get("inventory_id") not in st.session_state.checked]
         if remaining:
             df = pd.DataFrame([{
-                "Lot ID":    r["lot_id"],
-                "Part #":    r.get("item",{}).get("no",""),
-                "Name":      r.get("item",{}).get("name",""),
-                "Color":     r.get("color_name",""),
-                "Condition": "New" if r.get("new_or_used")=="N" else "Used",
-                "Quantity":  r.get("quantity",0),
-                "Price":     r.get("unit_price",""),
+                "Inventory ID": r.get("inventory_id",""),
+                "Part #":       r.get("item",{}).get("no",""),
+                "Name":         r.get("item",{}).get("name",""),
+                "Color":        r.get("color_name",""),
+                "Condition":    "New" if r.get("new_or_used")=="N" else "Used",
+                "Quantity":     r.get("quantity",0),
+                "Price":        r.get("unit_price",""),
             } for r in remaining])
             st.download_button("📥 Export Remaining CSV", df.to_csv(index=False),
                                "remaining_lots.csv", "text/csv", use_container_width=True)
@@ -81,24 +81,21 @@ if load_btn:
                 if data.get("meta",{}).get("code") != 200:
                     raise ValueError(data.get("meta",{}).get("description","API error"))
                 st.session_state.inventory = data["data"]
-if data["data"]:
-    st.write("Sample lot fields:", list(data["data"][0].keys()))
                 st.session_state.checked   = set()
                 st.session_state.loaded    = True
                 st.success(f"✅ Loaded {len(data['data'])} lots!")
             except Exception as e:
                 st.error(f"Error: {e}")
 
+# Show raw field names from first lot to help debug
+if st.session_state.loaded and st.session_state.inventory:
+    with st.expander("🔧 Debug: field names from first lot (you can delete this later)"):
+        st.write(list(st.session_state.inventory[0].keys()))
+
 st.title("🧱 BrickLink Inventory Auditor")
 
 if not st.session_state.loaded:
     st.info("👈 Enter your API credentials in the sidebar and click Load My Inventory.")
-    with st.expander("❓ Where do I find my credentials?"):
-        st.markdown("""
-1. Log into BrickLink → go to **My BrickLink → Settings → API Settings**
-2. If you don't have an app yet, register one at [bricklink.com/v2/api/register_consumer.page](https://www.bricklink.com/v2/api/register_consumer.page)
-3. Copy all four values into the fields on the left
-""")
     st.stop()
 
 inv = st.session_state.inventory
@@ -111,9 +108,9 @@ if search_term:
     inv = [i for i in inv if q in i.get("item",{}).get("no","").lower()
            or q in i.get("item",{}).get("name","").lower()]
 if show_filter == "✅ Found":
-    inv = [i for i in inv if i["lot_id"] in st.session_state.checked]
+    inv = [i for i in inv if i.get("inventory_id") in st.session_state.checked]
 elif show_filter == "⬜ Not yet found":
-    inv = [i for i in inv if i["lot_id"] not in st.session_state.checked]
+    inv = [i for i in inv if i.get("inventory_id") not in st.session_state.checked]
 
 st.caption(f"Showing {len(inv)} lots")
 
@@ -121,7 +118,7 @@ COLS = 6
 for row_items in [inv[i:i+COLS] for i in range(0, len(inv), COLS)]:
     cols = st.columns(COLS)
     for col, lot in zip(cols, row_items):
-        lid      = lot["lot_id"]
+        lid      = lot.get("inventory_id", lot.get("lot_id", "unknown"))
         item     = lot.get("item", {})
         pno      = item.get("no","")
         pname    = item.get("name","N/A")
