@@ -3,7 +3,7 @@ import requests
 from requests_oauthlib import OAuth1
 import pandas as pd
 
-st.set_page_config(page_title="BrickLink Inventory Auditor", page_icon="🧱", layout="wide")
+st.set_page_config(page_title="Brick Audit", page_icon="🧱", layout="wide")
 
 st.markdown("""
 <style>
@@ -24,7 +24,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Session state ─────────────────────────────────────────────────────────────
 for key, default in [
     ("inventory", []),
     ("checked", set()),
@@ -35,7 +34,6 @@ for key, default in [
     if key not in st.session_state:
         st.session_state[key] = default
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 BASE = "https://api.bricklink.com/api/store/v1"
 
 def make_auth(ck, cs, tv, ts):
@@ -51,17 +49,16 @@ def fetch_inventory(auth):
 
 def update_quantity_on_bricklink(auth, inventory_id, new_qty):
     url = f"{BASE}/inventories/{inventory_id}"
-    payload = {"quantity": new_qty}
-    r = requests.put(url, auth=auth, json=payload, timeout=30)
+    r = requests.put(url, auth=auth, json={"quantity": new_qty}, timeout=30)
     r.raise_for_status()
     data = r.json()
     if data.get("meta", {}).get("code") != 200:
         raise ValueError(data.get("meta", {}).get("description", "Update failed"))
     return True
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🔑 API Credentials")
+    st.markdown("## 🧱 Brick Audit")
+    st.markdown("### 🔑 API Credentials")
     st.caption("Keys are never saved — session only.")
     ck = st.text_input("Consumer Key",    type="password")
     cs = st.text_input("Consumer Secret", type="password")
@@ -82,10 +79,10 @@ with st.sidebar:
 
     st.divider()
     if st.session_state.inventory:
-        total    = len(st.session_state.inventory)
-        found_n  = len(st.session_state.checked)
-        flagged_n= len(st.session_state.flagged)
-        pct      = int(found_n / total * 100) if total else 0
+        total     = len(st.session_state.inventory)
+        found_n   = len(st.session_state.checked)
+        flagged_n = len(st.session_state.flagged)
+        pct       = int(found_n / total * 100) if total else 0
         st.markdown("### 📊 Audit Progress")
         st.progress(pct / 100)
         st.markdown(f"**{found_n}/{total}** found · {pct}%")
@@ -97,16 +94,7 @@ with st.sidebar:
             st.session_state.flagged = {}
             st.rerun()
 
-        remaining = [
-            i for i in st.session_state.inventory
-            if i.get("inventory_id") not in st.session_state.checked
-        ]
-        flagged_lots = [
-            {**i, **st.session_state.flagged.get(i.get("inventory_id"), {})}
-            for i in st.session_state.inventory
-            if i.get("inventory_id") in st.session_state.flagged
-        ]
-
+        remaining = [i for i in st.session_state.inventory if i.get("inventory_id") not in st.session_state.checked]
         if remaining:
             df_remaining = pd.DataFrame([{
                 "Inventory ID": r.get("inventory_id", ""),
@@ -121,21 +109,25 @@ with st.sidebar:
             st.download_button("📥 Export Remaining CSV", df_remaining.to_csv(index=False),
                                "remaining_lots.csv", "text/csv", use_container_width=True)
 
+        flagged_lots = [
+            {**i, **st.session_state.flagged.get(i.get("inventory_id"), {})}
+            for i in st.session_state.inventory
+            if i.get("inventory_id") in st.session_state.flagged
+        ]
         if flagged_lots:
             df_flagged = pd.DataFrame([{
-                "Inventory ID":  f.get("inventory_id", ""),
-                "Part #":        f.get("item", {}).get("no", ""),
-                "Name":          f.get("item", {}).get("name", ""),
-                "Color":         f.get("color_name", ""),
-                "Listed Qty":    f.get("quantity", 0),
-                "Actual Qty":    f.get("actual_qty", ""),
-                "Flag Reason":   f.get("reason", ""),
-                "Bin":           f.get("remarks", ""),
+                "Inventory ID": f.get("inventory_id", ""),
+                "Part #":       f.get("item", {}).get("no", ""),
+                "Name":         f.get("item", {}).get("name", ""),
+                "Color":        f.get("color_name", ""),
+                "Listed Qty":   f.get("quantity", 0),
+                "Actual Qty":   f.get("actual_qty", ""),
+                "Flag Reason":  f.get("reason", ""),
+                "Bin":          f.get("remarks", ""),
             } for f in flagged_lots])
             st.download_button("🚩 Export Flagged CSV", df_flagged.to_csv(index=False),
                                "flagged_lots.csv", "text/csv", use_container_width=True)
 
-# ── Load inventory ────────────────────────────────────────────────────────────
 if load_btn:
     if not all([ck, cs, tv, ts]):
         st.error("Please fill in all four credential fields.")
@@ -153,14 +145,12 @@ if load_btn:
             except Exception as e:
                 st.error(f"Error loading inventory: {e}")
 
-# ── Main ──────────────────────────────────────────────────────────────────────
-st.title("🧱 BrickLink Inventory Auditor")
+st.title("🧱 Brick Audit")
 
 if not st.session_state.loaded:
     st.info("👈 Enter your API credentials in the sidebar and click Load My Inventory.")
     st.stop()
 
-# ── Apply filters ─────────────────────────────────────────────────────────────
 inv = st.session_state.inventory
 
 if "New" not in cond_filter:
@@ -185,7 +175,6 @@ inv = sorted(inv, key=lambda x: (x.get("remarks", "") or ""))
 
 st.caption(f"Showing {len(inv)} lots")
 
-# ── Draw cards grouped by bin ─────────────────────────────────────────────────
 current_group = None
 COLS = 6
 i = 0
@@ -194,7 +183,6 @@ while i < len(inv):
     lot   = inv[i]
     group = lot.get("remarks", "") or "(no remarks)"
 
-    # ── Bin header ──
     if group != current_group:
         current_group = group
         bin_lots    = [x for x in inv if (x.get("remarks", "") or "(no remarks)") == group]
@@ -208,33 +196,32 @@ while i < len(inv):
             st.markdown(f"""
             <div class="bin-header">
               <p class="bin-title">📦 {group}</p>
-              <p class="bin-stats">{bin_found}/{bin_total} found · {bin_pct}%{"  🚩 "+str(bin_flagged)+" flagged" if bin_flagged else ""}</p>
+              <p class="bin-stats">{bin_found}/{bin_total} found · {bin_pct}%{"&nbsp;&nbsp;🚩 "+str(bin_flagged)+" flagged" if bin_flagged else ""}</p>
             </div>""", unsafe_allow_html=True)
         with col_btn:
             st.write("")
             st.write("")
-            if st.button(f"✅ Mark all found", key=f"markall_{group}"):
+            if st.button("✅ Mark all found", key=f"markall_{group}", use_container_width=True):
                 for x in bin_lots:
                     st.session_state.checked.add(x.get("inventory_id"))
                 st.rerun()
 
-    # ── Row of cards ──
     row_items = inv[i:i+COLS]
     cols = st.columns(COLS)
 
     for col, lot in zip(cols, row_items):
-        lid       = lot.get("inventory_id", "unknown")
-        item      = lot.get("item", {})
-        pno       = item.get("no", "")
-        pname     = item.get("name", "N/A")
-        color     = lot.get("color_name", "")
-        color_id  = lot.get("color_id", 0)
-        qty       = lot.get("quantity", 0)
-        price     = lot.get("unit_price", "")
-        cond      = "New" if lot.get("new_or_used") == "N" else "Used"
-        is_found  = lid in st.session_state.checked
-        is_flagged= lid in st.session_state.flagged
-        flag_info = st.session_state.flagged.get(lid, {})
+        lid        = lot.get("inventory_id", "unknown")
+        item       = lot.get("item", {})
+        pno        = item.get("no", "")
+        pname      = item.get("name", "N/A")
+        color      = lot.get("color_name", "")
+        color_id   = lot.get("color_id", 0)
+        qty        = lot.get("quantity", 0)
+        price      = lot.get("unit_price", "")
+        cond       = "New" if lot.get("new_or_used") == "N" else "Used"
+        is_found   = lid in st.session_state.checked
+        is_flagged = lid in st.session_state.flagged
+        flag_info  = st.session_state.flagged.get(lid, {})
 
         if is_flagged:
             card_cls  = "part-card flagged"
@@ -262,7 +249,6 @@ while i < len(inv):
               <span class="badge {badge_cls}">{badge_lbl}</span>
             </div>""", unsafe_allow_html=True)
 
-            # ── Buttons ──
             if is_flagged:
                 if col.button("↩ Unflag", key=f"unflag_{lid}", use_container_width=True):
                     del st.session_state.flagged[lid]
@@ -276,8 +262,7 @@ while i < len(inv):
                     st.session_state.checked.add(lid)
                     st.rerun()
 
-            # ── Flag expander ──
-            if not is_found:
+            if not is_found and not is_flagged:
                 with col.expander("🚩 Flag issue"):
                     reason = st.radio(
                         "Issue type",
@@ -302,14 +287,13 @@ while i < len(inv):
                                     auth = make_auth(*st.session_state.auth)
                                     update_quantity_on_bricklink(auth, lid, actual_qty)
                                     st.session_state.flagged[lid] = {
-                                        "reason": "Qty updated",
+                                        "reason": "Qty updated ✓",
                                         "actual_qty": actual_qty,
                                     }
-                                    # update local inventory too
                                     for x in st.session_state.inventory:
                                         if x.get("inventory_id") == lid:
                                             x["quantity"] = actual_qty
-                                    st.success("Updated!")
+                                    st.success("Updated on BrickLink!")
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Failed: {e}")
