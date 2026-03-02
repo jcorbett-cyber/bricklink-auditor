@@ -24,7 +24,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-LOGO = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/Gemini_Generated_Image_mqazexmqazexmqaz.png"
+LOGO = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/iTunesArtwork%402x.png"
 
 try:
     CK = st.secrets["BL_CONSUMER_KEY"]
@@ -197,7 +197,6 @@ inv = sorted(inv, key=lambda x: (x.get("remarks", "") or ""))
 
 st.caption(f"Showing {len(inv)} lots")
 
-# ── Group lots by bin before drawing ─────────────────────────────────────────
 from itertools import groupby
 
 def get_group(lot):
@@ -206,13 +205,12 @@ def get_group(lot):
 COLS = 6
 
 for group_name, group_items in groupby(inv, key=get_group):
-    group_lots = list(group_items)
+    group_lots  = list(group_items)
     bin_total   = len(group_lots)
     bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
     bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
     bin_pct     = int(bin_found / bin_total * 100) if bin_total else 0
 
-    # Bin header
     col_title, col_btn = st.columns([4, 1])
     with col_title:
         st.markdown(f"""
@@ -228,7 +226,6 @@ for group_name, group_items in groupby(inv, key=get_group):
                 st.session_state.checked.add(x.get("inventory_id"))
             st.rerun()
 
-    # Draw cards in rows of COLS, strictly within this bin only
     for row_start in range(0, len(group_lots), COLS):
         row_items = group_lots[row_start:row_start + COLS]
         cols = st.columns(COLS)
