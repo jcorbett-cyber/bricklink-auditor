@@ -41,6 +41,12 @@ with st.sidebar:
     cond_filter = st.multiselect("Condition", ["New","Used"], default=["New","Used"])
     show_filter = st.radio("Show", ["All","✅ Found","⬜ Not yet found"])
 
+    all_remarks = sorted(set(i.get("remarks","") or "(no remarks)" for i in st.session_state.inventory))
+    if len(all_remarks) > 1:
+        remarks_filter = st.selectbox("📦 Filter by bin/remarks", ["All"] + all_remarks)
+    else:
+        remarks_filter = "All"
+
     st.divider()
     if st.session_state.inventory:
         total = len(st.session_state.inventory)
@@ -95,6 +101,7 @@ if not st.session_state.loaded:
     st.stop()
 
 inv = st.session_state.inventory
+
 if "New" not in cond_filter:
     inv = [i for i in inv if i.get("new_or_used") != "N"]
 if "Used" not in cond_filter:
@@ -107,11 +114,24 @@ if show_filter == "✅ Found":
     inv = [i for i in inv if i.get("inventory_id") in st.session_state.checked]
 elif show_filter == "⬜ Not yet found":
     inv = [i for i in inv if i.get("inventory_id") not in st.session_state.checked]
+if remarks_filter != "All":
+    inv = [i for i in inv if (i.get("remarks","") or "(no remarks)") == remarks_filter]
+
+inv = sorted(inv, key=lambda x: (x.get("remarks","") or ""))
 
 st.caption(f"Showing {len(inv)} lots")
 
+current_group = None
 COLS = 6
-for row_items in [inv[i:i+COLS] for i in range(0, len(inv), COLS)]:
+i = 0
+while i < len(inv):
+    lot = inv[i]
+    group = lot.get("remarks","") or "(no remarks)"
+    if group != current_group:
+        current_group = group
+        st.markdown(f"### 📦 {group}")
+    
+    row_items = inv[i:i+COLS]
     cols = st.columns(COLS)
     for col, lot in zip(cols, row_items):
         lid      = lot.get("inventory_id", "unknown")
@@ -122,7 +142,6 @@ for row_items in [inv[i:i+COLS] for i in range(0, len(inv), COLS)]:
         color_id = lot.get("color_id", 0)
         qty      = lot.get("quantity",0)
         price    = lot.get("unit_price","")
-        remarks  = lot.get("remarks","")
         cond     = "New" if lot.get("new_or_used")=="N" else "Used"
         is_found = lid in st.session_state.checked
         card_cls = "part-card found" if is_found else "part-card"
@@ -138,7 +157,6 @@ for row_items in [inv[i:i+COLS] for i in range(0, len(inv), COLS)]:
               <div class="part-meta">{pname[:26]}</div>
               <div class="part-meta">{color} · ×{qty}</div>
               <div class="part-meta">${price}</div>
-              {"<div class='part-meta'>📦 "+remarks+"</div>" if remarks else ""}
               <span class="badge {badge_cls}">{badge_lbl}</span>
             </div>""", unsafe_allow_html=True)
 
@@ -148,3 +166,8 @@ for row_items in [inv[i:i+COLS] for i in range(0, len(inv), COLS)]:
                 else:
                     st.session_state.checked.add(lid)
                 st.rerun()
+
+    next_i = i + COLS
+    if next_i < len(inv) and (inv[next_i].get("remarks","") or "(no remarks)") != current_group:
+        st.divider()
+    i = next_i
