@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 from requests_oauthlib import OAuth1
 import pandas as pd
+from itertools import groupby
 
 st.set_page_config(page_title="Brick Audit", page_icon="🧱", layout="wide")
 
@@ -67,6 +68,16 @@ def update_quantity_on_bricklink(auth, inventory_id, new_qty):
         raise ValueError(data.get("meta", {}).get("description", "Update failed"))
     return True
 
+def update_remarks_on_bricklink(auth, inventory_id, new_remarks):
+    url = f"{BASE}/inventories/{inventory_id}"
+    r = requests.put(url, auth=auth, json={"remarks": new_remarks}, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    if data.get("meta", {}).get("code") != 200:
+        raise ValueError(data.get("meta", {}).get("description", "Update failed"))
+    return True
+
+# ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.image(LOGO, width=200)
 
@@ -134,18 +145,20 @@ with st.sidebar:
         ]
         if flagged_lots:
             df_flagged = pd.DataFrame([{
-                "Inventory ID": f.get("inventory_id", ""),
-                "Part #":       f.get("item", {}).get("no", ""),
-                "Name":         f.get("item", {}).get("name", ""),
-                "Color":        f.get("color_name", ""),
-                "Listed Qty":   f.get("quantity", 0),
-                "Actual Qty":   f.get("actual_qty", ""),
-                "Flag Reason":  f.get("reason", ""),
-                "Bin":          f.get("remarks", ""),
+                "Inventory ID":    f.get("inventory_id", ""),
+                "Part #":          f.get("item", {}).get("no", ""),
+                "Name":            f.get("item", {}).get("name", ""),
+                "Color":           f.get("color_name", ""),
+                "Listed Qty":      f.get("quantity", 0),
+                "Actual Qty":      f.get("actual_qty", ""),
+                "Current Bin":     f.get("remarks", ""),
+                "Correct Bin":     f.get("correct_bin", ""),
+                "Flag Reason":     f.get("reason", ""),
             } for f in flagged_lots])
             st.download_button("🚩 Export Flagged CSV", df_flagged.to_csv(index=False),
                                "flagged_lots.csv", "text/csv", use_container_width=True)
 
+# ── Load inventory ────────────────────────────────────────────────────────────
 if load_btn:
     if not all([ck, cs, tv, ts]):
         st.error("Please fill in all four credential fields.")
@@ -163,6 +176,7 @@ if load_btn:
             except Exception as e:
                 st.error(f"Error loading inventory: {e}")
 
+# ── Header ────────────────────────────────────────────────────────────────────
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
     st.image(LOGO, width=70)
@@ -173,6 +187,7 @@ if not st.session_state.loaded:
     st.info("👈 Click **Load My Inventory** in the sidebar to get started.")
     st.stop()
 
+# ── Apply filters ─────────────────────────────────────────────────────────────
 inv = st.session_state.inventory
 
 if "New" not in cond_filter:
@@ -194,11 +209,9 @@ if remarks_filter != "All":
     inv = [i for i in inv if (i.get("remarks", "") or "(no remarks)") == remarks_filter]
 
 inv = sorted(inv, key=lambda x: (x.get("remarks", "") or ""))
-
 st.caption(f"Showing {len(inv)} lots")
 
-from itertools import groupby
-
+# ── Draw cards grouped by bin ─────────────────────────────────────────────────
 def get_group(lot):
     return lot.get("remarks", "") or "(no remarks)"
 
@@ -239,6 +252,7 @@ for group_name, group_items in groupby(inv, key=get_group):
             color_id   = lot.get("color_id", 0)
             qty        = lot.get("quantity", 0)
             price      = lot.get("unit_price", "")
+            remarks    = lot.get("remarks", "")
             cond       = "New" if lot.get("new_or_used") == "N" else "Used"
             is_found   = lid in st.session_state.checked
             is_flagged = lid in st.session_state.flagged
@@ -287,9 +301,10 @@ for group_name, group_items in groupby(inv, key=get_group):
                     with col.expander("🚩 Flag issue"):
                         reason = st.radio(
                             "Issue type",
-                            ["Wrong quantity", "Wrong part in bin"],
+                            ["Wrong quantity", "Wrong part in bin", "Wrong bin"],
                             key=f"reason_{lid}"
                         )
+
                         if reason == "Wrong quantity":
                             actual_qty = st.number_input(
                                 f"Actual qty (listed: {qty})",
@@ -318,6 +333,35 @@ for group_name, group_items in groupby(inv, key=get_group):
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Failed: {e}")
+
+                        elif reason == "Wrong bin":
+                            correct_bin = st.text_input(
+                                f"Correct bin (current: {remarks or 'none'})",
+                                key=f"bin_{lid}"
+                            )
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                                st.session_state.flagged[lid] = {
+                                    "reason": "Wrong bin",
+                                    "correct_bin": correct_bin,
+                                }
+                                st.rerun()
+                            if st.session_state.auth and correct_bin:
+                                if st.button("💾 Update on BrickLink", key=f"updatebin_{lid}", use_container_width=True):
+                                    try:
+                                        auth = make_auth(*st.session_state.auth)
+                                        update_remarks_on_bricklink(auth, lid, correct_bin)
+                                        st.session_state.flagged[lid] = {
+                                            "reason": "Bin updated ✓",
+                                            "correct_bin": correct_bin,
+                                        }
+                                        for x in st.session_state.inventory:
+                                            if x.get("inventory_id") == lid:
+                                                x["remarks"] = correct_bin
+                                        st.success("Bin updated on BrickLink!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Failed: {e}")
+
                         else:
                             if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason": "Wrong part"}
