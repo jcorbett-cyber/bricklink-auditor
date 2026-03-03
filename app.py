@@ -9,50 +9,75 @@ st.set_page_config(page_title="Brick Audit", page_icon="🧱", layout="wide")
 
 st.markdown("""
 <style>
+/* ── Layout ── */
+.block-container { padding-top: 1rem; }
+
+/* ── Cards ── */
 .part-card { background:#1e1e2e; border:1px solid #313244; border-radius:12px; padding:14px; text-align:center; margin-bottom:8px; }
 .part-card.found { border-color:#a6e3a1; background:#1a2e1a; }
 .part-card.flagged { border-color:#f38ba8; background:#2e1a1a; }
+.part-card.lowstock { border-color:#fab387; background:#2e2010; }
+.part-card.highlight { border-color:#f9e2af; background:#2e2a10; box-shadow: 0 0 12px #f9e2af88; }
 .part-img { width:100%; max-height:110px; object-fit:contain; margin-bottom:8px; }
 .part-name { font-size:0.8rem; color:#cdd6f4; font-weight:700; margin-bottom:3px; }
 .part-meta { font-size:0.72rem; color:#a6adc8; }
+
+/* ── Badges ── */
 .badge { display:inline-block; border-radius:6px; padding:2px 8px; font-size:0.68rem; font-weight:700; margin-top:4px; }
-.badge-n { background:#313244; color:#cdd6f4; }
-.badge-u { background:#45475a; color:#f9e2af; }
-.badge-found { background:#a6e3a1; color:#1e1e2e; }
+.badge-n       { background:#313244; color:#cdd6f4; }
+.badge-u       { background:#45475a; color:#f9e2af; }
+.badge-found   { background:#a6e3a1; color:#1e1e2e; }
 .badge-flagged { background:#f38ba8; color:#1e1e2e; }
+.badge-low     { background:#fab387; color:#1e1e2e; }
+
+/* ── Bin headers ── */
 .bin-header { background:#181825; border-left:4px solid #cba6f7; border-radius:8px; padding:10px 16px; margin:18px 0 10px 0; }
 .bin-title { font-size:1.1rem; font-weight:800; color:#cba6f7; margin:0; }
 .bin-stats { font-size:0.78rem; color:#a6adc8; margin:2px 0 0 0; }
+
+/* ── Scan bar ── */
+.scan-bar { background:#181825; border:2px solid #cba6f7; border-radius:12px; padding:12px 18px; margin-bottom:18px; }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .part-card { padding:8px; }
+  .part-img { max-height:70px; }
+  .part-name { font-size:0.7rem; }
+  .part-meta { font-size:0.62rem; }
+  .badge { font-size:0.6rem; padding:1px 5px; }
+}
 </style>
 """, unsafe_allow_html=True)
 
 LOGO = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/iTunesArtwork%402x.png"
+LOW_STOCK_THRESHOLD = 2
 
-# ── Load secrets ──────────────────────────────────────────────────────────────
+# ── Secrets ───────────────────────────────────────────────────────────────────
 try:
-    CK  = st.secrets["BL_CONSUMER_KEY"]
-    CS  = st.secrets["BL_CONSUMER_SECRET"]
-    TV  = st.secrets["BL_TOKEN_VALUE"]
-    TS  = st.secrets["BL_TOKEN_SECRET"]
+    CK = st.secrets["BL_CONSUMER_KEY"]
+    CS = st.secrets["BL_CONSUMER_SECRET"]
+    TV = st.secrets["BL_TOKEN_VALUE"]
+    TS = st.secrets["BL_TOKEN_SECRET"]
     SECRETS_LOADED = True
 except Exception:
     SECRETS_LOADED = False
 
 try:
-    supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-    DB_LOADED = True
+    supabase   = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    DB_LOADED  = True
 except Exception:
-    DB_LOADED = False
+    DB_LOADED  = False
 
 # ── Session state ─────────────────────────────────────────────────────────────
 for key, default in [
     ("inventory", []),
     ("checked", set()),
     ("flagged", {}),
+    ("notes", {}),
     ("loaded", False),
     ("auth", None),
     ("show_bulk_confirm", False),
-    ("progress_loaded", False),
+    ("scan_query", ""),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -72,8 +97,8 @@ def fetch_inventory(auth):
     return data["data"]
 
 def update_quantity_on_bricklink(auth, inventory_id, new_qty):
-    url = f"{BASE}/inventories/{inventory_id}"
-    r = requests.put(url, auth=auth, json={"quantity": new_qty}, timeout=30)
+    r = requests.put(f"{BASE}/inventories/{inventory_id}", auth=auth,
+                     json={"quantity": new_qty}, timeout=30)
     r.raise_for_status()
     data = r.json()
     if data.get("meta", {}).get("code") != 200:
@@ -81,8 +106,8 @@ def update_quantity_on_bricklink(auth, inventory_id, new_qty):
     return True
 
 def update_remarks_on_bricklink(auth, inventory_id, new_remarks):
-    url = f"{BASE}/inventories/{inventory_id}"
-    r = requests.put(url, auth=auth, json={"remarks": new_remarks}, timeout=30)
+    r = requests.put(f"{BASE}/inventories/{inventory_id}", auth=auth,
+                     json={"remarks": new_remarks}, timeout=30)
     r.raise_for_status()
     data = r.json()
     if data.get("meta", {}).get("code") != 200:
@@ -90,7 +115,10 @@ def update_remarks_on_bricklink(auth, inventory_id, new_remarks):
     return True
 
 # ── Supabase helpers ──────────────────────────────────────────────────────────
-def save_progress_to_db(inventory_id, status, flag_reason=None, actual_qty=None, correct_bin=None):
+def save_progress(inventory_id, status, flag_reason=None, actual_qty=None,
+                  correct_bin=None, notes=None):
+    if not DB_LOADED:
+        return
     try:
         supabase.table("audit_progress").upsert({
             "inventory_id": inventory_id,
@@ -98,23 +126,31 @@ def save_progress_to_db(inventory_id, status, flag_reason=None, actual_qty=None,
             "flag_reason":  flag_reason,
             "actual_qty":   actual_qty,
             "correct_bin":  correct_bin,
+            "notes":        notes,
         }, on_conflict="inventory_id").execute()
     except Exception as e:
         st.warning(f"Could not save progress: {e}")
 
-def delete_progress_from_db(inventory_id):
+def delete_progress(inventory_id):
+    if not DB_LOADED:
+        return
     try:
         supabase.table("audit_progress").delete().eq("inventory_id", inventory_id).execute()
     except Exception as e:
         st.warning(f"Could not delete progress: {e}")
 
-def load_progress_from_db():
+def load_progress():
+    if not DB_LOADED:
+        return set(), {}, {}
     try:
-        result = supabase.table("audit_progress").select("*").execute()
+        result  = supabase.table("audit_progress").select("*").execute()
         checked = set()
         flagged = {}
+        notes   = {}
         for row in result.data:
             lid = row["inventory_id"]
+            if row.get("notes"):
+                notes[lid] = row["notes"]
             if row["status"] == "checked":
                 checked.add(lid)
             elif row["status"] == "flagged":
@@ -123,14 +159,17 @@ def load_progress_from_db():
                     "actual_qty":  row.get("actual_qty"),
                     "correct_bin": row.get("correct_bin", ""),
                 }
-        return checked, flagged
+        return checked, flagged, notes
     except Exception as e:
         st.warning(f"Could not load saved progress: {e}")
-        return set(), {}
+        return set(), {}, {}
 
-def clear_all_progress_from_db():
+def clear_all_progress():
+    if not DB_LOADED:
+        return
     try:
-        supabase.table("audit_progress").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+        supabase.table("audit_progress").delete().neq(
+            "id", "00000000-0000-0000-0000-000000000000").execute()
     except Exception as e:
         st.warning(f"Could not clear progress: {e}")
 
@@ -138,10 +177,10 @@ def clear_all_progress_from_db():
 def get_pushable_flags():
     pushable = []
     for lot in st.session_state.inventory:
-        lid = lot.get("inventory_id")
-        if lid not in st.session_state.flagged:
+        lid    = lot.get("inventory_id")
+        flag   = st.session_state.flagged.get(lid)
+        if not flag:
             continue
-        flag   = st.session_state.flagged[lid]
         reason = flag.get("reason", "")
         if reason in ("Qty updated ✓", "Bin updated ✓"):
             continue
@@ -178,14 +217,14 @@ def push_all_flags(auth):
                 for x in st.session_state.inventory:
                     if x.get("inventory_id") == item["lid"]:
                         x["quantity"] = item["value"]
-                save_progress_to_db(item["lid"], "flagged", "Qty updated ✓", item["value"], None)
+                save_progress(item["lid"], "flagged", "Qty updated ✓", item["value"], None)
             elif item["type"] == "bin":
                 update_remarks_on_bricklink(auth, item["lid"], item["value"])
                 st.session_state.flagged[item["lid"]]["reason"] = "Bin updated ✓"
                 for x in st.session_state.inventory:
                     if x.get("inventory_id") == item["lid"]:
                         x["remarks"] = item["value"]
-                save_progress_to_db(item["lid"], "flagged", "Bin updated ✓", None, item["value"])
+                save_progress(item["lid"], "flagged", "Bin updated ✓", None, item["value"])
             results["success"].append(item)
         except Exception as e:
             results["failed"].append({**item, "error": str(e)})
@@ -213,9 +252,13 @@ with st.sidebar:
     st.markdown("### 🔍 Filters")
     search_term = st.text_input("Search part # or name")
     cond_filter = st.multiselect("Condition", ["New", "Used"], default=["New", "Used"])
-    show_filter = st.radio("Show", ["All", "✅ Found", "🚩 Flagged", "⬜ Not yet found"])
+    show_filter = st.radio("Show", ["All", "✅ Found", "🚩 Flagged",
+                                    "⬜ Not yet found", "🔴 Low stock"])
 
-    all_remarks = sorted(set(i.get("remarks", "") or "(no remarks)" for i in st.session_state.inventory))
+    all_remarks = sorted(set(
+        i.get("remarks", "") or "(no remarks)"
+        for i in st.session_state.inventory
+    ))
     remarks_filter = "All"
     if len(all_remarks) > 1:
         remarks_filter = st.selectbox("📦 Jump to bin", ["All"] + all_remarks)
@@ -225,12 +268,17 @@ with st.sidebar:
         total     = len(st.session_state.inventory)
         found_n   = len(st.session_state.checked)
         flagged_n = len(st.session_state.flagged)
+        low_n     = sum(1 for i in st.session_state.inventory
+                        if 0 < i.get("quantity", 0) <= LOW_STOCK_THRESHOLD)
         pct       = int(found_n / total * 100) if total else 0
+
         st.markdown("### 📊 Audit Progress")
         st.progress(pct / 100)
         st.markdown(f"**{found_n}/{total}** found · {pct}%")
         if flagged_n:
             st.markdown(f"🚩 **{flagged_n}** lots flagged")
+        if low_n:
+            st.markdown(f"🔴 **{low_n}** low stock lots")
 
         pushable = get_pushable_flags()
         if pushable:
@@ -241,13 +289,15 @@ with st.sidebar:
         if st.button("🗑️ Reset All Checkmarks", use_container_width=True):
             st.session_state.checked = set()
             st.session_state.flagged = {}
+            st.session_state.notes   = {}
             st.session_state.show_bulk_confirm = False
-            clear_all_progress_from_db()
+            clear_all_progress()
             st.rerun()
 
-        remaining = [i for i in st.session_state.inventory if i.get("inventory_id") not in st.session_state.checked]
+        remaining = [i for i in st.session_state.inventory
+                     if i.get("inventory_id") not in st.session_state.checked]
         if remaining:
-            df_remaining = pd.DataFrame([{
+            df_r = pd.DataFrame([{
                 "Inventory ID": r.get("inventory_id", ""),
                 "Part #":       r.get("item", {}).get("no", ""),
                 "Name":         r.get("item", {}).get("name", ""),
@@ -256,8 +306,9 @@ with st.sidebar:
                 "Quantity":     r.get("quantity", 0),
                 "Price":        r.get("unit_price", ""),
                 "Bin":          r.get("remarks", ""),
+                "Notes":        st.session_state.notes.get(r.get("inventory_id"), ""),
             } for r in remaining])
-            st.download_button("📥 Export Remaining CSV", df_remaining.to_csv(index=False),
+            st.download_button("📥 Export Remaining CSV", df_r.to_csv(index=False),
                                "remaining_lots.csv", "text/csv", use_container_width=True)
 
         flagged_lots = [
@@ -266,7 +317,7 @@ with st.sidebar:
             if i.get("inventory_id") in st.session_state.flagged
         ]
         if flagged_lots:
-            df_flagged = pd.DataFrame([{
+            df_f = pd.DataFrame([{
                 "Inventory ID": f.get("inventory_id", ""),
                 "Part #":       f.get("item", {}).get("no", ""),
                 "Name":         f.get("item", {}).get("name", ""),
@@ -276,8 +327,9 @@ with st.sidebar:
                 "Current Bin":  f.get("remarks", ""),
                 "Correct Bin":  f.get("correct_bin", ""),
                 "Flag Reason":  f.get("reason", ""),
+                "Notes":        st.session_state.notes.get(f.get("inventory_id"), ""),
             } for f in flagged_lots])
-            st.download_button("🚩 Export Flagged CSV", df_flagged.to_csv(index=False),
+            st.download_button("🚩 Export Flagged CSV", df_f.to_csv(index=False),
                                "flagged_lots.csv", "text/csv", use_container_width=True)
 
 # ── Load inventory ────────────────────────────────────────────────────────────
@@ -297,13 +349,13 @@ if load_btn:
                 st.error(f"Error loading inventory: {e}")
 
         if DB_LOADED and st.session_state.loaded:
-            with st.spinner("Loading saved progress…"):
-                checked, flagged = load_progress_from_db()
+            with st.spinner("Restoring saved progress…"):
+                checked, flagged, notes = load_progress()
                 st.session_state.checked = checked
                 st.session_state.flagged = flagged
-                st.session_state.progress_loaded = True
+                st.session_state.notes   = notes
                 if checked or flagged:
-                    st.success(f"✅ Restored {len(checked)} checked and {len(flagged)} flagged lots from last session!")
+                    st.success(f"✅ Restored {len(checked)} checked and {len(flagged)} flagged lots!")
                 else:
                     st.info("No saved progress found — starting fresh.")
 
@@ -318,34 +370,50 @@ if not st.session_state.loaded:
     st.info("👈 Click **Load My Inventory** in the sidebar to get started.")
     st.stop()
 
-# ── Bulk update confirm ───────────────────────────────────────────────────────
+# ── Scan mode bar ─────────────────────────────────────────────────────────────
+st.markdown('<div class="scan-bar">', unsafe_allow_html=True)
+scan_col1, scan_col2 = st.columns([5, 1])
+with scan_col1:
+    scan_query = st.text_input("🔍 Scan / quick find — type or scan a part number",
+                                value=st.session_state.scan_query,
+                                placeholder="e.g. 3001 or type any part number…",
+                                label_visibility="collapsed",
+                                key="scan_input")
+with scan_col2:
+    if st.button("✖ Clear", use_container_width=True):
+        st.session_state.scan_query = ""
+        st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+if scan_query != st.session_state.scan_query:
+    st.session_state.scan_query = scan_query
+    st.rerun()
+
+# ── Bulk confirm ──────────────────────────────────────────────────────────────
 if st.session_state.show_bulk_confirm:
     pushable = get_pushable_flags()
     if pushable:
         st.warning(f"### 🚀 Ready to push {len(pushable)} fix(es) to BrickLink")
         st.markdown("Review the changes below before confirming:")
-        df_preview = pd.DataFrame([{
-            "Part #": p["pno"],
-            "Name":   p["name"],
-            "Bin":    p["bin"],
-            "Change": p["change"],
-        } for p in pushable])
-        st.dataframe(df_preview, use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame([{
+            "Part #": p["pno"], "Name": p["name"],
+            "Bin": p["bin"],    "Change": p["change"],
+        } for p in pushable]), use_container_width=True, hide_index=True)
 
-        col_confirm, col_cancel = st.columns([1, 1])
-        with col_confirm:
-            if st.button("✅ Confirm — push all to BrickLink", type="primary", use_container_width=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("✅ Confirm — push all to BrickLink",
+                         type="primary", use_container_width=True):
                 auth = make_auth(*st.session_state.auth)
-                with st.spinner("Pushing updates to BrickLink…"):
+                with st.spinner("Pushing…"):
                     results = push_all_flags(auth)
                 st.session_state.show_bulk_confirm = False
                 if results["success"]:
-                    st.success(f"✅ {len(results['success'])} update(s) pushed successfully!")
-                if results["failed"]:
-                    for f in results["failed"]:
-                        st.error(f"❌ Failed for {f['pno']}: {f['error']}")
+                    st.success(f"✅ {len(results['success'])} update(s) pushed!")
+                for f in results.get("failed", []):
+                    st.error(f"❌ Failed for {f['pno']}: {f['error']}")
                 st.rerun()
-        with col_cancel:
+        with c2:
             if st.button("✖ Cancel", use_container_width=True):
                 st.session_state.show_bulk_confirm = False
                 st.rerun()
@@ -370,13 +438,36 @@ elif show_filter == "🚩 Flagged":
 elif show_filter == "⬜ Not yet found":
     inv = [i for i in inv if i.get("inventory_id") not in st.session_state.checked
            and i.get("inventory_id") not in st.session_state.flagged]
+elif show_filter == "🔴 Low stock":
+    inv = [i for i in inv if 0 < i.get("quantity", 0) <= LOW_STOCK_THRESHOLD]
 if remarks_filter != "All":
     inv = [i for i in inv if (i.get("remarks", "") or "(no remarks)") == remarks_filter]
 
-inv = sorted(inv, key=lambda x: (x.get("remarks", "") or ""))
-st.caption(f"Showing {len(inv)} lots")
+# Scan mode filter — highlight matching parts
+scan_ids = set()
+if st.session_state.scan_query:
+    sq = st.session_state.scan_query.lower()
+    for lot in inv:
+        if sq in lot.get("item", {}).get("no", "").lower():
+            scan_ids.add(lot.get("inventory_id"))
+    if scan_ids:
+        # move highlighted items to top
+        inv = sorted(inv, key=lambda x: (
+            0 if x.get("inventory_id") in scan_ids else 1,
+            x.get("remarks", "") or ""
+        ))
+    else:
+        st.warning(f"No parts found matching **{st.session_state.scan_query}**")
 
-# ── Draw cards grouped by bin ─────────────────────────────────────────────────
+inv = sorted(inv, key=lambda x: (
+    0 if x.get("inventory_id") in scan_ids else 1,
+    x.get("remarks", "") or ""
+))
+
+st.caption(f"Showing {len(inv)} lots"
+           + (f" · 🔍 {len(scan_ids)} match(es) highlighted" if scan_ids else ""))
+
+# ── Draw cards ────────────────────────────────────────────────────────────────
 def get_group(lot):
     return lot.get("remarks", "") or "(no remarks)"
 
@@ -399,16 +490,18 @@ for group_name, group_items in groupby(inv, key=get_group):
     with col_btn:
         st.write("")
         st.write("")
-        if st.button("✅ Mark all found", key=f"markall_{group_name}", use_container_width=True):
+        if st.button("✅ Mark all found", key=f"markall_{group_name}",
+                     use_container_width=True):
             for x in group_lots:
                 lid = x.get("inventory_id")
                 st.session_state.checked.add(lid)
-                save_progress_to_db(lid, "checked")
+                save_progress(lid, "checked",
+                              notes=st.session_state.notes.get(lid))
             st.rerun()
 
     for row_start in range(0, len(group_lots), COLS):
         row_items = group_lots[row_start:row_start + COLS]
-        cols = st.columns(COLS)
+        cols      = st.columns(COLS)
 
         for col, lot in zip(cols, row_items):
             lid        = lot.get("inventory_id", "unknown")
@@ -423,18 +516,32 @@ for group_name, group_items in groupby(inv, key=get_group):
             cond       = "New" if lot.get("new_or_used") == "N" else "Used"
             is_found   = lid in st.session_state.checked
             is_flagged = lid in st.session_state.flagged
+            is_low     = 0 < qty <= LOW_STOCK_THRESHOLD
+            is_scan    = lid in scan_ids
             flag_info  = st.session_state.flagged.get(lid, {})
+            note_val   = st.session_state.notes.get(lid, "")
+
+            if is_scan:
+                card_cls  = "part-card highlight"
+            elif is_flagged:
+                card_cls  = "part-card flagged"
+            elif is_found:
+                card_cls  = "part-card found"
+            elif is_low:
+                card_cls  = "part-card lowstock"
+            else:
+                card_cls  = "part-card"
 
             if is_flagged:
-                card_cls  = "part-card flagged"
                 badge_cls = "badge-flagged"
                 badge_lbl = "🚩 " + flag_info.get("reason", "Flagged")
             elif is_found:
-                card_cls  = "part-card found"
                 badge_cls = "badge-found"
                 badge_lbl = "✅ Found"
+            elif is_low:
+                badge_cls = "badge-low"
+                badge_lbl = f"🔴 Low ({qty})"
             else:
-                card_cls  = "part-card"
                 badge_cls = "badge-n" if cond == "New" else "badge-u"
                 badge_lbl = cond
 
@@ -449,24 +556,51 @@ for group_name, group_items in groupby(inv, key=get_group):
                   <div class="part-meta">{color} · ×{qty}</div>
                   <div class="part-meta">${price}</div>
                   <span class="badge {badge_cls}">{badge_lbl}</span>
+                  {f'<div class="part-meta" style="margin-top:4px;color:#f9e2af;">📝 {note_val[:30]}</div>' if note_val else ''}
                 </div>""", unsafe_allow_html=True)
 
+                # ── Action buttons ──
                 if is_flagged:
-                    if col.button("↩ Unflag", key=f"unflag_{lid}", use_container_width=True):
+                    if col.button("↩ Unflag", key=f"unflag_{lid}",
+                                  use_container_width=True):
                         del st.session_state.flagged[lid]
-                        delete_progress_from_db(lid)
+                        delete_progress(lid)
                         st.rerun()
                 elif is_found:
-                    if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
+                    if col.button("Unmark", key=f"unmark_{lid}",
+                                  use_container_width=True):
                         st.session_state.checked.discard(lid)
-                        delete_progress_from_db(lid)
+                        delete_progress(lid)
                         st.rerun()
                 else:
-                    if col.button("✓ Found", key=f"found_{lid}", use_container_width=True):
+                    if col.button("✓ Found", key=f"found_{lid}",
+                                  use_container_width=True):
                         st.session_state.checked.add(lid)
-                        save_progress_to_db(lid, "checked")
+                        save_progress(lid, "checked",
+                                      notes=st.session_state.notes.get(lid))
                         st.rerun()
 
+                # ── Notes expander ──
+                with col.expander("📝 Note"):
+                    new_note = st.text_area("Add a note", value=note_val,
+                                            key=f"note_{lid}", height=80,
+                                            label_visibility="collapsed",
+                                            placeholder="e.g. found in back of bin…")
+                    if st.button("💾 Save note", key=f"savenote_{lid}",
+                                 use_container_width=True):
+                        st.session_state.notes[lid] = new_note
+                        status = ("checked" if is_found
+                                  else "flagged" if is_flagged
+                                  else "unchecked")
+                        flag   = st.session_state.flagged.get(lid, {})
+                        save_progress(lid, status,
+                                      flag.get("reason"),
+                                      flag.get("actual_qty"),
+                                      flag.get("correct_bin"),
+                                      new_note)
+                        st.rerun()
+
+                # ── Flag expander ──
                 if not is_found and not is_flagged:
                     with col.expander("🚩 Flag issue"):
                         reason = st.radio(
@@ -474,33 +608,36 @@ for group_name, group_items in groupby(inv, key=get_group):
                             ["Wrong quantity", "Wrong part in bin", "Wrong bin"],
                             key=f"reason_{lid}"
                         )
-
                         if reason == "Wrong quantity":
                             actual_qty = st.number_input(
                                 f"Actual qty (listed: {qty})",
-                                min_value=0, value=qty,
-                                key=f"qty_{lid}"
+                                min_value=0, value=qty, key=f"qty_{lid}"
                             )
-                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                            if st.button("Save flag", key=f"saveflag_{lid}",
+                                         use_container_width=True):
                                 st.session_state.flagged[lid] = {
-                                    "reason": "Wrong qty",
-                                    "actual_qty": actual_qty,
-                                }
-                                save_progress_to_db(lid, "flagged", "Wrong qty", actual_qty, None)
+                                    "reason": "Wrong qty", "actual_qty": actual_qty}
+                                save_progress(lid, "flagged", "Wrong qty",
+                                              actual_qty, None,
+                                              st.session_state.notes.get(lid))
                                 st.rerun()
                             if st.session_state.auth:
-                                if st.button("💾 Update on BrickLink", key=f"update_{lid}", use_container_width=True):
+                                if st.button("💾 Update on BrickLink",
+                                             key=f"update_{lid}",
+                                             use_container_width=True):
                                     try:
                                         auth = make_auth(*st.session_state.auth)
                                         update_quantity_on_bricklink(auth, lid, actual_qty)
                                         st.session_state.flagged[lid] = {
                                             "reason": "Qty updated ✓",
-                                            "actual_qty": actual_qty,
-                                        }
+                                            "actual_qty": actual_qty}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id") == lid:
                                                 x["quantity"] = actual_qty
-                                        save_progress_to_db(lid, "flagged", "Qty updated ✓", actual_qty, None)
+                                        save_progress(lid, "flagged",
+                                                      "Qty updated ✓", actual_qty,
+                                                      None,
+                                                      st.session_state.notes.get(lid))
                                         st.success("Updated on BrickLink!")
                                         st.rerun()
                                     except Exception as e:
@@ -511,35 +648,41 @@ for group_name, group_items in groupby(inv, key=get_group):
                                 f"Correct bin (current: {remarks or 'none'})",
                                 key=f"bin_{lid}"
                             )
-                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                            if st.button("Save flag", key=f"saveflag_{lid}",
+                                         use_container_width=True):
                                 st.session_state.flagged[lid] = {
-                                    "reason": "Wrong bin",
-                                    "correct_bin": correct_bin,
-                                }
-                                save_progress_to_db(lid, "flagged", "Wrong bin", None, correct_bin)
+                                    "reason": "Wrong bin", "correct_bin": correct_bin}
+                                save_progress(lid, "flagged", "Wrong bin", None,
+                                              correct_bin,
+                                              st.session_state.notes.get(lid))
                                 st.rerun()
                             if st.session_state.auth and correct_bin:
-                                if st.button("💾 Update on BrickLink", key=f"updatebin_{lid}", use_container_width=True):
+                                if st.button("💾 Update on BrickLink",
+                                             key=f"updatebin_{lid}",
+                                             use_container_width=True):
                                     try:
                                         auth = make_auth(*st.session_state.auth)
                                         update_remarks_on_bricklink(auth, lid, correct_bin)
                                         st.session_state.flagged[lid] = {
                                             "reason": "Bin updated ✓",
-                                            "correct_bin": correct_bin,
-                                        }
+                                            "correct_bin": correct_bin}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id") == lid:
                                                 x["remarks"] = correct_bin
-                                        save_progress_to_db(lid, "flagged", "Bin updated ✓", None, correct_bin)
+                                        save_progress(lid, "flagged",
+                                                      "Bin updated ✓", None,
+                                                      correct_bin,
+                                                      st.session_state.notes.get(lid))
                                         st.success("Bin updated on BrickLink!")
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Failed: {e}")
-
                         else:
-                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                            if st.button("Save flag", key=f"saveflag_{lid}",
+                                         use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason": "Wrong part"}
-                                save_progress_to_db(lid, "flagged", "Wrong part", None, None)
+                                save_progress(lid, "flagged", "Wrong part", None, None,
+                                              st.session_state.notes.get(lid))
                                 st.rerun()
 
     st.divider()
