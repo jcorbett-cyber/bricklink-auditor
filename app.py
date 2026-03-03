@@ -18,8 +18,23 @@ html, body, [class*="css"] {
   font-family: 'Inter', sans-serif !important;
 }
 .block-container {
-  padding-top: 1.5rem;
+  padding-top: 0rem !important;
   background: transparent;
+}
+header[data-testid="stHeader"] {
+  background: transparent !important;
+  height: 0rem !important;
+}
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+button[data-testid="collapsedControl"] {
+  display: none !important;
+}
+[data-testid="stSidebarCollapseButton"] {
+  display: none !important;
+}
+span.sidebar-collapse-icon {
+  display: none !important;
 }
 
 /* ── Sidebar ── */
