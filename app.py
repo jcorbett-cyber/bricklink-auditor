@@ -5,6 +5,7 @@ import pandas as pd
 from itertools import groupby
 from supabase import create_client
 from datetime import datetime
+import time
 
 st.set_page_config(page_title="Brick Audit", page_icon="🧱", layout="wide")
 
@@ -16,6 +17,7 @@ st.markdown("""
 .part-card.flagged { border-color:#f38ba8; background:#2e1a1a; }
 .part-card.lowstock { border-color:#fab387; background:#2e2010; }
 .part-card.highlight { border-color:#f9e2af; background:#2e2a10; box-shadow:0 0 12px #f9e2af88; }
+.part-card.overpriced { border-color:#f38ba8; background:#2e1a2e; }
 .part-img { width:100%; max-height:110px; object-fit:contain; margin-bottom:8px; }
 .part-name { font-size:0.8rem; color:#cdd6f4; font-weight:700; margin-bottom:3px; }
 .part-meta { font-size:0.72rem; color:#a6adc8; }
@@ -25,6 +27,7 @@ st.markdown("""
 .badge-found { background:#a6e3a1; color:#1e1e2e; }
 .badge-flagged { background:#f38ba8; color:#1e1e2e; }
 .badge-low { background:#fab387; color:#1e1e2e; }
+.badge-over { background:#cba6f7; color:#1e1e2e; }
 .bin-header { background:#181825; border-left:4px solid #cba6f7; border-radius:8px; padding:10px 16px; margin:18px 0 10px 0; }
 .bin-title { font-size:1.1rem; font-weight:800; color:#cba6f7; margin:0; }
 .bin-stats { font-size:0.78rem; color:#a6adc8; margin:2px 0 0 0; }
@@ -44,6 +47,9 @@ st.markdown("""
 
 LOGO                = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/iTunesArtwork%402x.png"
 LOW_STOCK_THRESHOLD = 2
+PRICE_FLAG_PCT      = 25  # flag if more than 25% above market
+MARKUP              = 1.25
+SALE_DISCOUNT       = 0.70
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 try:
@@ -72,6 +78,8 @@ for key, default in [
     ("show_bulk_confirm", False),
     ("scan_query", ""),
     ("page", "audit"),
+    ("price_cache", {}),
+    ("price_results", []),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -107,6 +115,29 @@ def update_remarks_on_bricklink(auth, inventory_id, new_remarks):
     if data.get("meta", {}).get("code") != 200:
         raise ValueError(data.get("meta", {}).get("description", "Update failed"))
     return True
+
+def update_price_on_bricklink(auth, inventory_id, new_price):
+    r = requests.put(f"{BASE}/inventories/{inventory_id}", auth=auth,
+                     json={"unit_price": str(new_price)}, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    if data.get("meta", {}).get("code") != 200:
+        raise ValueError(data.get("meta", {}).get("description", "Price update failed"))
+    return True
+
+def fetch_price_guide(auth, part_no, color_id, condition="N"):
+    url    = f"{BASE}/items/part/{part_no}/price"
+    params = {"color_id": color_id, "guide_type": "sold", "new_or_used": condition}
+    r      = requests.get(url, auth=auth, params=params, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    if data.get("meta", {}).get("code") != 200:
+        return None
+    pg = data.get("data", {})
+    return {
+        "avg_price":     float(pg.get("avg_price", 0) or 0),
+        "qty_avg_price": float(pg.get("qty_avg_price", 0) or 0),
+    }
 
 # ── Supabase helpers ──────────────────────────────────────────────────────────
 def save_progress(inventory_id, status, flag_reason=None, actual_qty=None,
@@ -177,16 +208,12 @@ def save_audit_snapshot():
         total     = len(inv)
         n_checked = len(checked)
         n_flagged = len(flagged)
-
         val_checked   = sum(
             float(i.get("unit_price", 0) or 0) * int(i.get("quantity", 0) or 0)
-            for i in inv if i.get("inventory_id") in checked
-        )
+            for i in inv if i.get("inventory_id") in checked)
         val_unchecked = sum(
             float(i.get("unit_price", 0) or 0) * int(i.get("quantity", 0) or 0)
-            for i in inv if i.get("inventory_id") not in checked
-        )
-
+            for i in inv if i.get("inventory_id") not in checked)
         discrepancies = []
         for i in inv:
             lid  = i.get("inventory_id")
@@ -200,19 +227,18 @@ def save_audit_snapshot():
                     "actual_qty":   flag.get("actual_qty"),
                     "correct_bin":  flag.get("correct_bin", ""),
                 })
-
         supabase.table("audit_history").insert({
-            "audit_date":           datetime.now().isoformat(),
-            "total_lots":           total,
-            "total_checked":        n_checked,
-            "total_flagged":        n_flagged,
-            "total_value_checked":  round(val_checked, 2),
-            "total_value_unchecked":round(val_unchecked, 2),
-            "discrepancies":        discrepancies,
+            "audit_date":            datetime.now().isoformat(),
+            "total_lots":            total,
+            "total_checked":         n_checked,
+            "total_flagged":         n_flagged,
+            "total_value_checked":   round(val_checked, 2),
+            "total_value_unchecked": round(val_unchecked, 2),
+            "discrepancies":         discrepancies,
         }).execute()
         return True
     except Exception as e:
-        st.warning(f"Could not save audit snapshot: {e}")
+        st.warning(f"Could not save snapshot: {e}")
         return False
 
 def load_audit_history():
@@ -223,8 +249,41 @@ def load_audit_history():
             "audit_date", desc=True).execute()
         return result.data
     except Exception as e:
-        st.warning(f"Could not load audit history: {e}")
+        st.warning(f"Could not load history: {e}")
         return []
+
+def load_price_cache():
+    if not DB_LOADED:
+        return {}
+    try:
+        result = supabase.table("price_cache").select("*").execute()
+        cache  = {}
+        for row in result.data:
+            key        = f"{row['part_no']}_{row['color_id']}_{row['condition']}"
+            cache[key] = {
+                "avg_price":     row["avg_price"],
+                "qty_avg_price": row["qty_avg_price"],
+                "last_fetched":  row["last_fetched"],
+            }
+        return cache
+    except Exception as e:
+        st.warning(f"Could not load price cache: {e}")
+        return {}
+
+def save_price_to_cache(part_no, color_id, condition, avg_price, qty_avg_price):
+    if not DB_LOADED:
+        return
+    try:
+        supabase.table("price_cache").upsert({
+            "part_no":       part_no,
+            "color_id":      color_id,
+            "condition":     condition,
+            "avg_price":     avg_price,
+            "qty_avg_price": qty_avg_price,
+            "last_fetched":  datetime.now().isoformat(),
+        }, on_conflict="part_no,color_id,condition").execute()
+    except Exception as e:
+        st.warning(f"Could not save price cache: {e}")
 
 # ── Bulk push helpers ─────────────────────────────────────────────────────────
 def get_pushable_flags():
@@ -302,14 +361,17 @@ with st.sidebar:
 
     st.divider()
     st.markdown("### 📄 Pages")
-    if st.button("🧱 Audit",          use_container_width=True):
+    if st.button("🧱 Audit",         use_container_width=True):
         st.session_state.page = "audit"
         st.rerun()
-    if st.button("📊 Summary",        use_container_width=True):
+    if st.button("📊 Summary",       use_container_width=True):
         st.session_state.page = "summary"
         st.rerun()
-    if st.button("📅 Audit History",  use_container_width=True):
+    if st.button("📅 Audit History", use_container_width=True):
         st.session_state.page = "history"
+        st.rerun()
+    if st.button("💲 Price Checker", use_container_width=True):
+        st.session_state.page = "prices"
         st.rerun()
 
     st.divider()
@@ -321,8 +383,7 @@ with st.sidebar:
                                         "⬜ Not yet found", "🔴 Low stock"])
         all_remarks = sorted(set(
             i.get("remarks", "") or "(no remarks)"
-            for i in st.session_state.inventory
-        ))
+            for i in st.session_state.inventory))
         remarks_filter = "All"
         if len(all_remarks) > 1:
             remarks_filter = st.selectbox("📦 Jump to bin", ["All"] + all_remarks)
@@ -423,9 +484,10 @@ if load_btn:
         if DB_LOADED and st.session_state.loaded:
             with st.spinner("Restoring saved progress…"):
                 checked, flagged, notes = load_progress()
-                st.session_state.checked = checked
-                st.session_state.flagged = flagged
-                st.session_state.notes   = notes
+                st.session_state.checked     = checked
+                st.session_state.flagged     = flagged
+                st.session_state.notes       = notes
+                st.session_state.price_cache = load_price_cache()
                 if checked or flagged:
                     st.success(f"✅ Restored {len(checked)} checked, {len(flagged)} flagged!")
                 else:
@@ -453,21 +515,17 @@ if st.session_state.page == "summary":
     total     = len(inv)
     n_checked = len(checked)
     n_flagged = len(flagged)
-    n_remain  = total - n_checked - n_flagged
     pct       = int(n_checked / total * 100) if total else 0
     low_lots  = [i for i in inv if 0 < i.get("quantity", 0) <= LOW_STOCK_THRESHOLD]
 
     val_checked   = sum(
         float(i.get("unit_price", 0) or 0) * int(i.get("quantity", 0) or 0)
-        for i in inv if i.get("inventory_id") in checked
-    )
+        for i in inv if i.get("inventory_id") in checked)
     val_unchecked = sum(
         float(i.get("unit_price", 0) or 0) * int(i.get("quantity", 0) or 0)
-        for i in inv if i.get("inventory_id") not in checked
-    )
+        for i in inv if i.get("inventory_id") not in checked)
     val_total = val_checked + val_unchecked
 
-    # ── Metric cards ──
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown(f"""<div class="metric-card">
@@ -491,8 +549,6 @@ if st.session_state.page == "summary":
         </div>""", unsafe_allow_html=True)
 
     st.divider()
-
-    # ── Value tracking ──
     st.subheader("💰 Inventory Value Tracking")
     v1, v2, v3 = st.columns(3)
     with v1:
@@ -512,22 +568,19 @@ if st.session_state.page == "summary":
         </div>""", unsafe_allow_html=True)
 
     st.divider()
-
-    # ── Progress by bin ──
     st.subheader("📦 Progress by Bin")
     bin_data = []
     for bin_name, lots in groupby(
         sorted(inv, key=lambda x: x.get("remarks", "") or ""),
         key=lambda x: x.get("remarks", "") or "(no remarks)"
     ):
-        lots        = list(lots)
-        b_total     = len(lots)
-        b_checked   = sum(1 for x in lots if x.get("inventory_id") in checked)
-        b_flagged   = sum(1 for x in lots if x.get("inventory_id") in flagged)
-        b_val       = sum(
+        lots      = list(lots)
+        b_total   = len(lots)
+        b_checked = sum(1 for x in lots if x.get("inventory_id") in checked)
+        b_flagged = sum(1 for x in lots if x.get("inventory_id") in flagged)
+        b_val     = sum(
             float(x.get("unit_price", 0) or 0) * int(x.get("quantity", 0) or 0)
-            for x in lots
-        )
+            for x in lots)
         bin_data.append({
             "Bin":        bin_name,
             "Total Lots": b_total,
@@ -540,8 +593,6 @@ if st.session_state.page == "summary":
     st.dataframe(pd.DataFrame(bin_data), use_container_width=True, hide_index=True)
 
     st.divider()
-
-    # ── Flagged lots detail ──
     if n_flagged:
         st.subheader("🚩 Flagged Lots Detail")
         flag_rows = []
@@ -563,8 +614,6 @@ if st.session_state.page == "summary":
         st.dataframe(pd.DataFrame(flag_rows), use_container_width=True, hide_index=True)
 
     st.divider()
-
-    # ── Low stock detail ──
     if low_lots:
         st.subheader("🔴 Low Stock Lots")
         st.dataframe(pd.DataFrame([{
@@ -575,7 +624,6 @@ if st.session_state.page == "summary":
             "Quantity": i.get("quantity", 0),
             "Price":    f"${i.get('unit_price', '')}",
         } for i in low_lots]), use_container_width=True, hide_index=True)
-
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -584,29 +632,25 @@ if st.session_state.page == "summary":
 if st.session_state.page == "history":
     st.header("📅 Audit History")
     history = load_audit_history()
-
     if not history:
-        st.info("No audit snapshots saved yet. Complete an audit and click **📸 Save Audit Snapshot** in the sidebar to record it.")
+        st.info("No snapshots yet. Click **📸 Save Audit Snapshot** in the sidebar after an audit.")
         st.stop()
 
-    # ── Summary table ──
     st.subheader("Past Audits")
     df_hist = pd.DataFrame([{
-        "Date":             h["audit_date"][:16].replace("T", " "),
-        "Total Lots":       h["total_lots"],
-        "Checked":          h["total_checked"],
-        "Flagged":          h["total_flagged"],
-        "% Complete":       int(h["total_checked"] / h["total_lots"] * 100)
-                            if h["total_lots"] else 0,
-        "Value Checked":    f"${h['total_value_checked']:,.2f}",
-        "Value Remaining":  f"${h['total_value_unchecked']:,.2f}",
+        "Date":            h["audit_date"][:16].replace("T", " "),
+        "Total Lots":      h["total_lots"],
+        "Checked":         h["total_checked"],
+        "Flagged":         h["total_flagged"],
+        "% Complete":      int(h["total_checked"] / h["total_lots"] * 100)
+                           if h["total_lots"] else 0,
+        "Value Checked":   f"${h['total_value_checked']:,.2f}",
+        "Value Remaining": f"${h['total_value_unchecked']:,.2f}",
     } for h in history])
     st.dataframe(df_hist, use_container_width=True, hide_index=True)
 
-    st.divider()
-
-    # ── Trend chart ──
     if len(history) > 1:
+        st.divider()
         st.subheader("📈 Audit Completion Over Time")
         chart_data = pd.DataFrame([{
             "Date":       h["audit_date"][:10],
@@ -617,17 +661,14 @@ if st.session_state.page == "history":
         st.line_chart(chart_data.set_index("Date"))
 
     st.divider()
-
-    # ── Drill into a specific audit ──
     st.subheader("🔎 Drill into an audit")
     audit_labels = [h["audit_date"][:16].replace("T", " ") for h in history]
-    selected     = st.selectbox("Select an audit to review", audit_labels)
+    selected     = st.selectbox("Select an audit", audit_labels)
     selected_h   = history[audit_labels.index(selected)]
-
     col1, col2, col3 = st.columns(3)
+    pct = int(selected_h["total_checked"] / selected_h["total_lots"] * 100) \
+          if selected_h["total_lots"] else 0
     with col1:
-        pct = int(selected_h["total_checked"] / selected_h["total_lots"] * 100) \
-              if selected_h["total_lots"] else 0
         st.markdown(f"""<div class="metric-card">
           <div class="metric-value">{pct}%</div>
           <div class="metric-label">Complete</div>
@@ -642,13 +683,208 @@ if st.session_state.page == "history":
           <div class="metric-value" style="color:#a6e3a1">${selected_h['total_value_checked']:,.2f}</div>
           <div class="metric-label">Value Checked</div>
         </div>""", unsafe_allow_html=True)
-
     discreps = selected_h.get("discrepancies", [])
     if discreps:
-        st.markdown(f"**{len(discreps)} discrepancies recorded in this audit:**")
+        st.markdown(f"**{len(discreps)} discrepancies:**")
         st.dataframe(pd.DataFrame(discreps), use_container_width=True, hide_index=True)
     else:
-        st.success("No discrepancies recorded in this audit!")
+        st.success("No discrepancies recorded!")
+    st.stop()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: PRICE CHECKER
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.page == "prices":
+    st.header("💲 Price Checker")
+    st.caption(f"Flags lots priced more than {PRICE_FLAG_PCT}% above BrickLink market average. "
+               f"Your pricing strategy: +{int((MARKUP-1)*100)}% markup, "
+               f"{int((1-SALE_DISCOUNT)*100)}% sale = "
+               f"{int((MARKUP*SALE_DISCOUNT-1)*100):+d}% vs market.")
+
+    inv = st.session_state.inventory
+
+    # ── Controls ──
+    col_a, col_b, col_c = st.columns([2, 2, 1])
+    with col_a:
+        all_remarks = sorted(set(i.get("remarks", "") or "(no remarks)" for i in inv))
+        bin_select  = st.selectbox("Check prices for bin", ["All bins"] + all_remarks)
+    with col_b:
+        batch_size = st.selectbox("Batch size (lots per run)", [25, 50, 100], index=0)
+    with col_c:
+        force_refresh = st.checkbox("Force refresh cached prices")
+
+    if bin_select != "All bins":
+        lots_to_check = [i for i in inv
+                         if (i.get("remarks", "") or "(no remarks)") == bin_select]
+    else:
+        lots_to_check = inv
+
+    cached_count = sum(
+        1 for i in lots_to_check
+        if f"{i.get('item',{}).get('no','')}_{i.get('color_id',0)}_N"
+        in st.session_state.price_cache
+    )
+    st.caption(f"{len(lots_to_check)} lots selected · "
+               f"{cached_count} already cached · "
+               f"{len(lots_to_check)-cached_count} need fetching")
+
+    if st.button(f"🔍 Fetch prices for next {batch_size} uncached lots",
+                 type="primary", use_container_width=True):
+        auth      = make_auth(*st.session_state.auth)
+        to_fetch  = []
+        for lot in lots_to_check:
+            pno      = lot.get("item", {}).get("no", "")
+            color_id = lot.get("color_id", 0)
+            key      = f"{pno}_{color_id}_N"
+            if force_refresh or key not in st.session_state.price_cache:
+                to_fetch.append(lot)
+            if len(to_fetch) >= batch_size:
+                break
+
+        if not to_fetch:
+            st.success("All selected lots are already cached! "
+                       "Check 'Force refresh' to re-fetch.")
+        else:
+            progress_bar = st.progress(0)
+            status_text  = st.empty()
+            results      = []
+            for idx, lot in enumerate(to_fetch):
+                pno      = lot.get("item", {}).get("no", "")
+                color_id = lot.get("color_id", 0)
+                key      = f"{pno}_{color_id}_N"
+                status_text.text(f"Fetching {idx+1}/{len(to_fetch)}: {pno}…")
+                try:
+                    pg = fetch_price_guide(auth, pno, color_id, "N")
+                    if pg:
+                        st.session_state.price_cache[key] = pg
+                        save_price_to_cache(pno, color_id, "N",
+                                            pg["avg_price"], pg["qty_avg_price"])
+                except Exception:
+                    pass
+                progress_bar.progress((idx + 1) / len(to_fetch))
+                time.sleep(0.3)  # be kind to the API
+
+            status_text.text("Done!")
+            st.success(f"✅ Fetched prices for {len(to_fetch)} lots!")
+            st.rerun()
+
+    st.divider()
+
+    # ── Results table ──
+    rows = []
+    for lot in lots_to_check:
+        pno        = lot.get("item", {}).get("no", "")
+        color_id   = lot.get("color_id", 0)
+        key        = f"{pno}_{color_id}_N"
+        my_price   = float(lot.get("unit_price", 0) or 0)
+        cache_hit  = st.session_state.price_cache.get(key)
+        if not cache_hit:
+            continue
+        mkt_avg    = float(cache_hit.get("avg_price", 0) or 0)
+        mkt_qty    = float(cache_hit.get("qty_avg_price", 0) or 0)
+        if mkt_avg == 0:
+            continue
+        pct_diff   = ((my_price - mkt_avg) / mkt_avg) * 100
+        target     = round(mkt_avg * MARKUP * SALE_DISCOUNT, 4)
+        flagged    = pct_diff > PRICE_FLAG_PCT
+        rows.append({
+            "lot":       lot,
+            "pno":       pno,
+            "name":      lot.get("item", {}).get("name", ""),
+            "color":     lot.get("color_name", ""),
+            "bin":       lot.get("remarks", ""),
+            "my_price":  my_price,
+            "mkt_avg":   mkt_avg,
+            "mkt_qty":   mkt_qty,
+            "pct_diff":  pct_diff,
+            "target":    target,
+            "flagged":   flagged,
+            "lid":       lot.get("inventory_id"),
+        })
+
+    if rows:
+        flagged_rows   = [r for r in rows if r["flagged"]]
+        ok_rows        = [r for r in rows if not r["flagged"]]
+        price_tab1, price_tab2 = st.tabs([
+            f"🚩 Overpriced ({len(flagged_rows)})",
+            f"✅ OK ({len(ok_rows)})"
+        ])
+
+        def render_price_table(price_rows, tab):
+            with tab:
+                if not price_rows:
+                    st.success("Nothing to show here!")
+                    return
+                df = pd.DataFrame([{
+                    "Part #":       r["pno"],
+                    "Name":         r["name"],
+                    "Color":        r["color"],
+                    "Bin":          r["bin"],
+                    "My Price":     f"${r['my_price']:.4f}",
+                    "Market Avg":   f"${r['mkt_avg']:.4f}",
+                    "% vs Market":  f"{r['pct_diff']:+.1f}%",
+                    "Suggested":    f"${r['target']:.4f}",
+                } for r in price_rows])
+                st.dataframe(df, use_container_width=True, hide_index=True)
+
+                st.divider()
+                st.markdown("#### 💲 Update a price")
+                part_labels = [f"{r['pno']} — {r['name']} ({r['color']})"
+                               for r in price_rows]
+                selected_lbl = st.selectbox("Select lot to update",
+                                            part_labels, key=f"sel_{tab}")
+                selected_row = price_rows[part_labels.index(selected_lbl)]
+
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    new_price = st.number_input(
+                        f"New price (market avg: ${selected_row['mkt_avg']:.4f}, "
+                        f"suggested: ${selected_row['target']:.4f})",
+                        min_value=0.0001,
+                        value=float(selected_row["target"]),
+                        format="%.4f",
+                        key=f"newprice_{selected_row['lid']}"
+                    )
+                with col2:
+                    st.write("")
+                    st.write("")
+                    if st.button("💾 Update on BrickLink",
+                                 key=f"updateprice_{selected_row['lid']}",
+                                 use_container_width=True, type="primary"):
+                        try:
+                            auth = make_auth(*st.session_state.auth)
+                            update_price_on_bricklink(
+                                auth, selected_row["lid"], new_price)
+                            for x in st.session_state.inventory:
+                                if x.get("inventory_id") == selected_row["lid"]:
+                                    x["unit_price"] = str(new_price)
+                            st.success(f"✅ Price updated to ${new_price:.4f}!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Failed: {e}")
+
+        render_price_table(flagged_rows, price_tab1)
+        render_price_table(ok_rows,      price_tab2)
+
+        st.divider()
+        st.markdown("#### 📥 Export price report")
+        df_export = pd.DataFrame([{
+            "Part #":      r["pno"],
+            "Name":        r["name"],
+            "Color":       r["color"],
+            "Bin":         r["bin"],
+            "My Price":    r["my_price"],
+            "Market Avg":  r["mkt_avg"],
+            "% vs Market": round(r["pct_diff"], 1),
+            "Suggested":   r["target"],
+            "Flagged":     "Yes" if r["flagged"] else "No",
+        } for r in rows])
+        st.download_button("📥 Download Price Report CSV",
+                           df_export.to_csv(index=False),
+                           "price_report.csv", "text/csv",
+                           use_container_width=True)
+    else:
+        st.info("No cached prices yet — fetch some lots above to see results here.")
 
     st.stop()
 
@@ -683,7 +919,8 @@ if st.session_state.show_bulk_confirm:
         } for p in pushable]), use_container_width=True, hide_index=True)
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("✅ Confirm — push all", type="primary", use_container_width=True):
+            if st.button("✅ Confirm — push all", type="primary",
+                         use_container_width=True):
                 auth = make_auth(*st.session_state.auth)
                 with st.spinner("Pushing…"):
                     results = push_all_flags(auth)
@@ -746,8 +983,10 @@ COLS = 6
 for group_name, group_items in groupby(inv, key=get_group):
     group_lots  = list(group_items)
     bin_total   = len(group_lots)
-    bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
-    bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
+    bin_found   = sum(1 for x in group_lots
+                      if x.get("inventory_id") in st.session_state.checked)
+    bin_flagged = sum(1 for x in group_lots
+                      if x.get("inventory_id") in st.session_state.flagged)
     bin_pct     = int(bin_found / bin_total * 100) if bin_total else 0
 
     col_title, col_btn = st.columns([4, 1])
@@ -765,7 +1004,8 @@ for group_name, group_items in groupby(inv, key=get_group):
             for x in group_lots:
                 lid = x.get("inventory_id")
                 st.session_state.checked.add(lid)
-                save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
+                save_progress(lid, "checked",
+                              notes=st.session_state.notes.get(lid))
             st.rerun()
 
     for row_start in range(0, len(group_lots), COLS):
@@ -790,9 +1030,18 @@ for group_name, group_items in groupby(inv, key=get_group):
             flag_info  = st.session_state.flagged.get(lid, {})
             note_val   = st.session_state.notes.get(lid, "")
 
+            price_key  = f"{pno}_{color_id}_N"
+            price_data = st.session_state.price_cache.get(price_key)
+            is_over    = False
+            if price_data and float(price or 0) > 0:
+                mkt = float(price_data.get("avg_price", 0) or 0)
+                if mkt > 0:
+                    is_over = ((float(price) - mkt) / mkt * 100) > PRICE_FLAG_PCT
+
             if is_scan:       card_cls = "part-card highlight"
             elif is_flagged:  card_cls = "part-card flagged"
             elif is_found:    card_cls = "part-card found"
+            elif is_over:     card_cls = "part-card overpriced"
             elif is_low:      card_cls = "part-card lowstock"
             else:             card_cls = "part-card"
 
@@ -802,6 +1051,9 @@ for group_name, group_items in groupby(inv, key=get_group):
             elif is_found:
                 badge_cls = "badge-found"
                 badge_lbl = "✅ Found"
+            elif is_over:
+                badge_cls = "badge-over"
+                badge_lbl = "💲 Overpriced"
             elif is_low:
                 badge_cls = "badge-low"
                 badge_lbl = f"🔴 Low ({qty})"
@@ -824,19 +1076,23 @@ for group_name, group_items in groupby(inv, key=get_group):
                 </div>""", unsafe_allow_html=True)
 
                 if is_flagged:
-                    if col.button("↩ Unflag", key=f"unflag_{lid}", use_container_width=True):
+                    if col.button("↩ Unflag", key=f"unflag_{lid}",
+                                  use_container_width=True):
                         del st.session_state.flagged[lid]
                         delete_progress(lid)
                         st.rerun()
                 elif is_found:
-                    if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
+                    if col.button("Unmark", key=f"unmark_{lid}",
+                                  use_container_width=True):
                         st.session_state.checked.discard(lid)
                         delete_progress(lid)
                         st.rerun()
                 else:
-                    if col.button("✓ Found", key=f"found_{lid}", use_container_width=True):
+                    if col.button("✓ Found", key=f"found_{lid}",
+                                  use_container_width=True):
                         st.session_state.checked.add(lid)
-                        save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
+                        save_progress(lid, "checked",
+                                      notes=st.session_state.notes.get(lid))
                         st.rerun()
 
                 with col.expander("📝 Note"):
@@ -851,15 +1107,16 @@ for group_name, group_items in groupby(inv, key=get_group):
                                   "flagged" if is_flagged else "unchecked")
                         flag   = st.session_state.flagged.get(lid, {})
                         save_progress(lid, status, flag.get("reason"),
-                                      flag.get("actual_qty"), flag.get("correct_bin"),
-                                      new_note)
+                                      flag.get("actual_qty"),
+                                      flag.get("correct_bin"), new_note)
                         st.rerun()
 
                 if not is_found and not is_flagged:
                     with col.expander("🚩 Flag issue"):
-                        reason = st.radio("Issue type",
-                                          ["Wrong quantity", "Wrong part in bin", "Wrong bin"],
-                                          key=f"reason_{lid}")
+                        reason = st.radio(
+                            "Issue type",
+                            ["Wrong quantity", "Wrong part in bin", "Wrong bin"],
+                            key=f"reason_{lid}")
                         if reason == "Wrong quantity":
                             actual_qty = st.number_input(
                                 f"Actual qty (listed: {qty})",
@@ -868,17 +1125,20 @@ for group_name, group_items in groupby(inv, key=get_group):
                                          use_container_width=True):
                                 st.session_state.flagged[lid] = {
                                     "reason": "Wrong qty", "actual_qty": actual_qty}
-                                save_progress(lid, "flagged", "Wrong qty", actual_qty,
-                                              None, st.session_state.notes.get(lid))
+                                save_progress(lid, "flagged", "Wrong qty",
+                                              actual_qty, None,
+                                              st.session_state.notes.get(lid))
                                 st.rerun()
                             if st.session_state.auth:
-                                if st.button("💾 Update on BrickLink", key=f"update_{lid}",
+                                if st.button("💾 Update on BrickLink",
+                                             key=f"update_{lid}",
                                              use_container_width=True):
                                     try:
                                         auth = make_auth(*st.session_state.auth)
                                         update_quantity_on_bricklink(auth, lid, actual_qty)
                                         st.session_state.flagged[lid] = {
-                                            "reason": "Qty updated ✓", "actual_qty": actual_qty}
+                                            "reason": "Qty updated ✓",
+                                            "actual_qty": actual_qty}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id") == lid:
                                                 x["quantity"] = actual_qty
@@ -898,16 +1158,19 @@ for group_name, group_items in groupby(inv, key=get_group):
                                 st.session_state.flagged[lid] = {
                                     "reason": "Wrong bin", "correct_bin": correct_bin}
                                 save_progress(lid, "flagged", "Wrong bin", None,
-                                              correct_bin, st.session_state.notes.get(lid))
+                                              correct_bin,
+                                              st.session_state.notes.get(lid))
                                 st.rerun()
                             if st.session_state.auth and correct_bin:
-                                if st.button("💾 Update on BrickLink", key=f"updatebin_{lid}",
+                                if st.button("💾 Update on BrickLink",
+                                             key=f"updatebin_{lid}",
                                              use_container_width=True):
                                     try:
                                         auth = make_auth(*st.session_state.auth)
                                         update_remarks_on_bricklink(auth, lid, correct_bin)
                                         st.session_state.flagged[lid] = {
-                                            "reason": "Bin updated ✓", "correct_bin": correct_bin}
+                                            "reason": "Bin updated ✓",
+                                            "correct_bin": correct_bin}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id") == lid:
                                                 x["remarks"] = correct_bin
