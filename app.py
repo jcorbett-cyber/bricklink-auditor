@@ -6,10 +6,11 @@ from itertools import groupby
 from supabase import create_client
 from datetime import datetime
 import time
+import re
 
 st.set_page_config(page_title="Brick Audit", page_icon="🧱", layout="wide")
 
-# ── Lucide icon helper (HTML only — never inside st.button) ───────────────────
+# ── Lucide icon helper ────────────────────────────────────────────────────────
 def icon(name, size=16, color="currentColor"):
     icons = {
         "package":        '<path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
@@ -17,7 +18,6 @@ def icon(name, size=16, color="currentColor"):
         "calendar":       '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
         "tag":            '<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
         "key":            '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
-        "refresh-cw":     '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>',
         "sliders":        '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
         "archive":        '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
         "activity":       '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
@@ -37,6 +37,9 @@ def icon(name, size=16, color="currentColor"):
         "layers":         '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
         "search":         '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
         "flag":           '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+        "grid":           '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
+        "box":            '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>',
+        "refresh-cw":     '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>',
     }
     paths = icons.get(name, "")
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
@@ -74,11 +77,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   box-shadow: 0 4px 15px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.2);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.part-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-  border-color: #2a3f5f;
-}
+.part-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.4); border-color: #2a3f5f; }
 .part-card.found { background: linear-gradient(145deg, #0d2818, #112d1c); border-color: #2d6a4f; }
 .part-card.found:hover { border-color: #40916c; box-shadow: 0 8px 25px rgba(45,106,79,0.3); }
 .part-card.flagged { background: linear-gradient(145deg, #2d0d1a, #331220); border-color: #7f1d35; }
@@ -116,6 +115,25 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 }
 .bin-title { font-size:1rem; font-weight:700; color:#a78bfa; margin:0; letter-spacing:0.02em; }
 .bin-stats { font-size:0.72rem; color:#475569; margin:3px 0 0 0; font-weight:500; }
+
+.zone-card {
+  background:linear-gradient(145deg,#161b27,#1a2235);
+  border:1px solid #1e2d45; border-radius:16px;
+  padding:16px; text-align:center; margin-bottom:8px;
+  box-shadow:0 4px 15px rgba(0,0,0,0.25);
+  transition:transform 0.15s ease, box-shadow 0.15s ease;
+  cursor:pointer;
+}
+.zone-card:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(0,0,0,0.35); border-color:#6d28d9; }
+.zone-card-value { font-size:1.6rem; font-weight:800; color:#a78bfa; }
+.zone-card-label { font-size:0.7rem; color:#475569; margin-top:4px; text-transform:uppercase; letter-spacing:0.06em; font-weight:600; }
+
+.restock-table-header {
+  background:linear-gradient(135deg,#2d1a08,#331f0c);
+  border-left:3px solid #fb923c; border-radius:12px;
+  padding:12px 20px; margin:20px 0 10px 0;
+}
+.restock-title { font-size:1rem; font-weight:700; color:#fb923c; margin:0; }
 
 .scan-bar {
   background:linear-gradient(135deg,#161b27,#1a2235);
@@ -227,6 +245,28 @@ LOW_STOCK_THRESHOLD = 2
 PRICE_FLAG_PCT      = 25
 MARKUP              = 1.25
 SALE_DISCOUNT       = 0.70
+
+# ── Zone detection ────────────────────────────────────────────────────────────
+def detect_zone(remarks):
+    if not remarks:
+        return "other"
+    r = remarks.strip()
+    if r.upper().startswith("TUB"):
+        return "tub"
+    if r.upper().startswith("TRAY"):
+        return "tray"
+    if len(r) >= 2 and r[:2].isalpha() and r[:2].isupper():
+        return "bin"
+    return "other"
+
+def get_bin_code(remarks):
+    if not remarks: return ""
+    return remarks.strip()[:2].upper()
+
+def get_zone_number(remarks):
+    if not remarks: return ""
+    parts = remarks.strip().split()
+    return parts[1] if len(parts) > 1 else ""
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 try:
@@ -458,6 +498,143 @@ def push_all_flags(auth):
             results["failed"].append({**item, "error": str(e)})
     return results
 
+# ── Card renderer (shared between Audit and Stockroom) ────────────────────────
+def render_card_grid(lots, cols_count, show_flag_controls=True):
+    for row_start in range(0, len(lots), cols_count):
+        row_items = lots[row_start:row_start+cols_count]
+        cols      = st.columns(cols_count)
+        for col, lot in zip(cols, row_items):
+            lid       = lot.get("inventory_id", "unknown")
+            item      = lot.get("item", {})
+            pno       = item.get("no", "")
+            pname     = item.get("name", "N/A")
+            color     = lot.get("color_name", "")
+            color_id  = lot.get("color_id", 0)
+            qty       = lot.get("quantity", 0)
+            price     = lot.get("unit_price", "")
+            remarks   = lot.get("remarks", "")
+            cond      = "New" if lot.get("new_or_used") == "N" else "Used"
+            is_found  = lid in st.session_state.checked
+            is_flagged= lid in st.session_state.flagged
+            is_low    = 0 < qty <= LOW_STOCK_THRESHOLD
+            flag_info = st.session_state.flagged.get(lid, {})
+            note_val  = st.session_state.notes.get(lid, "")
+
+            price_data = st.session_state.price_cache.get(f"{pno}_{color_id}_N")
+            is_over    = False
+            if price_data and float(price or 0) > 0:
+                mkt = float(price_data.get("avg_price",0) or 0)
+                if mkt > 0: is_over = ((float(price)-mkt)/mkt*100) > PRICE_FLAG_PCT
+
+            if is_flagged:   card_cls = "part-card flagged"
+            elif is_found:   card_cls = "part-card found"
+            elif is_over:    card_cls = "part-card overpriced"
+            elif is_low:     card_cls = "part-card lowstock"
+            else:            card_cls = "part-card"
+
+            if is_flagged:
+                b_cls, b_svg, b_lbl = "badge-flagged", icon("alert-circle",10,"#fb7185"), flag_info.get("reason","Flagged")
+            elif is_found:
+                b_cls, b_svg, b_lbl = "badge-found",   icon("check-circle",10,"#4ade80"), "Found"
+            elif is_over:
+                b_cls, b_svg, b_lbl = "badge-over",    icon("trending-up",10,"#a78bfa"),  "Overpriced"
+            elif is_low:
+                b_cls, b_svg, b_lbl = "badge-low",     icon("alert-triangle",10,"#fb923c"), f"Low ({qty})"
+            else:
+                b_cls = "badge-n" if cond == "New" else "badge-u"
+                b_svg, b_lbl = "", cond
+
+            note_html = (f'<div class="part-meta" style="margin-top:4px;color:#f59e0b;">'
+                         f'{icon("file-text",10,"#f59e0b")} {note_val[:20]}</div>'
+                         if note_val else "")
+
+            with col:
+                st.markdown(
+                    f'<div class="{card_cls}">'
+                    f'<img class="part-img" src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" '
+                    f'onerror="this.style.opacity=\'0.15\'"/>'
+                    f'<div class="part-name">{pno}</div>'
+                    f'<div class="part-meta">{pname[:26] if not is_mobile else pname[:18]}</div>'
+                    f'<div class="part-meta">{color} · ×{qty}</div>'
+                    f'<div class="part-meta">${price}</div>'
+                    f'<span class="badge {b_cls}">{b_svg}{b_lbl}</span>'
+                    f'{note_html}</div>', unsafe_allow_html=True)
+
+                if is_flagged:
+                    if col.button("Unflag", key=f"unflag_{lid}", use_container_width=True):
+                        del st.session_state.flagged[lid]; delete_progress(lid); st.rerun()
+                elif is_found:
+                    if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
+                        st.session_state.checked.discard(lid); delete_progress(lid); st.rerun()
+                else:
+                    if col.button("Found", key=f"found_{lid}", use_container_width=True):
+                        st.session_state.checked.add(lid)
+                        save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
+                        st.rerun()
+
+                with col.expander("Note"):
+                    new_note = st.text_area("Note", value=note_val, key=f"note_{lid}",
+                                            height=80, label_visibility="collapsed",
+                                            placeholder="e.g. found in back of bin…")
+                    if st.button("Save note", key=f"savenote_{lid}", use_container_width=True):
+                        st.session_state.notes[lid] = new_note
+                        flag   = st.session_state.flagged.get(lid, {})
+                        status = "checked" if is_found else "flagged" if is_flagged else "unchecked"
+                        save_progress(lid, status, flag.get("reason"), flag.get("actual_qty"),
+                                      flag.get("correct_bin"), new_note)
+                        st.rerun()
+
+                if show_flag_controls and not is_found and not is_flagged:
+                    with col.expander("Flag issue"):
+                        reason = st.radio("Issue type",
+                                          ["Wrong quantity","Wrong part in bin","Wrong bin"],
+                                          key=f"reason_{lid}")
+                        if reason == "Wrong quantity":
+                            actual_qty = st.number_input(f"Actual qty (listed: {qty})",
+                                                          min_value=0, value=qty, key=f"qty_{lid}")
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                                st.session_state.flagged[lid] = {"reason":"Wrong qty","actual_qty":actual_qty}
+                                save_progress(lid,"flagged","Wrong qty",actual_qty,None,
+                                              st.session_state.notes.get(lid)); st.rerun()
+                            if st.session_state.auth:
+                                if st.button("Update on BrickLink", key=f"update_{lid}",
+                                             use_container_width=True, type="primary"):
+                                    try:
+                                        update_quantity_on_bricklink(
+                                            make_auth(*st.session_state.auth), lid, actual_qty)
+                                        st.session_state.flagged[lid] = {"reason":"Qty updated","actual_qty":actual_qty}
+                                        for x in st.session_state.inventory:
+                                            if x.get("inventory_id")==lid: x["quantity"]=actual_qty
+                                        save_progress(lid,"flagged","Qty updated",actual_qty,None,
+                                                      st.session_state.notes.get(lid))
+                                        st.success("Updated"); st.rerun()
+                                    except Exception as e: st.error(f"Failed: {e}")
+                        elif reason == "Wrong bin":
+                            correct_bin = st.text_input(
+                                f"Correct bin (current: {remarks or 'none'})", key=f"bin_{lid}")
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                                st.session_state.flagged[lid] = {"reason":"Wrong bin","correct_bin":correct_bin}
+                                save_progress(lid,"flagged","Wrong bin",None,correct_bin,
+                                              st.session_state.notes.get(lid)); st.rerun()
+                            if st.session_state.auth and correct_bin:
+                                if st.button("Update on BrickLink", key=f"updatebin_{lid}",
+                                             use_container_width=True, type="primary"):
+                                    try:
+                                        update_remarks_on_bricklink(
+                                            make_auth(*st.session_state.auth), lid, correct_bin)
+                                        st.session_state.flagged[lid] = {"reason":"Bin updated","correct_bin":correct_bin}
+                                        for x in st.session_state.inventory:
+                                            if x.get("inventory_id")==lid: x["remarks"]=correct_bin
+                                        save_progress(lid,"flagged","Bin updated",None,correct_bin,
+                                                      st.session_state.notes.get(lid))
+                                        st.success("Bin updated"); st.rerun()
+                                    except Exception as e: st.error(f"Failed: {e}")
+                        else:
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                                st.session_state.flagged[lid] = {"reason":"Wrong part"}
+                                save_progress(lid,"flagged","Wrong part",None,None,
+                                              st.session_state.notes.get(lid)); st.rerun()
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.image(LOGO, width=200)
@@ -478,13 +655,15 @@ with st.sidebar:
     st.markdown(f'<div class="section-label">{ic("package")} Pages</div>',
                 unsafe_allow_html=True)
     if st.button("Audit",         use_container_width=True):
-        st.session_state.page = "audit";   st.rerun()
+        st.session_state.page = "audit";     st.rerun()
     if st.button("Summary",       use_container_width=True):
-        st.session_state.page = "summary"; st.rerun()
+        st.session_state.page = "summary";   st.rerun()
+    if st.button("Stockroom",     use_container_width=True):
+        st.session_state.page = "stockroom"; st.rerun()
     if st.button("Audit History", use_container_width=True):
-        st.session_state.page = "history"; st.rerun()
+        st.session_state.page = "history";   st.rerun()
     if st.button("Price Checker", use_container_width=True):
-        st.session_state.page = "prices";  st.rerun()
+        st.session_state.page = "prices";    st.rerun()
 
     st.divider()
     if st.session_state.page == "audit":
@@ -612,8 +791,7 @@ if not st.session_state.loaded:
 if st.session_state.page == "summary":
     st.markdown(f'{icon("bar-chart-2",22,"#a78bfa")} '
                 f'<span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;'
-                f'vertical-align:middle;">Audit Summary</span>',
-                unsafe_allow_html=True)
+                f'vertical-align:middle;">Audit Summary</span>', unsafe_allow_html=True)
     st.write("")
 
     inv, checked, flagged = st.session_state.inventory, st.session_state.checked, st.session_state.flagged
@@ -629,10 +807,10 @@ if st.session_state.page == "summary":
 
     c1,c2,c3,c4 = st.columns(4)
     for col, val, label, color in [
-        (c1, f"{pct}%",          "Audit Complete",  "#a78bfa"),
-        (c2, f"{n_checked}/{total}", "Lots Found",  "#a78bfa"),
-        (c3, str(n_flagged),     "Lots Flagged",    "#fb7185"),
-        (c4, str(len(low_lots)), "Low Stock",       "#fb923c"),
+        (c1, f"{pct}%",              "Audit Complete", "#a78bfa"),
+        (c2, f"{n_checked}/{total}", "Lots Found",     "#a78bfa"),
+        (c3, str(n_flagged),         "Lots Flagged",   "#fb7185"),
+        (c4, str(len(low_lots)),     "Low Stock",      "#fb923c"),
     ]:
         with col:
             st.markdown(f'<div class="metric-card"><div class="metric-value" '
@@ -707,6 +885,288 @@ if st.session_state.page == "summary":
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PAGE: STOCKROOM
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.page == "stockroom":
+    st.markdown(f'{icon("grid",22,"#a78bfa")} '
+                f'<span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;'
+                f'vertical-align:middle;">Stockroom</span>', unsafe_allow_html=True)
+    st.write("")
+
+    inv = st.session_state.inventory
+
+    # ── Zone overview metrics ──
+    bins_lots  = [i for i in inv if detect_zone(i.get("remarks","")) == "bin"]
+    tubs_lots  = [i for i in inv if detect_zone(i.get("remarks","")) == "tub"]
+    trays_lots = [i for i in inv if detect_zone(i.get("remarks","")) == "tray"]
+
+    def zone_low(lots):
+        return sum(1 for i in lots if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
+    def zone_pct(lots):
+        if not lots: return 0
+        return int(sum(1 for i in lots if i.get("inventory_id") in st.session_state.checked) / len(lots) * 100)
+
+    z1, z2, z3 = st.columns(3)
+    for col, label, lots, color in [
+        (z1, "Bins (AA–AT)",  bins_lots,  "#a78bfa"),
+        (z2, "Tubs (01–28)",  tubs_lots,  "#60a5fa"),
+        (z3, "Trays (01–26)", trays_lots, "#34d399"),
+    ]:
+        with col:
+            low = zone_low(lots)
+            pct = zone_pct(lots)
+            st.markdown(
+                f'<div class="metric-card">'
+                f'<div class="metric-value" style="color:{color}">{len(lots)}</div>'
+                f'<div class="metric-label">{label}</div>'
+                f'<div style="font-size:0.7rem;color:#475569;margin-top:6px;">'
+                f'{pct}% audited'
+                f'{" · " + str(low) + " low stock" if low else ""}'
+                f'</div></div>', unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Zone tabs ──
+    tab_bins, tab_tubs, tab_trays = st.tabs(["Bins", "Tubs", "Trays"])
+
+    # ── BINS TAB ──
+    with tab_bins:
+        all_bin_codes = sorted(set(get_bin_code(i.get("remarks",""))
+                                   for i in bins_lots if get_bin_code(i.get("remarks",""))))
+        selected_bin  = st.selectbox("Select bin", ["All bins"] + all_bin_codes,
+                                     key="stockroom_bin_select")
+
+        filtered = bins_lots if selected_bin == "All bins" else [
+            i for i in bins_lots if get_bin_code(i.get("remarks","")) == selected_bin]
+
+        if filtered:
+            total_f  = len(filtered)
+            found_f  = sum(1 for i in filtered if i.get("inventory_id") in st.session_state.checked)
+            flagged_f= sum(1 for i in filtered if i.get("inventory_id") in st.session_state.flagged)
+            low_f    = [i for i in filtered if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD]
+            pct_f    = int(found_f / total_f * 100) if total_f else 0
+
+            m1,m2,m3,m4 = st.columns(4)
+            for col, val, label, color in [
+                (m1, str(total_f),  "Total Lots",  "#a78bfa"),
+                (m2, str(found_f),  "Found",       "#4ade80"),
+                (m3, str(flagged_f),"Flagged",     "#fb7185"),
+                (m4, str(len(low_f)),"Low Stock",  "#fb923c"),
+            ]:
+                with col:
+                    st.markdown(f'<div class="metric-card" style="padding:12px 8px;">'
+                                f'<div class="metric-value" style="font-size:1.4rem;color:{color}">{val}</div>'
+                                f'<div class="metric-label">{label}</div></div>',
+                                unsafe_allow_html=True)
+
+            st.write("")
+            sorted_filtered = sorted(filtered, key=lambda x: x.get("remarks","") or "")
+            for group_name, group_items in groupby(sorted_filtered,
+                                                    key=lambda x: x.get("remarks","") or "(no bin)"):
+                group_lots  = list(group_items)
+                bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
+                bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
+                bin_pct     = int(bin_found / len(group_lots) * 100) if group_lots else 0
+                flagged_note = (f'&nbsp;&nbsp;{icon("alert-circle",11,"#fb7185")}'
+                                f'<span style="font-size:0.7rem;color:#fb7185;">'
+                                f'{bin_flagged} flagged</span>' if bin_flagged else "")
+                ct, cb = st.columns([4,1])
+                with ct:
+                    st.markdown(f'<div class="bin-header">'
+                                f'<p class="bin-title">{icon("archive",14,"#a78bfa")} {group_name}</p>'
+                                f'<p class="bin-stats">{bin_found}/{len(group_lots)} found · {bin_pct}%'
+                                f'{flagged_note}</p></div>', unsafe_allow_html=True)
+                with cb:
+                    st.write(""); st.write("")
+                    if st.button("Mark all found", key=f"srmkall_{group_name}", use_container_width=True):
+                        for x in group_lots:
+                            lid = x.get("inventory_id")
+                            st.session_state.checked.add(lid)
+                            save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
+                        st.rerun()
+                render_card_grid(group_lots, COLS)
+                st.divider()
+
+            # Restock section
+            if low_f:
+                st.markdown(
+                    f'<div class="restock-table-header">'
+                    f'<p class="restock-title">{icon("alert-triangle",16,"#fb923c")} '
+                    f'Restock List — {len(low_f)} lots need attention</p></div>',
+                    unsafe_allow_html=True)
+                restock_df = pd.DataFrame([{
+                    "Part #":   i.get("item",{}).get("no",""),
+                    "Name":     i.get("item",{}).get("name",""),
+                    "Color":    i.get("color_name",""),
+                    "Bin":      i.get("remarks",""),
+                    "Qty Left": i.get("quantity",0),
+                    "Price":    f"${i.get('unit_price','')}",
+                } for i in sorted(low_f, key=lambda x: x.get("remarks","") or "")])
+                st.dataframe(restock_df, use_container_width=True, hide_index=True)
+                st.download_button("Export Restock List CSV",
+                                   restock_df.to_csv(index=False),
+                                   f"restock_bins{'_'+selected_bin if selected_bin != 'All bins' else ''}.csv",
+                                   "text/csv", use_container_width=True)
+        else:
+            st.info("No lots found in this bin.")
+
+    # ── TUBS TAB ──
+    with tab_tubs:
+        all_tub_nums = sorted(set(get_zone_number(i.get("remarks",""))
+                                  for i in tubs_lots if get_zone_number(i.get("remarks",""))),
+                              key=lambda x: int(x) if x.isdigit() else 0)
+        selected_tub = st.selectbox("Select tub", ["All tubs"] + all_tub_nums,
+                                    key="stockroom_tub_select")
+
+        filtered = tubs_lots if selected_tub == "All tubs" else [
+            i for i in tubs_lots if get_zone_number(i.get("remarks","")) == selected_tub]
+
+        if filtered:
+            total_f  = len(filtered)
+            found_f  = sum(1 for i in filtered if i.get("inventory_id") in st.session_state.checked)
+            flagged_f= sum(1 for i in filtered if i.get("inventory_id") in st.session_state.flagged)
+            low_f    = [i for i in filtered if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD]
+
+            m1,m2,m3,m4 = st.columns(4)
+            for col, val, label, color in [
+                (m1, str(total_f),  "Total Lots", "#60a5fa"),
+                (m2, str(found_f),  "Found",      "#4ade80"),
+                (m3, str(flagged_f),"Flagged",    "#fb7185"),
+                (m4, str(len(low_f)),"Low Stock", "#fb923c"),
+            ]:
+                with col:
+                    st.markdown(f'<div class="metric-card" style="padding:12px 8px;">'
+                                f'<div class="metric-value" style="font-size:1.4rem;color:{color}">{val}</div>'
+                                f'<div class="metric-label">{label}</div></div>',
+                                unsafe_allow_html=True)
+
+            st.write("")
+            for group_name, group_items in groupby(
+                    sorted(filtered, key=lambda x: x.get("remarks","") or ""),
+                    key=lambda x: x.get("remarks","") or "(no tub)"):
+                group_lots  = list(group_items)
+                bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
+                bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
+                bin_pct     = int(bin_found / len(group_lots) * 100) if group_lots else 0
+                flagged_note = (f'&nbsp;&nbsp;{icon("alert-circle",11,"#fb7185")}'
+                                f'<span style="font-size:0.7rem;color:#fb7185;">'
+                                f'{bin_flagged} flagged</span>' if bin_flagged else "")
+                ct, cb = st.columns([4,1])
+                with ct:
+                    st.markdown(f'<div class="bin-header" style="border-left-color:#60a5fa;">'
+                                f'<p class="bin-title" style="color:#60a5fa;">'
+                                f'{icon("box",14,"#60a5fa")} {group_name}</p>'
+                                f'<p class="bin-stats">{bin_found}/{len(group_lots)} found · {bin_pct}%'
+                                f'{flagged_note}</p></div>', unsafe_allow_html=True)
+                with cb:
+                    st.write(""); st.write("")
+                    if st.button("Mark all found", key=f"tubmkall_{group_name}", use_container_width=True):
+                        for x in group_lots:
+                            lid = x.get("inventory_id")
+                            st.session_state.checked.add(lid)
+                            save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
+                        st.rerun()
+                render_card_grid(group_lots, COLS)
+                st.divider()
+
+            if low_f:
+                st.markdown(
+                    f'<div class="restock-table-header">'
+                    f'<p class="restock-title">{icon("alert-triangle",16,"#fb923c")} '
+                    f'Restock List — {len(low_f)} lots need attention</p></div>',
+                    unsafe_allow_html=True)
+                restock_df = pd.DataFrame([{
+                    "Part #": i.get("item",{}).get("no",""), "Name": i.get("item",{}).get("name",""),
+                    "Color": i.get("color_name",""), "Tub": i.get("remarks",""),
+                    "Qty Left": i.get("quantity",0), "Price": f"${i.get('unit_price','')}",
+                } for i in sorted(low_f, key=lambda x: x.get("remarks","") or "")])
+                st.dataframe(restock_df, use_container_width=True, hide_index=True)
+                st.download_button("Export Restock List CSV",
+                                   restock_df.to_csv(index=False),
+                                   f"restock_tubs.csv", "text/csv", use_container_width=True)
+        else:
+            st.info("No lots found in this tub.")
+
+    # ── TRAYS TAB ──
+    with tab_trays:
+        all_tray_nums = sorted(set(get_zone_number(i.get("remarks",""))
+                                   for i in trays_lots if get_zone_number(i.get("remarks",""))),
+                               key=lambda x: int(x) if x.isdigit() else 0)
+        selected_tray = st.selectbox("Select tray", ["All trays"] + all_tray_nums,
+                                     key="stockroom_tray_select")
+
+        filtered = trays_lots if selected_tray == "All trays" else [
+            i for i in trays_lots if get_zone_number(i.get("remarks","")) == selected_tray]
+
+        if filtered:
+            total_f  = len(filtered)
+            found_f  = sum(1 for i in filtered if i.get("inventory_id") in st.session_state.checked)
+            flagged_f= sum(1 for i in filtered if i.get("inventory_id") in st.session_state.flagged)
+            low_f    = [i for i in filtered if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD]
+
+            m1,m2,m3,m4 = st.columns(4)
+            for col, val, label, color in [
+                (m1, str(total_f),  "Total Lots", "#34d399"),
+                (m2, str(found_f),  "Found",      "#4ade80"),
+                (m3, str(flagged_f),"Flagged",    "#fb7185"),
+                (m4, str(len(low_f)),"Low Stock", "#fb923c"),
+            ]:
+                with col:
+                    st.markdown(f'<div class="metric-card" style="padding:12px 8px;">'
+                                f'<div class="metric-value" style="font-size:1.4rem;color:{color}">{val}</div>'
+                                f'<div class="metric-label">{label}</div></div>',
+                                unsafe_allow_html=True)
+
+            st.write("")
+            for group_name, group_items in groupby(
+                    sorted(filtered, key=lambda x: x.get("remarks","") or ""),
+                    key=lambda x: x.get("remarks","") or "(no tray)"):
+                group_lots  = list(group_items)
+                bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
+                bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
+                bin_pct     = int(bin_found / len(group_lots) * 100) if group_lots else 0
+                flagged_note = (f'&nbsp;&nbsp;{icon("alert-circle",11,"#fb7185")}'
+                                f'<span style="font-size:0.7rem;color:#fb7185;">'
+                                f'{bin_flagged} flagged</span>' if bin_flagged else "")
+                ct, cb = st.columns([4,1])
+                with ct:
+                    st.markdown(f'<div class="bin-header" style="border-left-color:#34d399;">'
+                                f'<p class="bin-title" style="color:#34d399;">'
+                                f'{icon("layers",14,"#34d399")} {group_name}</p>'
+                                f'<p class="bin-stats">{bin_found}/{len(group_lots)} found · {bin_pct}%'
+                                f'{flagged_note}</p></div>', unsafe_allow_html=True)
+                with cb:
+                    st.write(""); st.write("")
+                    if st.button("Mark all found", key=f"traymkall_{group_name}", use_container_width=True):
+                        for x in group_lots:
+                            lid = x.get("inventory_id")
+                            st.session_state.checked.add(lid)
+                            save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
+                        st.rerun()
+                render_card_grid(group_lots, COLS)
+                st.divider()
+
+            if low_f:
+                st.markdown(
+                    f'<div class="restock-table-header">'
+                    f'<p class="restock-title">{icon("alert-triangle",16,"#fb923c")} '
+                    f'Restock List — {len(low_f)} lots need attention</p></div>',
+                    unsafe_allow_html=True)
+                restock_df = pd.DataFrame([{
+                    "Part #": i.get("item",{}).get("no",""), "Name": i.get("item",{}).get("name",""),
+                    "Color": i.get("color_name",""), "Tray": i.get("remarks",""),
+                    "Qty Left": i.get("quantity",0), "Price": f"${i.get('unit_price','')}",
+                } for i in sorted(low_f, key=lambda x: x.get("remarks","") or "")])
+                st.dataframe(restock_df, use_container_width=True, hide_index=True)
+                st.download_button("Export Restock List CSV",
+                                   restock_df.to_csv(index=False),
+                                   f"restock_trays.csv", "text/csv", use_container_width=True)
+        else:
+            st.info("No lots found in this tray.")
+
+    st.stop()
+
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE: AUDIT HISTORY
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "history":
@@ -750,9 +1210,9 @@ if st.session_state.page == "history":
           if selected_h["total_lots"] else 0
     c1,c2,c3 = st.columns(3)
     for col, val, label, color in [
-        (c1, f"{pct}%",                                   "Complete",      "#a78bfa"),
-        (c2, str(selected_h["total_flagged"]),            "Flagged",       "#fb7185"),
-        (c3, f"${selected_h['total_value_checked']:,.2f}","Value Checked", "#4ade80"),
+        (c1, f"{pct}%",                                    "Complete",      "#a78bfa"),
+        (c2, str(selected_h["total_flagged"]),             "Flagged",       "#fb7185"),
+        (c3, f"${selected_h['total_value_checked']:,.2f}", "Value Checked", "#4ade80"),
     ]:
         with col:
             st.markdown(f'<div class="metric-card"><div class="metric-value" '
@@ -850,8 +1310,7 @@ if st.session_state.page == "prices":
         def render_price_table(price_rows, tab):
             with tab:
                 if not price_rows:
-                    st.success("Nothing here!")
-                    return
+                    st.success("Nothing here!"); return
                 st.dataframe(pd.DataFrame([{
                     "Part #": r["pno"], "Name": r["name"], "Color": r["color"],
                     "Bin": r["bin"], "My Price": f"${r['my_price']:.4f}",
@@ -978,10 +1437,7 @@ st.caption(f"Showing {len(inv)} lots"
            + (f" · {len(scan_ids)} highlighted" if scan_ids else "")
            + (" · Mobile" if is_mobile else " · Desktop"))
 
-def get_group(lot):
-    return lot.get("remarks","") or "(no remarks)"
-
-for group_name, group_items in groupby(inv, key=get_group):
+for group_name, group_items in groupby(inv, key=lambda x: x.get("remarks","") or "(no remarks)"):
     group_lots  = list(group_items)
     bin_total   = len(group_lots)
     bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
@@ -999,18 +1455,17 @@ for group_name, group_items in groupby(inv, key=get_group):
                     f'{flagged_note}</p></div>', unsafe_allow_html=True)
     with col_btn:
         st.write(""); st.write("")
-        if st.button("Mark all found", key=f"markall_{group_name}",
-                     use_container_width=True):
+        if st.button("Mark all found", key=f"markall_{group_name}", use_container_width=True):
             for x in group_lots:
                 lid = x.get("inventory_id")
                 st.session_state.checked.add(lid)
                 save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
             st.rerun()
 
+    # Pass scan_ids context to highlight cards on audit page
     for row_start in range(0, len(group_lots), COLS):
         row_items = group_lots[row_start:row_start+COLS]
         cols      = st.columns(COLS)
-
         for col, lot in zip(cols, row_items):
             lid       = lot.get("inventory_id", "unknown")
             item      = lot.get("item", {})
@@ -1088,7 +1543,7 @@ for group_name, group_items in groupby(inv, key=get_group):
                                             placeholder="e.g. found in back of bin…")
                     if st.button("Save note", key=f"savenote_{lid}", use_container_width=True):
                         st.session_state.notes[lid] = new_note
-                        flag = st.session_state.flagged.get(lid, {})
+                        flag   = st.session_state.flagged.get(lid, {})
                         status = "checked" if is_found else "flagged" if is_flagged else "unchecked"
                         save_progress(lid, status, flag.get("reason"), flag.get("actual_qty"),
                                       flag.get("correct_bin"), new_note)
@@ -1102,8 +1557,7 @@ for group_name, group_items in groupby(inv, key=get_group):
                         if reason == "Wrong quantity":
                             actual_qty = st.number_input(f"Actual qty (listed: {qty})",
                                                           min_value=0, value=qty, key=f"qty_{lid}")
-                            if st.button("Save flag", key=f"saveflag_{lid}",
-                                         use_container_width=True):
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason":"Wrong qty","actual_qty":actual_qty}
                                 save_progress(lid,"flagged","Wrong qty",actual_qty,None,
                                               st.session_state.notes.get(lid)); st.rerun()
@@ -1123,8 +1577,7 @@ for group_name, group_items in groupby(inv, key=get_group):
                         elif reason == "Wrong bin":
                             correct_bin = st.text_input(
                                 f"Correct bin (current: {remarks or 'none'})", key=f"bin_{lid}")
-                            if st.button("Save flag", key=f"saveflag_{lid}",
-                                         use_container_width=True):
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason":"Wrong bin","correct_bin":correct_bin}
                                 save_progress(lid,"flagged","Wrong bin",None,correct_bin,
                                               st.session_state.notes.get(lid)); st.rerun()
@@ -1142,8 +1595,7 @@ for group_name, group_items in groupby(inv, key=get_group):
                                         st.success("Bin updated"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
                         else:
-                            if st.button("Save flag", key=f"saveflag_{lid}",
-                                         use_container_width=True):
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason":"Wrong part"}
                                 save_progress(lid,"flagged","Wrong part",None,None,
                                               st.session_state.notes.get(lid)); st.rerun()
