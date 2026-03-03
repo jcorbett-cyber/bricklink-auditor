@@ -774,17 +774,6 @@ if load_btn:
                 else:
                     st.info("Starting fresh.")
 
-# ── Header ────────────────────────────────────────────────────────────────────
-col_logo, col_title = st.columns([1, 6])
-with col_logo:
-    st.image(LOGO, width=70)
-with col_title:
-    st.title("Brick Audit")
-
-if not st.session_state.loaded:
-    st.info("Click Load Inventory in the sidebar to get started.")
-    st.stop()
-
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: SUMMARY
 # ══════════════════════════════════════════════════════════════════════════════
