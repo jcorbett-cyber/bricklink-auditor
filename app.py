@@ -9,19 +9,54 @@ import time
 
 st.set_page_config(page_title="Brick Audit", page_icon="🧱", layout="wide")
 
+# ── Lucide icon helper ────────────────────────────────────────────────────────
+def icon(name, size=16, color="currentColor", cls=""):
+    icons = {
+        "package":        '<path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+        "bar-chart-2":    '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+        "calendar":       '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+        "tag":            '<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+        "key":            '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
+        "refresh-cw":     '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>',
+        "sliders":        '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+        "archive":        '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
+        "activity":       '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+        "upload-cloud":   '<polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>',
+        "save":           '<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+        "trash-2":        '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
+        "download":       '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+        "check-circle":   '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+        "alert-circle":   '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+        "alert-triangle": '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+        "trending-up":    '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+        "file-text":      '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
+        "check":          '<polyline points="20 6 9 17 4 12"/>',
+        "rotate-ccw":     '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>',
+        "x":              '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+        "dollar-sign":    '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
+        "layers":         '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+        "search":         '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+        "flag":           '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+        "rotate-ccw-sm":  '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>',
+    }
+    paths = icons.get(name, "")
+    extra = f'class="{cls}"' if cls else ""
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
+            f'viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.75" '
+            f'stroke-linecap="round" stroke-linejoin="round" {extra} '
+            f'style="display:inline-block;vertical-align:middle;margin-right:5px;">'
+            f'{paths}</svg>')
+
+def ic(name, size=14, color="#6d7a8f"):
+    return icon(name, size=size, color=color)
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
-.block-container {
-  padding-top: 0rem !important;
-  background: transparent;
-}
-header[data-testid="stHeader"] {
-  background: transparent !important;
-  height: 0rem !important;
-}
+.block-container { padding-top: 0rem !important; background: transparent; }
+header[data-testid="stHeader"] { background: transparent !important; height: 0rem !important; }
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 button[data-testid="collapsedControl"] { display: none !important; }
@@ -36,11 +71,8 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 
 .part-card {
   background: linear-gradient(145deg, #161b27, #1a2235);
-  border: 1px solid #1e2d45;
-  border-radius: 16px;
-  padding: 14px 10px;
-  text-align: center;
-  margin-bottom: 10px;
+  border: 1px solid #1e2d45; border-radius: 16px;
+  padding: 14px 10px; text-align: center; margin-bottom: 10px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.2);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
@@ -50,31 +82,26 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   border-color: #2a3f5f;
 }
 .part-card.found {
-  background: linear-gradient(145deg, #0d2818, #112d1c);
-  border-color: #2d6a4f;
+  background: linear-gradient(145deg, #0d2818, #112d1c); border-color: #2d6a4f;
   box-shadow: 0 4px 15px rgba(45,106,79,0.2);
 }
 .part-card.found:hover { border-color: #40916c; box-shadow: 0 8px 25px rgba(45,106,79,0.3); }
 .part-card.flagged {
-  background: linear-gradient(145deg, #2d0d1a, #331220);
-  border-color: #7f1d35;
+  background: linear-gradient(145deg, #2d0d1a, #331220); border-color: #7f1d35;
   box-shadow: 0 4px 15px rgba(127,29,53,0.2);
 }
 .part-card.flagged:hover { border-color: #be2d52; box-shadow: 0 8px 25px rgba(127,29,53,0.3); }
 .part-card.lowstock {
-  background: linear-gradient(145deg, #2d1a08, #331f0c);
-  border-color: #7c3d0e;
+  background: linear-gradient(145deg, #2d1a08, #331f0c); border-color: #7c3d0e;
 }
 .part-card.lowstock:hover { border-color: #c2601a; }
 .part-card.highlight {
-  background: linear-gradient(145deg, #2a2208, #32290d);
-  border-color: #b5860d;
+  background: linear-gradient(145deg, #2a2208, #32290d); border-color: #b5860d;
   box-shadow: 0 4px 20px rgba(181,134,13,0.25);
 }
 .part-card.highlight:hover { border-color: #d4a017; box-shadow: 0 8px 30px rgba(181,134,13,0.35); }
 .part-card.overpriced {
-  background: linear-gradient(145deg, #1e0d2d, #241035);
-  border-color: #5b21b6;
+  background: linear-gradient(145deg, #1e0d2d, #241035); border-color: #5b21b6;
 }
 .part-card.overpriced:hover { border-color: #7c3aed; box-shadow: 0 8px 25px rgba(91,33,182,0.3); }
 
@@ -86,10 +113,12 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 .part-meta { font-size:0.68rem; color:#64748b; line-height:1.5; }
 
 .badge {
-  display: inline-block; border-radius: 20px; padding: 3px 10px;
-  font-size: 0.62rem; font-weight: 700; margin-top: 6px;
+  display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 20px; padding: 3px 10px;
+  font-size: 0.6rem; font-weight: 700; margin-top: 6px;
   letter-spacing: 0.04em; text-transform: uppercase;
 }
+.badge svg { margin-right: 0 !important; }
 .badge-n       { background:rgba(30,42,61,0.8);  color:#94a3b8; border:1px solid #1e2d45; }
 .badge-u       { background:rgba(45,35,10,0.8);  color:#f59e0b; border:1px solid #78450a; }
 .badge-found   { background:rgba(13,40,24,0.9);  color:#4ade80; border:1px solid #2d6a4f; }
@@ -122,7 +151,20 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 }
 .metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.35); }
 .metric-value { font-size:2rem; font-weight:800; color:#a78bfa; letter-spacing:-0.02em; }
-.metric-label { font-size:0.72rem; color:#475569; margin-top:6px; font-weight:500; text-transform:uppercase; letter-spacing:0.06em; }
+.metric-label {
+  font-size:0.72rem; color:#475569; margin-top:6px;
+  font-weight:500; text-transform:uppercase; letter-spacing:0.06em;
+}
+
+.nav-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8rem; font-weight: 600; color: #94a3b8;
+}
+.section-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.72rem; font-weight: 600; color: #475569;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+}
 
 .stButton > button {
   font-family: 'Inter', sans-serif !important; font-weight: 600 !important;
@@ -150,8 +192,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   border-radius: 10px !important; color: #e2e8f0 !important;
 }
 .stTextInput > div > div > input:focus {
-  border-color: #6d28d9 !important;
-  box-shadow: 0 0 0 2px rgba(109,40,217,0.2) !important;
+  border-color: #6d28d9 !important; box-shadow: 0 0 0 2px rgba(109,40,217,0.2) !important;
 }
 .stSelectbox > div > div {
   background: #161b27 !important; border: 1px solid #1e2d45 !important;
@@ -178,7 +219,6 @@ div[data-testid="stWarning"] { background:rgba(45,26,8,0.8) !important; border:1
 div[data-testid="stError"]   { background:rgba(45,13,26,0.8) !important; border:1px solid #7f1d35 !important; border-radius:10px !important; }
 div[data-testid="stInfo"]    { background:rgba(13,22,40,0.8) !important; border:1px solid #1e3a5f !important; border-radius:10px !important; }
 
-/* ── Mobile ── */
 @media (max-width: 768px) {
   .block-container { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
   .part-card { padding: 10px 8px; border-radius: 12px; }
@@ -210,9 +250,9 @@ window.addEventListener("resize", sendScreenWidth);
 if "screen_width" not in st.session_state:
     st.session_state.screen_width = 1200
 
-screen_w = st.session_state.get("screen_width", 1200)
+screen_w  = st.session_state.get("screen_width", 1200)
 is_mobile = screen_w < 768
-COLS = 3 if is_mobile else 6
+COLS      = 3 if is_mobile else 6
 
 LOGO                = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/iTunesArtwork%402x.png"
 LOW_STOCK_THRESHOLD = 2
@@ -464,7 +504,7 @@ def get_pushable_flags():
         if not flag:
             continue
         reason = flag.get("reason", "")
-        if reason in ("Qty updated ✓", "Bin updated ✓"):
+        if reason in ("Qty updated", "Bin updated"):
             continue
         if reason == "Wrong qty" and "actual_qty" in flag:
             pushable.append({
@@ -495,18 +535,18 @@ def push_all_flags(auth):
         try:
             if item["type"] == "qty":
                 update_quantity_on_bricklink(auth, item["lid"], item["value"])
-                st.session_state.flagged[item["lid"]]["reason"] = "Qty updated ✓"
+                st.session_state.flagged[item["lid"]]["reason"] = "Qty updated"
                 for x in st.session_state.inventory:
                     if x.get("inventory_id") == item["lid"]:
                         x["quantity"] = item["value"]
-                save_progress(item["lid"], "flagged", "Qty updated ✓", item["value"], None)
+                save_progress(item["lid"], "flagged", "Qty updated", item["value"], None)
             elif item["type"] == "bin":
                 update_remarks_on_bricklink(auth, item["lid"], item["value"])
-                st.session_state.flagged[item["lid"]]["reason"] = "Bin updated ✓"
+                st.session_state.flagged[item["lid"]]["reason"] = "Bin updated"
                 for x in st.session_state.inventory:
                     if x.get("inventory_id") == item["lid"]:
                         x["remarks"] = item["value"]
-                save_progress(item["lid"], "flagged", "Bin updated ✓", None, item["value"])
+                save_progress(item["lid"], "flagged", "Bin updated", None, item["value"])
             results["success"].append(item)
         except Exception as e:
             results["failed"].append({**item, "error": str(e)})
@@ -517,46 +557,55 @@ with st.sidebar:
     st.image(LOGO, width=200)
 
     if not SECRETS_LOADED:
-        st.warning("⚠️ No saved credentials found.")
-        st.markdown("### 🔑 API Credentials")
+        st.warning("No saved credentials found.")
+        st.markdown(f'{ic("key")} **API Credentials**', unsafe_allow_html=True)
         ck = st.text_input("Consumer Key",    type="password")
         cs = st.text_input("Consumer Secret", type="password")
         tv = st.text_input("Token Value",     type="password")
         ts = st.text_input("Token Secret",    type="password")
     else:
         ck, cs, tv, ts = CK, CS, TV, TS
-        st.success("🔑 Credentials loaded!")
+        st.success("Credentials loaded")
 
-    load_btn = st.button("🔄 Load My Inventory", use_container_width=True, type="primary")
+    load_btn = st.button(
+        f"{icon('refresh-cw', 14, '#f5f3ff')} Load Inventory",
+        use_container_width=True, type="primary")
 
     st.divider()
-    st.markdown("### 📄 Pages")
-    if st.button("🧱 Audit",         use_container_width=True):
-        st.session_state.page = "audit"
-        st.rerun()
-    if st.button("📊 Summary",       use_container_width=True):
-        st.session_state.page = "summary"
-        st.rerun()
-    if st.button("📅 Audit History", use_container_width=True):
-        st.session_state.page = "history"
-        st.rerun()
-    if st.button("💲 Price Checker", use_container_width=True):
-        st.session_state.page = "prices"
-        st.rerun()
+    st.markdown(
+        f'<div class="section-label">{ic("package")} Pages</div>',
+        unsafe_allow_html=True)
+
+    if st.button(f"{icon('package',14,'#94a3b8')} Audit",
+                 use_container_width=True):
+        st.session_state.page = "audit"; st.rerun()
+    if st.button(f"{icon('bar-chart-2',14,'#94a3b8')} Summary",
+                 use_container_width=True):
+        st.session_state.page = "summary"; st.rerun()
+    if st.button(f"{icon('calendar',14,'#94a3b8')} Audit History",
+                 use_container_width=True):
+        st.session_state.page = "history"; st.rerun()
+    if st.button(f"{icon('tag',14,'#94a3b8')} Price Checker",
+                 use_container_width=True):
+        st.session_state.page = "prices"; st.rerun()
 
     st.divider()
     if st.session_state.page == "audit":
-        st.markdown("### 🔍 Filters")
+        st.markdown(
+            f'<div class="section-label">{ic("sliders")} Filters</div>',
+            unsafe_allow_html=True)
         search_term = st.text_input("Search part # or name")
         cond_filter = st.multiselect("Condition", ["New", "Used"], default=["New", "Used"])
-        show_filter = st.radio("Show", ["All", "✅ Found", "🚩 Flagged",
-                                        "⬜ Not yet found", "🔴 Low stock"])
+        show_filter = st.radio("Show", ["All", "Found", "Flagged",
+                                        "Not yet found", "Low stock"])
         all_remarks = sorted(set(
             i.get("remarks", "") or "(no remarks)"
             for i in st.session_state.inventory))
         remarks_filter = "All"
         if len(all_remarks) > 1:
-            remarks_filter = st.selectbox("📦 Jump to bin", ["All"] + all_remarks)
+            remarks_filter = st.selectbox(
+                f"{icon('archive',12,'#475569')} Jump to bin",
+                ["All"] + all_remarks)
     else:
         search_term    = ""
         cond_filter    = ["New", "Used"]
@@ -572,25 +621,36 @@ with st.sidebar:
                         if 0 < i.get("quantity", 0) <= LOW_STOCK_THRESHOLD)
         pct       = int(found_n / total * 100) if total else 0
 
-        st.markdown("### 📊 Progress")
+        st.markdown(
+            f'<div class="section-label">{ic("activity")} Progress</div>',
+            unsafe_allow_html=True)
         st.progress(pct / 100)
         st.markdown(f"**{found_n}/{total}** found · {pct}%")
         if flagged_n:
-            st.markdown(f"🚩 **{flagged_n}** flagged")
+            st.markdown(
+                f'{icon("alert-circle",12,"#fb7185")} **{flagged_n}** flagged',
+                unsafe_allow_html=True)
         if low_n:
-            st.markdown(f"🔴 **{low_n}** low stock")
+            st.markdown(
+                f'{icon("alert-triangle",12,"#fb923c")} **{low_n}** low stock',
+                unsafe_allow_html=True)
 
         pushable = get_pushable_flags()
         if pushable:
-            if st.button(f"🚀 Push {len(pushable)} fixes to BrickLink",
-                         use_container_width=True, type="primary"):
+            if st.button(
+                f"{icon('upload-cloud',14,'#f5f3ff')} Push {len(pushable)} fixes",
+                use_container_width=True, type="primary"):
                 st.session_state.show_bulk_confirm = True
 
-        if st.button("📸 Save Audit Snapshot", use_container_width=True):
+        if st.button(
+            f"{icon('save',14,'#94a3b8')} Save Audit Snapshot",
+            use_container_width=True):
             if save_audit_snapshot():
-                st.success("Snapshot saved!")
+                st.success("Snapshot saved")
 
-        if st.button("🗑️ Reset All Checkmarks", use_container_width=True):
+        if st.button(
+            f"{icon('trash-2',14,'#94a3b8')} Reset All Checkmarks",
+            use_container_width=True):
             st.session_state.checked = set()
             st.session_state.flagged = {}
             st.session_state.notes   = {}
@@ -612,8 +672,10 @@ with st.sidebar:
                 "Bin":          r.get("remarks", ""),
                 "Notes":        st.session_state.notes.get(r.get("inventory_id"), ""),
             } for r in remaining])
-            st.download_button("📥 Export Remaining CSV", df_r.to_csv(index=False),
-                               "remaining_lots.csv", "text/csv", use_container_width=True)
+            st.download_button(
+                f"{icon('download',14,'#94a3b8')} Export Remaining CSV",
+                df_r.to_csv(index=False),
+                "remaining_lots.csv", "text/csv", use_container_width=True)
 
         flagged_lots = [
             {**i, **st.session_state.flagged.get(i.get("inventory_id"), {})}
@@ -633,8 +695,10 @@ with st.sidebar:
                 "Flag Reason":  f.get("reason", ""),
                 "Notes":        st.session_state.notes.get(f.get("inventory_id"), ""),
             } for f in flagged_lots])
-            st.download_button("🚩 Export Flagged CSV", df_f.to_csv(index=False),
-                               "flagged_lots.csv", "text/csv", use_container_width=True)
+            st.download_button(
+                f"{icon('download',14,'#94a3b8')} Export Flagged CSV",
+                df_f.to_csv(index=False),
+                "flagged_lots.csv", "text/csv", use_container_width=True)
 
 # ── Load inventory ────────────────────────────────────────────────────────────
 if load_btn:
@@ -648,7 +712,7 @@ if load_btn:
                 st.session_state.inventory = inv
                 st.session_state.loaded    = True
                 st.session_state.auth      = (ck, cs, tv, ts)
-                st.success(f"✅ Loaded {len(inv)} lots!")
+                st.success(f"Loaded {len(inv)} lots")
             except Exception as e:
                 st.error(f"Error: {e}")
         if DB_LOADED and st.session_state.loaded:
@@ -659,7 +723,7 @@ if load_btn:
                 st.session_state.notes       = notes
                 st.session_state.price_cache = load_price_cache()
                 if checked or flagged:
-                    st.success(f"✅ Restored {len(checked)} checked, {len(flagged)} flagged!")
+                    st.success(f"Restored {len(checked)} checked, {len(flagged)} flagged")
                 else:
                     st.info("Starting fresh.")
 
@@ -668,17 +732,20 @@ col_logo, col_title = st.columns([1, 6])
 with col_logo:
     st.image(LOGO, width=70)
 with col_title:
-    st.title("🧱 Brick Audit")
+    st.title("Brick Audit")
 
 if not st.session_state.loaded:
-    st.info("👈 Click **Load My Inventory** to get started.")
+    st.info("Click Load Inventory in the sidebar to get started.")
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: SUMMARY
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "summary":
-    st.header("📊 Audit Summary")
+    st.markdown(
+        f'{icon("bar-chart-2",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit Summary</span>',
+        unsafe_allow_html=True)
+
     inv       = st.session_state.inventory
     checked   = st.session_state.checked
     flagged   = st.session_state.flagged
@@ -715,21 +782,23 @@ if st.session_state.page == "summary":
     with c4:
         st.markdown(f"""<div class="metric-card">
           <div class="metric-value" style="color:#fb923c">{len(low_lots)}</div>
-          <div class="metric-label">Low Stock Lots</div>
+          <div class="metric-label">Low Stock</div>
         </div>""", unsafe_allow_html=True)
 
     st.divider()
-    st.subheader("💰 Inventory Value Tracking")
+    st.markdown(
+        f'{icon("dollar-sign",18,"#a78bfa")} <span style="font-size:1.1rem;font-weight:700;color:#cbd5e1;vertical-align:middle;">Inventory Value</span>',
+        unsafe_allow_html=True)
     v1, v2, v3 = st.columns(3)
     with v1:
         st.markdown(f"""<div class="metric-card">
           <div class="metric-value" style="color:#4ade80">${val_checked:,.2f}</div>
-          <div class="metric-label">Value Checked ✅</div>
+          <div class="metric-label">Value Checked</div>
         </div>""", unsafe_allow_html=True)
     with v2:
         st.markdown(f"""<div class="metric-card">
           <div class="metric-value" style="color:#fb7185">${val_unchecked:,.2f}</div>
-          <div class="metric-label">Value Not Yet Checked</div>
+          <div class="metric-label">Not Yet Checked</div>
         </div>""", unsafe_allow_html=True)
     with v3:
         st.markdown(f"""<div class="metric-card">
@@ -738,7 +807,9 @@ if st.session_state.page == "summary":
         </div>""", unsafe_allow_html=True)
 
     st.divider()
-    st.subheader("📦 Progress by Bin")
+    st.markdown(
+        f'{icon("layers",18,"#a78bfa")} <span style="font-size:1.1rem;font-weight:700;color:#cbd5e1;vertical-align:middle;">Progress by Bin</span>',
+        unsafe_allow_html=True)
     bin_data = []
     for bin_name, lots in groupby(
         sorted(inv, key=lambda x: x.get("remarks", "") or ""),
@@ -764,7 +835,9 @@ if st.session_state.page == "summary":
 
     st.divider()
     if n_flagged:
-        st.subheader("🚩 Flagged Lots Detail")
+        st.markdown(
+            f'{icon("flag",18,"#fb7185")} <span style="font-size:1.1rem;font-weight:700;color:#cbd5e1;vertical-align:middle;">Flagged Lots</span>',
+            unsafe_allow_html=True)
         flag_rows = []
         for i in inv:
             lid  = i.get("inventory_id")
@@ -785,7 +858,9 @@ if st.session_state.page == "summary":
 
     st.divider()
     if low_lots:
-        st.subheader("🔴 Low Stock Lots")
+        st.markdown(
+            f'{icon("alert-triangle",18,"#fb923c")} <span style="font-size:1.1rem;font-weight:700;color:#cbd5e1;vertical-align:middle;">Low Stock Lots</span>',
+            unsafe_allow_html=True)
         st.dataframe(pd.DataFrame([{
             "Part #":   i.get("item", {}).get("no", ""),
             "Name":     i.get("item", {}).get("name", ""),
@@ -800,14 +875,16 @@ if st.session_state.page == "summary":
 # PAGE: AUDIT HISTORY
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "history":
-    st.header("📅 Audit History")
+    st.markdown(
+        f'{icon("calendar",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit History</span>',
+        unsafe_allow_html=True)
+
     history = load_audit_history()
     if not history:
-        st.info("No snapshots yet. Click **📸 Save Audit Snapshot** in the sidebar.")
+        st.info("No snapshots yet. Click Save Audit Snapshot in the sidebar.")
         st.stop()
 
-    st.subheader("Past Audits")
-    df_hist = pd.DataFrame([{
+    st.dataframe(pd.DataFrame([{
         "Date":            h["audit_date"][:16].replace("T", " "),
         "Total Lots":      h["total_lots"],
         "Checked":         h["total_checked"],
@@ -816,12 +893,13 @@ if st.session_state.page == "history":
                            if h["total_lots"] else 0,
         "Value Checked":   f"${h['total_value_checked']:,.2f}",
         "Value Remaining": f"${h['total_value_unchecked']:,.2f}",
-    } for h in history])
-    st.dataframe(df_hist, use_container_width=True, hide_index=True)
+    } for h in history]), use_container_width=True, hide_index=True)
 
     if len(history) > 1:
         st.divider()
-        st.subheader("📈 Audit Completion Over Time")
+        st.markdown(
+            f'{icon("activity",18,"#a78bfa")} <span style="font-size:1.1rem;font-weight:700;color:#cbd5e1;vertical-align:middle;">Completion Over Time</span>',
+            unsafe_allow_html=True)
         chart_data = pd.DataFrame([{
             "Date":       h["audit_date"][:10],
             "% Complete": int(h["total_checked"] / h["total_lots"] * 100)
@@ -831,9 +909,8 @@ if st.session_state.page == "history":
         st.line_chart(chart_data.set_index("Date"))
 
     st.divider()
-    st.subheader("🔎 Drill into an audit")
     audit_labels = [h["audit_date"][:16].replace("T", " ") for h in history]
-    selected     = st.selectbox("Select an audit", audit_labels)
+    selected     = st.selectbox("Drill into an audit", audit_labels)
     selected_h   = history[audit_labels.index(selected)]
     col1, col2, col3 = st.columns(3)
     pct = int(selected_h["total_checked"] / selected_h["total_lots"] * 100) \
@@ -858,16 +935,18 @@ if st.session_state.page == "history":
         st.markdown(f"**{len(discreps)} discrepancies:**")
         st.dataframe(pd.DataFrame(discreps), use_container_width=True, hide_index=True)
     else:
-        st.success("No discrepancies recorded!")
+        st.success("No discrepancies recorded")
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: PRICE CHECKER
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "prices":
-    st.header("💲 Price Checker")
+    st.markdown(
+        f'{icon("tag",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Price Checker</span>',
+        unsafe_allow_html=True)
     st.caption(f"Flags lots priced more than {PRICE_FLAG_PCT}% above BrickLink market average. "
-               f"Your pricing strategy: +{int((MARKUP-1)*100)}% markup, "
+               f"Your strategy: +{int((MARKUP-1)*100)}% markup, "
                f"{int((1-SALE_DISCOUNT)*100)}% sale = "
                f"{int((MARKUP*SALE_DISCOUNT-1)*100):+d}% vs market.")
 
@@ -892,8 +971,9 @@ if st.session_state.page == "prices":
                f"{cached_count} cached · "
                f"{len(lots_to_check)-cached_count} need fetching")
 
-    if st.button(f"🔍 Fetch prices for next {batch_size} uncached lots",
-                 type="primary", use_container_width=True):
+    if st.button(
+        f"{icon('search',14,'#f5f3ff')} Fetch prices for next {batch_size} uncached lots",
+        type="primary", use_container_width=True):
         auth     = make_auth(*st.session_state.auth)
         to_fetch = []
         for lot in lots_to_check:
@@ -906,7 +986,7 @@ if st.session_state.page == "prices":
                 break
 
         if not to_fetch:
-            st.success("All cached! Check 'Force refresh' to re-fetch.")
+            st.success("All cached! Check Force refresh to re-fetch.")
         else:
             progress_bar = st.progress(0)
             status_text  = st.empty()
@@ -926,7 +1006,7 @@ if st.session_state.page == "prices":
                 progress_bar.progress((idx + 1) / len(to_fetch))
                 time.sleep(0.3)
             status_text.text("Done!")
-            st.success(f"✅ Fetched {len(to_fetch)} lots!")
+            st.success(f"Fetched {len(to_fetch)} lots")
             st.rerun()
 
     st.divider()
@@ -962,8 +1042,8 @@ if st.session_state.page == "prices":
         flagged_rows = [r for r in rows if r["flagged"]]
         ok_rows      = [r for r in rows if not r["flagged"]]
         price_tab1, price_tab2 = st.tabs([
-            f"🚩 Overpriced ({len(flagged_rows)})",
-            f"✅ OK ({len(ok_rows)})"
+            f"Overpriced ({len(flagged_rows)})",
+            f"OK ({len(ok_rows)})"
         ])
 
         def render_price_table(price_rows, tab):
@@ -983,7 +1063,7 @@ if st.session_state.page == "prices":
                 } for r in price_rows]), use_container_width=True, hide_index=True)
 
                 st.divider()
-                st.markdown("#### 💲 Update a price")
+                st.markdown("#### Update a price")
                 part_labels  = [f"{r['pno']} — {r['name']} ({r['color']})" for r in price_rows]
                 selected_lbl = st.selectbox("Select lot", part_labels, key=f"sel_{id(tab)}")
                 selected_row = price_rows[part_labels.index(selected_lbl)]
@@ -999,16 +1079,17 @@ if st.session_state.page == "prices":
                 with col2:
                     st.write("")
                     st.write("")
-                    if st.button("💾 Update on BrickLink",
-                                 key=f"updateprice_{selected_row['lid']}",
-                                 use_container_width=True, type="primary"):
+                    if st.button(
+                        f"{icon('save',14,'#f5f3ff')} Update on BrickLink",
+                        key=f"updateprice_{selected_row['lid']}",
+                        use_container_width=True, type="primary"):
                         try:
                             auth = make_auth(*st.session_state.auth)
                             update_price_on_bricklink(auth, selected_row["lid"], new_price)
                             for x in st.session_state.inventory:
                                 if x.get("inventory_id") == selected_row["lid"]:
                                     x["unit_price"] = str(new_price)
-                            st.success(f"✅ Price updated to ${new_price:.4f}!")
+                            st.success(f"Price updated to ${new_price:.4f}")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Failed: {e}")
@@ -1028,10 +1109,10 @@ if st.session_state.page == "prices":
             "Suggested":   r["target"],
             "Flagged":     "Yes" if r["flagged"] else "No",
         } for r in rows])
-        st.download_button("📥 Download Price Report CSV",
-                           df_export.to_csv(index=False),
-                           "price_report.csv", "text/csv",
-                           use_container_width=True)
+        st.download_button(
+            f"{icon('download',14,'#94a3b8')} Download Price Report CSV",
+            df_export.to_csv(index=False),
+            "price_report.csv", "text/csv", use_container_width=True)
     else:
         st.info("No cached prices yet — fetch some lots above to see results.")
     st.stop()
@@ -1042,13 +1123,13 @@ if st.session_state.page == "prices":
 st.markdown('<div class="scan-bar">', unsafe_allow_html=True)
 sc1, sc2 = st.columns([5, 1])
 with sc1:
-    scan_query = st.text_input("🔍 Scan / quick find",
+    scan_query = st.text_input("Scan / quick find",
                                 value=st.session_state.scan_query,
                                 placeholder="Type or scan a part number…",
                                 label_visibility="collapsed",
                                 key="scan_input")
 with sc2:
-    if st.button("✖ Clear", use_container_width=True):
+    if st.button(f"{icon('x',14,'#94a3b8')} Clear", use_container_width=True):
         st.session_state.scan_query = ""
         st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
@@ -1060,25 +1141,27 @@ if scan_query != st.session_state.scan_query:
 if st.session_state.show_bulk_confirm:
     pushable = get_pushable_flags()
     if pushable:
-        st.warning(f"### 🚀 Ready to push {len(pushable)} fix(es) to BrickLink")
+        st.warning(f"Ready to push {len(pushable)} fix(es) to BrickLink — review below:")
         st.dataframe(pd.DataFrame([{
             "Part #": p["pno"], "Name": p["name"],
             "Bin": p["bin"],    "Change": p["change"],
         } for p in pushable]), use_container_width=True, hide_index=True)
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("✅ Confirm — push all", type="primary", use_container_width=True):
+            if st.button(
+                f"{icon('upload-cloud',14,'#f5f3ff')} Confirm — push all",
+                type="primary", use_container_width=True):
                 auth = make_auth(*st.session_state.auth)
                 with st.spinner("Pushing…"):
                     results = push_all_flags(auth)
                 st.session_state.show_bulk_confirm = False
                 if results["success"]:
-                    st.success(f"✅ {len(results['success'])} update(s) pushed!")
+                    st.success(f"{len(results['success'])} update(s) pushed")
                 for f in results.get("failed", []):
-                    st.error(f"❌ {f['pno']}: {f['error']}")
+                    st.error(f"Failed for {f['pno']}: {f['error']}")
                 st.rerun()
         with c2:
-            if st.button("✖ Cancel", use_container_width=True):
+            if st.button(f"{icon('x',14,'#94a3b8')} Cancel", use_container_width=True):
                 st.session_state.show_bulk_confirm = False
                 st.rerun()
     else:
@@ -1093,14 +1176,14 @@ if search_term:
     q = search_term.lower()
     inv = [i for i in inv if q in i.get("item", {}).get("no", "").lower()
            or q in i.get("item", {}).get("name", "").lower()]
-if show_filter == "✅ Found":
+if show_filter == "Found":
     inv = [i for i in inv if i.get("inventory_id") in st.session_state.checked]
-elif show_filter == "🚩 Flagged":
+elif show_filter == "Flagged":
     inv = [i for i in inv if i.get("inventory_id") in st.session_state.flagged]
-elif show_filter == "⬜ Not yet found":
+elif show_filter == "Not yet found":
     inv = [i for i in inv if i.get("inventory_id") not in st.session_state.checked
            and i.get("inventory_id") not in st.session_state.flagged]
-elif show_filter == "🔴 Low stock":
+elif show_filter == "Low stock":
     inv = [i for i in inv if 0 < i.get("quantity", 0) <= LOW_STOCK_THRESHOLD]
 if remarks_filter != "All":
     inv = [i for i in inv if (i.get("remarks", "") or "(no remarks)") == remarks_filter]
@@ -1112,7 +1195,7 @@ if st.session_state.scan_query:
         if sq in lot.get("item", {}).get("no", "").lower():
             scan_ids.add(lot.get("inventory_id"))
     if not scan_ids:
-        st.warning(f"No parts found matching **{st.session_state.scan_query}**")
+        st.warning(f"No parts found matching {st.session_state.scan_query}")
 
 inv = sorted(inv, key=lambda x: (
     0 if x.get("inventory_id") in scan_ids else 1,
@@ -1120,8 +1203,8 @@ inv = sorted(inv, key=lambda x: (
 ))
 
 st.caption(f"Showing {len(inv)} lots"
-           + (f" · 🔍 {len(scan_ids)} match(es) highlighted" if scan_ids else "")
-           + (f" · 📱 Mobile ({COLS} cols)" if is_mobile else f" · 🖥️ Desktop ({COLS} cols)"))
+           + (f" · {len(scan_ids)} match(es) highlighted" if scan_ids else "")
+           + (f" · Mobile ({COLS} cols)" if is_mobile else f" · Desktop ({COLS} cols)"))
 
 def get_group(lot):
     return lot.get("remarks", "") or "(no remarks)"
@@ -1137,14 +1220,15 @@ for group_name, group_items in groupby(inv, key=get_group):
     with col_title:
         st.markdown(f"""
         <div class="bin-header">
-          <p class="bin-title">📦 {group_name}</p>
-          <p class="bin-stats">{bin_found}/{bin_total} found · {bin_pct}%{"&nbsp;&nbsp;🚩 "+str(bin_flagged)+" flagged" if bin_flagged else ""}</p>
+          <p class="bin-title">{icon('archive',14,'#a78bfa')} {group_name}</p>
+          <p class="bin-stats">{bin_found}/{bin_total} found · {bin_pct}%{"&nbsp;&nbsp;" + icon('alert-circle',11,'#fb7185') + str(bin_flagged)+" flagged" if bin_flagged else ""}</p>
         </div>""", unsafe_allow_html=True)
     with col_btn:
         st.write("")
         st.write("")
-        if st.button("✅ Mark all found", key=f"markall_{group_name}",
-                     use_container_width=True):
+        if st.button(
+            f"{icon('check',14,'#94a3b8')} Mark all found",
+            key=f"markall_{group_name}", use_container_width=True):
             for x in group_lots:
                 lid = x.get("inventory_id")
                 st.session_state.checked.add(lid)
@@ -1190,21 +1274,29 @@ for group_name, group_items in groupby(inv, key=get_group):
 
             if is_flagged:
                 badge_cls = "badge-flagged"
-                badge_lbl = "🚩 " + flag_info.get("reason", "Flagged")
+                badge_svg = icon("alert-circle", 10, "#fb7185")
+                badge_lbl = flag_info.get("reason", "Flagged")
             elif is_found:
                 badge_cls = "badge-found"
-                badge_lbl = "✅ Found"
+                badge_svg = icon("check-circle", 10, "#4ade80")
+                badge_lbl = "Found"
             elif is_over:
                 badge_cls = "badge-over"
-                badge_lbl = "💲 Overpriced"
+                badge_svg = icon("trending-up", 10, "#a78bfa")
+                badge_lbl = "Overpriced"
             elif is_low:
                 badge_cls = "badge-low"
-                badge_lbl = f"🔴 Low ({qty})"
+                badge_svg = icon("alert-triangle", 10, "#fb923c")
+                badge_lbl = f"Low ({qty})"
             else:
                 badge_cls = "badge-n" if cond == "New" else "badge-u"
+                badge_svg = ""
                 badge_lbl = cond
 
-            img = f"https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png"
+            img       = f"https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png"
+            note_html = (f'<div class="part-meta" style="margin-top:4px;color:#f59e0b;">'
+                         f'{icon("file-text",10,"#f59e0b")} {note_val[:20]}</div>'
+                         if note_val else "")
 
             with col:
                 st.markdown(f"""
@@ -1214,33 +1306,41 @@ for group_name, group_items in groupby(inv, key=get_group):
                   <div class="part-meta">{pname[:26] if not is_mobile else pname[:18]}</div>
                   <div class="part-meta">{color} · ×{qty}</div>
                   <div class="part-meta">${price}</div>
-                  <span class="badge {badge_cls}">{badge_lbl}</span>
-                  {f'<div class="part-meta" style="margin-top:4px;color:#f59e0b;">📝 {note_val[:20]}</div>' if note_val else ''}
+                  <span class="badge {badge_cls}">{badge_svg}{badge_lbl}</span>
+                  {note_html}
                 </div>""", unsafe_allow_html=True)
 
                 if is_flagged:
-                    if col.button("↩ Unflag", key=f"unflag_{lid}", use_container_width=True):
+                    if col.button(
+                        f"{icon('rotate-ccw',12,'#94a3b8')} Unflag",
+                        key=f"unflag_{lid}", use_container_width=True):
                         del st.session_state.flagged[lid]
                         delete_progress(lid)
                         st.rerun()
                 elif is_found:
-                    if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
+                    if col.button(
+                        f"{icon('x',12,'#94a3b8')} Unmark",
+                        key=f"unmark_{lid}", use_container_width=True):
                         st.session_state.checked.discard(lid)
                         delete_progress(lid)
                         st.rerun()
                 else:
-                    if col.button("✓ Found", key=f"found_{lid}", use_container_width=True):
+                    if col.button(
+                        f"{icon('check',12,'#94a3b8')} Found",
+                        key=f"found_{lid}", use_container_width=True):
                         st.session_state.checked.add(lid)
-                        save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
+                        save_progress(lid, "checked",
+                                      notes=st.session_state.notes.get(lid))
                         st.rerun()
 
-                with col.expander("📝 Note"):
+                with col.expander(f"{icon('file-text',11,'#64748b')} Note"):
                     new_note = st.text_area("Note", value=note_val,
                                             key=f"note_{lid}", height=80,
                                             label_visibility="collapsed",
                                             placeholder="e.g. found in back of bin…")
-                    if st.button("💾 Save note", key=f"savenote_{lid}",
-                                 use_container_width=True):
+                    if st.button(
+                        f"{icon('save',12,'#94a3b8')} Save note",
+                        key=f"savenote_{lid}", use_container_width=True):
                         st.session_state.notes[lid] = new_note
                         status = ("checked" if is_found else
                                   "flagged" if is_flagged else "unchecked")
@@ -1251,7 +1351,7 @@ for group_name, group_items in groupby(inv, key=get_group):
                         st.rerun()
 
                 if not is_found and not is_flagged:
-                    with col.expander("🚩 Flag issue"):
+                    with col.expander(f"{icon('flag',11,'#64748b')} Flag issue"):
                         reason = st.radio(
                             "Issue type",
                             ["Wrong quantity", "Wrong part in bin", "Wrong bin"],
@@ -1268,20 +1368,22 @@ for group_name, group_items in groupby(inv, key=get_group):
                                               None, st.session_state.notes.get(lid))
                                 st.rerun()
                             if st.session_state.auth:
-                                if st.button("💾 Update on BrickLink", key=f"update_{lid}",
-                                             use_container_width=True):
+                                if st.button(
+                                    f"{icon('save',12,'#f5f3ff')} Update on BrickLink",
+                                    key=f"update_{lid}", use_container_width=True,
+                                    type="primary"):
                                     try:
                                         auth = make_auth(*st.session_state.auth)
                                         update_quantity_on_bricklink(auth, lid, actual_qty)
                                         st.session_state.flagged[lid] = {
-                                            "reason": "Qty updated ✓", "actual_qty": actual_qty}
+                                            "reason": "Qty updated", "actual_qty": actual_qty}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id") == lid:
                                                 x["quantity"] = actual_qty
-                                        save_progress(lid, "flagged", "Qty updated ✓",
+                                        save_progress(lid, "flagged", "Qty updated",
                                                       actual_qty, None,
                                                       st.session_state.notes.get(lid))
-                                        st.success("Updated!")
+                                        st.success("Updated")
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Failed: {e}")
@@ -1297,20 +1399,22 @@ for group_name, group_items in groupby(inv, key=get_group):
                                               correct_bin, st.session_state.notes.get(lid))
                                 st.rerun()
                             if st.session_state.auth and correct_bin:
-                                if st.button("💾 Update on BrickLink", key=f"updatebin_{lid}",
-                                             use_container_width=True):
+                                if st.button(
+                                    f"{icon('save',12,'#f5f3ff')} Update on BrickLink",
+                                    key=f"updatebin_{lid}", use_container_width=True,
+                                    type="primary"):
                                     try:
                                         auth = make_auth(*st.session_state.auth)
                                         update_remarks_on_bricklink(auth, lid, correct_bin)
                                         st.session_state.flagged[lid] = {
-                                            "reason": "Bin updated ✓", "correct_bin": correct_bin}
+                                            "reason": "Bin updated", "correct_bin": correct_bin}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id") == lid:
                                                 x["remarks"] = correct_bin
-                                        save_progress(lid, "flagged", "Bin updated ✓",
+                                        save_progress(lid, "flagged", "Bin updated",
                                                       None, correct_bin,
                                                       st.session_state.notes.get(lid))
-                                        st.success("Bin updated!")
+                                        st.success("Bin updated")
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Failed: {e}")
