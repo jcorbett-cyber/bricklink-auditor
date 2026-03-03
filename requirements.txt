@@ -2,3 +2,4 @@ streamlit
 requests
 requests-oauthlib
 pandas
+supabase
