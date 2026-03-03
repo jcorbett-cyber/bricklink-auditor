@@ -13,10 +13,7 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* ── Base ── */
-html, body, [class*="css"] {
-  font-family: 'Inter', sans-serif !important;
-}
+html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
 .block-container {
   padding-top: 0rem !important;
   background: transparent;
@@ -27,31 +24,16 @@ header[data-testid="stHeader"] {
 }
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
-button[data-testid="collapsedControl"] {
-  display: none !important;
-}
-[data-testid="stSidebarCollapseButton"] {
-  display: none !important;
-}
-span.sidebar-collapse-icon {
-  display: none !important;
-}
+button[data-testid="collapsedControl"] { display: none !important; }
+[data-testid="stSidebarCollapseButton"] { display: none !important; }
 
-/* ── Sidebar ── */
 section[data-testid="stSidebar"] {
   background: linear-gradient(180deg, #0d1117 0%, #161b27 100%) !important;
   border-right: 1px solid #1e2a3a;
 }
-section[data-testid="stSidebar"] * {
-  font-family: 'Inter', sans-serif !important;
-}
+section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important; }
+.stApp { background: linear-gradient(135deg, #0d1117 0%, #111827 50%, #0f172a 100%); }
 
-/* ── Main background ── */
-.stApp {
-  background: linear-gradient(135deg, #0d1117 0%, #111827 50%, #0f172a 100%);
-}
-
-/* ── Cards ── */
 .part-card {
   background: linear-gradient(145deg, #161b27, #1a2235);
   border: 1px solid #1e2d45;
@@ -70,172 +52,93 @@ section[data-testid="stSidebar"] * {
 .part-card.found {
   background: linear-gradient(145deg, #0d2818, #112d1c);
   border-color: #2d6a4f;
-  box-shadow: 0 4px 15px rgba(45,106,79,0.2), 0 1px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 15px rgba(45,106,79,0.2);
 }
-.part-card.found:hover {
-  border-color: #40916c;
-  box-shadow: 0 8px 25px rgba(45,106,79,0.3);
-}
+.part-card.found:hover { border-color: #40916c; box-shadow: 0 8px 25px rgba(45,106,79,0.3); }
 .part-card.flagged {
   background: linear-gradient(145deg, #2d0d1a, #331220);
   border-color: #7f1d35;
-  box-shadow: 0 4px 15px rgba(127,29,53,0.2), 0 1px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 15px rgba(127,29,53,0.2);
 }
-.part-card.flagged:hover {
-  border-color: #be2d52;
-  box-shadow: 0 8px 25px rgba(127,29,53,0.3);
-}
+.part-card.flagged:hover { border-color: #be2d52; box-shadow: 0 8px 25px rgba(127,29,53,0.3); }
 .part-card.lowstock {
   background: linear-gradient(145deg, #2d1a08, #331f0c);
   border-color: #7c3d0e;
-  box-shadow: 0 4px 15px rgba(124,61,14,0.2), 0 1px 4px rgba(0,0,0,0.2);
 }
-.part-card.lowstock:hover {
-  border-color: #c2601a;
-  box-shadow: 0 8px 25px rgba(124,61,14,0.3);
-}
+.part-card.lowstock:hover { border-color: #c2601a; }
 .part-card.highlight {
   background: linear-gradient(145deg, #2a2208, #32290d);
   border-color: #b5860d;
-  box-shadow: 0 4px 20px rgba(181,134,13,0.25), 0 0 0 1px rgba(181,134,13,0.1);
+  box-shadow: 0 4px 20px rgba(181,134,13,0.25);
 }
-.part-card.highlight:hover {
-  border-color: #d4a017;
-  box-shadow: 0 8px 30px rgba(181,134,13,0.35);
-}
+.part-card.highlight:hover { border-color: #d4a017; box-shadow: 0 8px 30px rgba(181,134,13,0.35); }
 .part-card.overpriced {
   background: linear-gradient(145deg, #1e0d2d, #241035);
   border-color: #5b21b6;
-  box-shadow: 0 4px 15px rgba(91,33,182,0.2), 0 1px 4px rgba(0,0,0,0.2);
 }
-.part-card.overpriced:hover {
-  border-color: #7c3aed;
-  box-shadow: 0 8px 25px rgba(91,33,182,0.3);
-}
+.part-card.overpriced:hover { border-color: #7c3aed; box-shadow: 0 8px 25px rgba(91,33,182,0.3); }
 
-/* ── Part card text ── */
 .part-img {
-  width: 100%;
-  max-height: 110px;
-  object-fit: contain;
-  margin-bottom: 10px;
+  width: 100%; max-height: 110px; object-fit: contain; margin-bottom: 10px;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
 }
-.part-name {
-  font-size: 0.78rem;
-  color: #e2e8f0;
-  font-weight: 700;
-  margin-bottom: 4px;
-  letter-spacing: 0.01em;
-}
-.part-meta {
-  font-size: 0.68rem;
-  color: #64748b;
-  line-height: 1.5;
-}
+.part-name { font-size:0.78rem; color:#e2e8f0; font-weight:700; margin-bottom:4px; letter-spacing:0.01em; }
+.part-meta { font-size:0.68rem; color:#64748b; line-height:1.5; }
 
-/* ── Badges ── */
 .badge {
-  display: inline-block;
-  border-radius: 20px;
-  padding: 3px 10px;
-  font-size: 0.62rem;
-  font-weight: 700;
-  margin-top: 6px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  display: inline-block; border-radius: 20px; padding: 3px 10px;
+  font-size: 0.62rem; font-weight: 700; margin-top: 6px;
+  letter-spacing: 0.04em; text-transform: uppercase;
 }
-.badge-n       { background: rgba(30,42,61,0.8); color: #94a3b8; border: 1px solid #1e2d45; }
-.badge-u       { background: rgba(45,35,10,0.8); color: #f59e0b; border: 1px solid #78450a; }
-.badge-found   { background: rgba(13,40,24,0.9); color: #4ade80; border: 1px solid #2d6a4f; }
-.badge-flagged { background: rgba(45,13,26,0.9); color: #fb7185; border: 1px solid #7f1d35; }
-.badge-low     { background: rgba(45,26,8,0.9);  color: #fb923c; border: 1px solid #7c3d0e; }
-.badge-over    { background: rgba(30,13,45,0.9); color: #a78bfa; border: 1px solid #5b21b6; }
+.badge-n       { background:rgba(30,42,61,0.8);  color:#94a3b8; border:1px solid #1e2d45; }
+.badge-u       { background:rgba(45,35,10,0.8);  color:#f59e0b; border:1px solid #78450a; }
+.badge-found   { background:rgba(13,40,24,0.9);  color:#4ade80; border:1px solid #2d6a4f; }
+.badge-flagged { background:rgba(45,13,26,0.9);  color:#fb7185; border:1px solid #7f1d35; }
+.badge-low     { background:rgba(45,26,8,0.9);   color:#fb923c; border:1px solid #7c3d0e; }
+.badge-over    { background:rgba(30,13,45,0.9);  color:#a78bfa; border:1px solid #5b21b6; }
 
-/* ── Bin headers ── */
 .bin-header {
   background: linear-gradient(135deg, #161b27, #1a2235);
-  border-left: 3px solid #6d28d9;
-  border-radius: 12px;
-  padding: 12px 20px;
-  margin: 24px 0 12px 0;
+  border-left: 3px solid #6d28d9; border-radius: 12px;
+  padding: 12px 20px; margin: 24px 0 12px 0;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
-.bin-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #a78bfa;
-  margin: 0;
-  letter-spacing: 0.02em;
-}
-.bin-stats {
-  font-size: 0.72rem;
-  color: #475569;
-  margin: 3px 0 0 0;
-  font-weight: 500;
-}
+.bin-title { font-size:1rem; font-weight:700; color:#a78bfa; margin:0; letter-spacing:0.02em; }
+.bin-stats { font-size:0.72rem; color:#475569; margin:3px 0 0 0; font-weight:500; }
 
-/* ── Scan bar ── */
 .scan-bar {
   background: linear-gradient(135deg, #161b27, #1a2235);
-  border: 1px solid #1e2d45;
-  border-radius: 14px;
-  padding: 14px 20px;
-  margin-bottom: 20px;
+  border: 1px solid #1e2d45; border-radius: 14px;
+  padding: 14px 20px; margin-bottom: 20px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 
-/* ── Metric cards ── */
 .metric-card {
   background: linear-gradient(145deg, #161b27, #1a2235);
-  border: 1px solid #1e2d45;
-  border-radius: 16px;
-  padding: 20px 16px;
-  text-align: center;
-  margin-bottom: 10px;
+  border: 1px solid #1e2d45; border-radius: 16px;
+  padding: 20px 16px; text-align: center; margin-bottom: 10px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.25);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.metric-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.35);
-}
-.metric-value {
-  font-size: 2rem;
-  font-weight: 800;
-  color: #a78bfa;
-  letter-spacing: -0.02em;
-}
-.metric-label {
-  font-size: 0.72rem;
-  color: #475569;
-  margin-top: 6px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+.metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.35); }
+.metric-value { font-size:2rem; font-weight:800; color:#a78bfa; letter-spacing:-0.02em; }
+.metric-label { font-size:0.72rem; color:#475569; margin-top:6px; font-weight:500; text-transform:uppercase; letter-spacing:0.06em; }
 
-/* ── Streamlit overrides ── */
 .stButton > button {
-  font-family: 'Inter', sans-serif !important;
-  font-weight: 600 !important;
-  border-radius: 10px !important;
-  border: 1px solid #1e2d45 !important;
+  font-family: 'Inter', sans-serif !important; font-weight: 600 !important;
+  border-radius: 10px !important; border: 1px solid #1e2d45 !important;
   background: linear-gradient(135deg, #161b27, #1a2235) !important;
-  color: #94a3b8 !important;
-  transition: all 0.15s ease !important;
+  color: #94a3b8 !important; transition: all 0.15s ease !important;
   font-size: 0.75rem !important;
 }
 .stButton > button:hover {
-  border-color: #6d28d9 !important;
-  color: #a78bfa !important;
+  border-color: #6d28d9 !important; color: #a78bfa !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 12px rgba(109,40,217,0.2) !important;
 }
 .stButton > button[kind="primary"] {
   background: linear-gradient(135deg, #5b21b6, #6d28d9) !important;
-  border-color: #7c3aed !important;
-  color: #f5f3ff !important;
+  border-color: #7c3aed !important; color: #f5f3ff !important;
 }
 .stButton > button[kind="primary"]:hover {
   background: linear-gradient(135deg, #6d28d9, #7c3aed) !important;
@@ -243,24 +146,19 @@ section[data-testid="stSidebar"] * {
 }
 .stTextInput > div > div > input {
   font-family: 'Inter', sans-serif !important;
-  background: #161b27 !important;
-  border: 1px solid #1e2d45 !important;
-  border-radius: 10px !important;
-  color: #e2e8f0 !important;
+  background: #161b27 !important; border: 1px solid #1e2d45 !important;
+  border-radius: 10px !important; color: #e2e8f0 !important;
 }
 .stTextInput > div > div > input:focus {
   border-color: #6d28d9 !important;
   box-shadow: 0 0 0 2px rgba(109,40,217,0.2) !important;
 }
 .stSelectbox > div > div {
-  background: #161b27 !important;
-  border: 1px solid #1e2d45 !important;
-  border-radius: 10px !important;
-  color: #e2e8f0 !important;
+  background: #161b27 !important; border: 1px solid #1e2d45 !important;
+  border-radius: 10px !important; color: #e2e8f0 !important;
 }
 .stMultiSelect > div {
-  background: #161b27 !important;
-  border: 1px solid #1e2d45 !important;
+  background: #161b27 !important; border: 1px solid #1e2d45 !important;
   border-radius: 10px !important;
 }
 .stProgress > div > div > div {
@@ -268,68 +166,57 @@ section[data-testid="stSidebar"] * {
   border-radius: 10px !important;
 }
 div[data-testid="stExpander"] {
-  background: #161b27 !important;
-  border: 1px solid #1e2d45 !important;
+  background: #161b27 !important; border: 1px solid #1e2d45 !important;
   border-radius: 10px !important;
 }
-.stDataFrame {
-  border-radius: 12px !important;
-  overflow: hidden;
-  border: 1px solid #1e2d45 !important;
-}
-h1 {
-  font-family: 'Inter', sans-serif !important;
-  font-weight: 800 !important;
-  color: #e2e8f0 !important;
-  letter-spacing: -0.03em !important;
-}
-h2, h3 {
-  font-family: 'Inter', sans-serif !important;
-  font-weight: 700 !important;
-  color: #cbd5e1 !important;
-  letter-spacing: -0.02em !important;
-}
-.stCaption, .stMarkdown p {
-  color: #475569 !important;
-  font-family: 'Inter', sans-serif !important;
-}
-div[data-testid="stSuccess"] {
-  background: rgba(13,40,24,0.8) !important;
-  border: 1px solid #2d6a4f !important;
-  border-radius: 10px !important;
-}
-div[data-testid="stWarning"] {
-  background: rgba(45,26,8,0.8) !important;
-  border: 1px solid #7c3d0e !important;
-  border-radius: 10px !important;
-}
-div[data-testid="stError"] {
-  background: rgba(45,13,26,0.8) !important;
-  border: 1px solid #7f1d35 !important;
-  border-radius: 10px !important;
-}
-div[data-testid="stInfo"] {
-  background: rgba(13,22,40,0.8) !important;
-  border: 1px solid #1e3a5f !important;
-  border-radius: 10px !important;
-}
-.stDivider {
-  border-color: #1e2d45 !important;
-}
+.stDataFrame { border-radius: 12px !important; overflow: hidden; border: 1px solid #1e2d45 !important; }
+h1 { font-family:'Inter',sans-serif !important; font-weight:800 !important; color:#e2e8f0 !important; letter-spacing:-0.03em !important; }
+h2, h3 { font-family:'Inter',sans-serif !important; font-weight:700 !important; color:#cbd5e1 !important; letter-spacing:-0.02em !important; }
+.stCaption, .stMarkdown p { color:#475569 !important; font-family:'Inter',sans-serif !important; }
+div[data-testid="stSuccess"] { background:rgba(13,40,24,0.8) !important; border:1px solid #2d6a4f !important; border-radius:10px !important; }
+div[data-testid="stWarning"] { background:rgba(45,26,8,0.8) !important; border:1px solid #7c3d0e !important; border-radius:10px !important; }
+div[data-testid="stError"]   { background:rgba(45,13,26,0.8) !important; border:1px solid #7f1d35 !important; border-radius:10px !important; }
+div[data-testid="stInfo"]    { background:rgba(13,22,40,0.8) !important; border:1px solid #1e3a5f !important; border-radius:10px !important; }
 
 /* ── Mobile ── */
 @media (max-width: 768px) {
-  .part-card { padding: 8px 6px; border-radius: 12px; }
-  .part-img { max-height: 70px; }
-  .part-name { font-size: 0.68rem; }
-  .part-meta { font-size: 0.6rem; }
-  .badge { font-size: 0.56rem; padding: 2px 6px; }
+  .block-container { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+  .part-card { padding: 10px 8px; border-radius: 12px; }
+  .part-img { max-height: 80px; }
+  .part-name { font-size: 0.72rem; }
+  .part-meta { font-size: 0.62rem; }
+  .badge { font-size: 0.58rem; padding: 2px 7px; }
+  .bin-header { padding: 10px 14px; margin: 16px 0 8px 0; }
+  .bin-title { font-size: 0.9rem; }
+  .metric-value { font-size: 1.5rem; }
+  .stButton > button { font-size: 0.8rem !important; padding: 0.5rem !important; min-height: 44px !important; }
 }
 </style>
 """, unsafe_allow_html=True)
+
+# ── Screen size detection ─────────────────────────────────────────────────────
+st.components.v1.html("""
+<script>
+function sendScreenWidth() {
+  const w = window.innerWidth;
+  const data = {type: "screen_width", width: w};
+  window.parent.postMessage(JSON.stringify(data), "*");
+}
+sendScreenWidth();
+window.addEventListener("resize", sendScreenWidth);
+</script>
+""", height=0)
+
+if "screen_width" not in st.session_state:
+    st.session_state.screen_width = 1200
+
+screen_w = st.session_state.get("screen_width", 1200)
+is_mobile = screen_w < 768
+COLS = 3 if is_mobile else 6
+
 LOGO                = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/iTunesArtwork%402x.png"
 LOW_STOCK_THRESHOLD = 2
-PRICE_FLAG_PCT      = 25  # flag if more than 25% above market
+PRICE_FLAG_PCT      = 25
 MARKUP              = 1.25
 SALE_DISCOUNT       = 0.70
 
@@ -362,6 +249,7 @@ for key, default in [
     ("page", "audit"),
     ("price_cache", {}),
     ("price_results", []),
+    ("screen_width", 1200),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -821,12 +709,12 @@ if st.session_state.page == "summary":
         </div>""", unsafe_allow_html=True)
     with c3:
         st.markdown(f"""<div class="metric-card">
-          <div class="metric-value" style="color:#f38ba8">{n_flagged}</div>
+          <div class="metric-value" style="color:#fb7185">{n_flagged}</div>
           <div class="metric-label">Lots Flagged</div>
         </div>""", unsafe_allow_html=True)
     with c4:
         st.markdown(f"""<div class="metric-card">
-          <div class="metric-value" style="color:#fab387">{len(low_lots)}</div>
+          <div class="metric-value" style="color:#fb923c">{len(low_lots)}</div>
           <div class="metric-label">Low Stock Lots</div>
         </div>""", unsafe_allow_html=True)
 
@@ -835,12 +723,12 @@ if st.session_state.page == "summary":
     v1, v2, v3 = st.columns(3)
     with v1:
         st.markdown(f"""<div class="metric-card">
-          <div class="metric-value" style="color:#a6e3a1">${val_checked:,.2f}</div>
+          <div class="metric-value" style="color:#4ade80">${val_checked:,.2f}</div>
           <div class="metric-label">Value Checked ✅</div>
         </div>""", unsafe_allow_html=True)
     with v2:
         st.markdown(f"""<div class="metric-card">
-          <div class="metric-value" style="color:#f38ba8">${val_unchecked:,.2f}</div>
+          <div class="metric-value" style="color:#fb7185">${val_unchecked:,.2f}</div>
           <div class="metric-label">Value Not Yet Checked</div>
         </div>""", unsafe_allow_html=True)
     with v3:
@@ -915,7 +803,7 @@ if st.session_state.page == "history":
     st.header("📅 Audit History")
     history = load_audit_history()
     if not history:
-        st.info("No snapshots yet. Click **📸 Save Audit Snapshot** in the sidebar after an audit.")
+        st.info("No snapshots yet. Click **📸 Save Audit Snapshot** in the sidebar.")
         st.stop()
 
     st.subheader("Past Audits")
@@ -957,12 +845,12 @@ if st.session_state.page == "history":
         </div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="metric-card">
-          <div class="metric-value" style="color:#f38ba8">{selected_h['total_flagged']}</div>
+          <div class="metric-value" style="color:#fb7185">{selected_h['total_flagged']}</div>
           <div class="metric-label">Flagged</div>
         </div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="metric-card">
-          <div class="metric-value" style="color:#a6e3a1">${selected_h['total_value_checked']:,.2f}</div>
+          <div class="metric-value" style="color:#4ade80">${selected_h['total_value_checked']:,.2f}</div>
           <div class="metric-label">Value Checked</div>
         </div>""", unsafe_allow_html=True)
     discreps = selected_h.get("discrepancies", [])
@@ -984,36 +872,30 @@ if st.session_state.page == "prices":
                f"{int((MARKUP*SALE_DISCOUNT-1)*100):+d}% vs market.")
 
     inv = st.session_state.inventory
-
-    # ── Controls ──
     col_a, col_b, col_c = st.columns([2, 2, 1])
     with col_a:
         all_remarks = sorted(set(i.get("remarks", "") or "(no remarks)" for i in inv))
         bin_select  = st.selectbox("Check prices for bin", ["All bins"] + all_remarks)
     with col_b:
-        batch_size = st.selectbox("Batch size (lots per run)", [25, 50, 100], index=0)
+        batch_size = st.selectbox("Batch size", [25, 50, 100], index=0)
     with col_c:
-        force_refresh = st.checkbox("Force refresh cached prices")
+        force_refresh = st.checkbox("Force refresh")
 
-    if bin_select != "All bins":
-        lots_to_check = [i for i in inv
-                         if (i.get("remarks", "") or "(no remarks)") == bin_select]
-    else:
-        lots_to_check = inv
+    lots_to_check = inv if bin_select == "All bins" else [
+        i for i in inv if (i.get("remarks", "") or "(no remarks)") == bin_select]
 
     cached_count = sum(
         1 for i in lots_to_check
         if f"{i.get('item',{}).get('no','')}_{i.get('color_id',0)}_N"
-        in st.session_state.price_cache
-    )
+        in st.session_state.price_cache)
     st.caption(f"{len(lots_to_check)} lots selected · "
-               f"{cached_count} already cached · "
+               f"{cached_count} cached · "
                f"{len(lots_to_check)-cached_count} need fetching")
 
     if st.button(f"🔍 Fetch prices for next {batch_size} uncached lots",
                  type="primary", use_container_width=True):
-        auth      = make_auth(*st.session_state.auth)
-        to_fetch  = []
+        auth     = make_auth(*st.session_state.auth)
+        to_fetch = []
         for lot in lots_to_check:
             pno      = lot.get("item", {}).get("no", "")
             color_id = lot.get("color_id", 0)
@@ -1024,12 +906,10 @@ if st.session_state.page == "prices":
                 break
 
         if not to_fetch:
-            st.success("All selected lots are already cached! "
-                       "Check 'Force refresh' to re-fetch.")
+            st.success("All cached! Check 'Force refresh' to re-fetch.")
         else:
             progress_bar = st.progress(0)
             status_text  = st.empty()
-            results      = []
             for idx, lot in enumerate(to_fetch):
                 pno      = lot.get("item", {}).get("no", "")
                 color_id = lot.get("color_id", 0)
@@ -1044,49 +924,43 @@ if st.session_state.page == "prices":
                 except Exception:
                     pass
                 progress_bar.progress((idx + 1) / len(to_fetch))
-                time.sleep(0.3)  # be kind to the API
-
+                time.sleep(0.3)
             status_text.text("Done!")
-            st.success(f"✅ Fetched prices for {len(to_fetch)} lots!")
+            st.success(f"✅ Fetched {len(to_fetch)} lots!")
             st.rerun()
 
     st.divider()
-
-    # ── Results table ──
     rows = []
     for lot in lots_to_check:
-        pno        = lot.get("item", {}).get("no", "")
-        color_id   = lot.get("color_id", 0)
-        key        = f"{pno}_{color_id}_N"
-        my_price   = float(lot.get("unit_price", 0) or 0)
-        cache_hit  = st.session_state.price_cache.get(key)
+        pno       = lot.get("item", {}).get("no", "")
+        color_id  = lot.get("color_id", 0)
+        key       = f"{pno}_{color_id}_N"
+        my_price  = float(lot.get("unit_price", 0) or 0)
+        cache_hit = st.session_state.price_cache.get(key)
         if not cache_hit:
             continue
-        mkt_avg    = float(cache_hit.get("avg_price", 0) or 0)
-        mkt_qty    = float(cache_hit.get("qty_avg_price", 0) or 0)
+        mkt_avg = float(cache_hit.get("avg_price", 0) or 0)
         if mkt_avg == 0:
             continue
-        pct_diff   = ((my_price - mkt_avg) / mkt_avg) * 100
-        target     = round(mkt_avg * MARKUP * SALE_DISCOUNT, 4)
-        flagged    = pct_diff > PRICE_FLAG_PCT
+        pct_diff = ((my_price - mkt_avg) / mkt_avg) * 100
+        target   = round(mkt_avg * MARKUP * SALE_DISCOUNT, 4)
         rows.append({
-            "lot":       lot,
-            "pno":       pno,
-            "name":      lot.get("item", {}).get("name", ""),
-            "color":     lot.get("color_name", ""),
-            "bin":       lot.get("remarks", ""),
-            "my_price":  my_price,
-            "mkt_avg":   mkt_avg,
-            "mkt_qty":   mkt_qty,
-            "pct_diff":  pct_diff,
-            "target":    target,
-            "flagged":   flagged,
-            "lid":       lot.get("inventory_id"),
+            "lot": lot, "pno": pno,
+            "name":     lot.get("item", {}).get("name", ""),
+            "color":    lot.get("color_name", ""),
+            "bin":      lot.get("remarks", ""),
+            "my_price": my_price,
+            "mkt_avg":  mkt_avg,
+            "mkt_qty":  float(cache_hit.get("qty_avg_price", 0) or 0),
+            "pct_diff": pct_diff,
+            "target":   target,
+            "flagged":  pct_diff > PRICE_FLAG_PCT,
+            "lid":      lot.get("inventory_id"),
         })
 
     if rows:
-        flagged_rows   = [r for r in rows if r["flagged"]]
-        ok_rows        = [r for r in rows if not r["flagged"]]
+        flagged_rows = [r for r in rows if r["flagged"]]
+        ok_rows      = [r for r in rows if not r["flagged"]]
         price_tab1, price_tab2 = st.tabs([
             f"🚩 Overpriced ({len(flagged_rows)})",
             f"✅ OK ({len(ok_rows)})"
@@ -1095,38 +969,33 @@ if st.session_state.page == "prices":
         def render_price_table(price_rows, tab):
             with tab:
                 if not price_rows:
-                    st.success("Nothing to show here!")
+                    st.success("Nothing here!")
                     return
-                df = pd.DataFrame([{
-                    "Part #":       r["pno"],
-                    "Name":         r["name"],
-                    "Color":        r["color"],
-                    "Bin":          r["bin"],
-                    "My Price":     f"${r['my_price']:.4f}",
-                    "Market Avg":   f"${r['mkt_avg']:.4f}",
-                    "% vs Market":  f"{r['pct_diff']:+.1f}%",
-                    "Suggested":    f"${r['target']:.4f}",
-                } for r in price_rows])
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame([{
+                    "Part #":      r["pno"],
+                    "Name":        r["name"],
+                    "Color":       r["color"],
+                    "Bin":         r["bin"],
+                    "My Price":    f"${r['my_price']:.4f}",
+                    "Market Avg":  f"${r['mkt_avg']:.4f}",
+                    "% vs Market": f"{r['pct_diff']:+.1f}%",
+                    "Suggested":   f"${r['target']:.4f}",
+                } for r in price_rows]), use_container_width=True, hide_index=True)
 
                 st.divider()
                 st.markdown("#### 💲 Update a price")
-                part_labels = [f"{r['pno']} — {r['name']} ({r['color']})"
-                               for r in price_rows]
-                selected_lbl = st.selectbox("Select lot to update",
-                                            part_labels, key=f"sel_{tab}")
+                part_labels  = [f"{r['pno']} — {r['name']} ({r['color']})" for r in price_rows]
+                selected_lbl = st.selectbox("Select lot", part_labels, key=f"sel_{id(tab)}")
                 selected_row = price_rows[part_labels.index(selected_lbl)]
-
-                col1, col2 = st.columns([2, 1])
+                col1, col2   = st.columns([2, 1])
                 with col1:
                     new_price = st.number_input(
-                        f"New price (market avg: ${selected_row['mkt_avg']:.4f}, "
+                        f"New price (market: ${selected_row['mkt_avg']:.4f}, "
                         f"suggested: ${selected_row['target']:.4f})",
                         min_value=0.0001,
                         value=float(selected_row["target"]),
                         format="%.4f",
-                        key=f"newprice_{selected_row['lid']}"
-                    )
+                        key=f"newprice_{selected_row['lid']}")
                 with col2:
                     st.write("")
                     st.write("")
@@ -1135,8 +1004,7 @@ if st.session_state.page == "prices":
                                  use_container_width=True, type="primary"):
                         try:
                             auth = make_auth(*st.session_state.auth)
-                            update_price_on_bricklink(
-                                auth, selected_row["lid"], new_price)
+                            update_price_on_bricklink(auth, selected_row["lid"], new_price)
                             for x in st.session_state.inventory:
                                 if x.get("inventory_id") == selected_row["lid"]:
                                     x["unit_price"] = str(new_price)
@@ -1149,7 +1017,6 @@ if st.session_state.page == "prices":
         render_price_table(ok_rows,      price_tab2)
 
         st.divider()
-        st.markdown("#### 📥 Export price report")
         df_export = pd.DataFrame([{
             "Part #":      r["pno"],
             "Name":        r["name"],
@@ -1166,8 +1033,7 @@ if st.session_state.page == "prices":
                            "price_report.csv", "text/csv",
                            use_container_width=True)
     else:
-        st.info("No cached prices yet — fetch some lots above to see results here.")
-
+        st.info("No cached prices yet — fetch some lots above to see results.")
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1201,8 +1067,7 @@ if st.session_state.show_bulk_confirm:
         } for p in pushable]), use_container_width=True, hide_index=True)
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("✅ Confirm — push all", type="primary",
-                         use_container_width=True):
+            if st.button("✅ Confirm — push all", type="primary", use_container_width=True):
                 auth = make_auth(*st.session_state.auth)
                 with st.spinner("Pushing…"):
                     results = push_all_flags(auth)
@@ -1255,20 +1120,17 @@ inv = sorted(inv, key=lambda x: (
 ))
 
 st.caption(f"Showing {len(inv)} lots"
-           + (f" · 🔍 {len(scan_ids)} match(es) highlighted" if scan_ids else ""))
+           + (f" · 🔍 {len(scan_ids)} match(es) highlighted" if scan_ids else "")
+           + (f" · 📱 Mobile ({COLS} cols)" if is_mobile else f" · 🖥️ Desktop ({COLS} cols)"))
 
 def get_group(lot):
     return lot.get("remarks", "") or "(no remarks)"
 
-COLS = 6
-
 for group_name, group_items in groupby(inv, key=get_group):
     group_lots  = list(group_items)
     bin_total   = len(group_lots)
-    bin_found   = sum(1 for x in group_lots
-                      if x.get("inventory_id") in st.session_state.checked)
-    bin_flagged = sum(1 for x in group_lots
-                      if x.get("inventory_id") in st.session_state.flagged)
+    bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
+    bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
     bin_pct     = int(bin_found / bin_total * 100) if bin_total else 0
 
     col_title, col_btn = st.columns([4, 1])
@@ -1286,8 +1148,7 @@ for group_name, group_items in groupby(inv, key=get_group):
             for x in group_lots:
                 lid = x.get("inventory_id")
                 st.session_state.checked.add(lid)
-                save_progress(lid, "checked",
-                              notes=st.session_state.notes.get(lid))
+                save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
             st.rerun()
 
     for row_start in range(0, len(group_lots), COLS):
@@ -1350,31 +1211,27 @@ for group_name, group_items in groupby(inv, key=get_group):
                 <div class="{card_cls}">
                   <img class="part-img" src="{img}" onerror="this.style.opacity='0.15'"/>
                   <div class="part-name">{pno}</div>
-                  <div class="part-meta">{pname[:26]}</div>
+                  <div class="part-meta">{pname[:26] if not is_mobile else pname[:18]}</div>
                   <div class="part-meta">{color} · ×{qty}</div>
                   <div class="part-meta">${price}</div>
                   <span class="badge {badge_cls}">{badge_lbl}</span>
-                  {f'<div class="part-meta" style="margin-top:4px;color:#f9e2af;">📝 {note_val[:30]}</div>' if note_val else ''}
+                  {f'<div class="part-meta" style="margin-top:4px;color:#f59e0b;">📝 {note_val[:20]}</div>' if note_val else ''}
                 </div>""", unsafe_allow_html=True)
 
                 if is_flagged:
-                    if col.button("↩ Unflag", key=f"unflag_{lid}",
-                                  use_container_width=True):
+                    if col.button("↩ Unflag", key=f"unflag_{lid}", use_container_width=True):
                         del st.session_state.flagged[lid]
                         delete_progress(lid)
                         st.rerun()
                 elif is_found:
-                    if col.button("Unmark", key=f"unmark_{lid}",
-                                  use_container_width=True):
+                    if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
                         st.session_state.checked.discard(lid)
                         delete_progress(lid)
                         st.rerun()
                 else:
-                    if col.button("✓ Found", key=f"found_{lid}",
-                                  use_container_width=True):
+                    if col.button("✓ Found", key=f"found_{lid}", use_container_width=True):
                         st.session_state.checked.add(lid)
-                        save_progress(lid, "checked",
-                                      notes=st.session_state.notes.get(lid))
+                        save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
                         st.rerun()
 
                 with col.expander("📝 Note"):
@@ -1407,20 +1264,17 @@ for group_name, group_items in groupby(inv, key=get_group):
                                          use_container_width=True):
                                 st.session_state.flagged[lid] = {
                                     "reason": "Wrong qty", "actual_qty": actual_qty}
-                                save_progress(lid, "flagged", "Wrong qty",
-                                              actual_qty, None,
-                                              st.session_state.notes.get(lid))
+                                save_progress(lid, "flagged", "Wrong qty", actual_qty,
+                                              None, st.session_state.notes.get(lid))
                                 st.rerun()
                             if st.session_state.auth:
-                                if st.button("💾 Update on BrickLink",
-                                             key=f"update_{lid}",
+                                if st.button("💾 Update on BrickLink", key=f"update_{lid}",
                                              use_container_width=True):
                                     try:
                                         auth = make_auth(*st.session_state.auth)
                                         update_quantity_on_bricklink(auth, lid, actual_qty)
                                         st.session_state.flagged[lid] = {
-                                            "reason": "Qty updated ✓",
-                                            "actual_qty": actual_qty}
+                                            "reason": "Qty updated ✓", "actual_qty": actual_qty}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id") == lid:
                                                 x["quantity"] = actual_qty
@@ -1440,19 +1294,16 @@ for group_name, group_items in groupby(inv, key=get_group):
                                 st.session_state.flagged[lid] = {
                                     "reason": "Wrong bin", "correct_bin": correct_bin}
                                 save_progress(lid, "flagged", "Wrong bin", None,
-                                              correct_bin,
-                                              st.session_state.notes.get(lid))
+                                              correct_bin, st.session_state.notes.get(lid))
                                 st.rerun()
                             if st.session_state.auth and correct_bin:
-                                if st.button("💾 Update on BrickLink",
-                                             key=f"updatebin_{lid}",
+                                if st.button("💾 Update on BrickLink", key=f"updatebin_{lid}",
                                              use_container_width=True):
                                     try:
                                         auth = make_auth(*st.session_state.auth)
                                         update_remarks_on_bricklink(auth, lid, correct_bin)
                                         st.session_state.flagged[lid] = {
-                                            "reason": "Bin updated ✓",
-                                            "correct_bin": correct_bin}
+                                            "reason": "Bin updated ✓", "correct_bin": correct_bin}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id") == lid:
                                                 x["remarks"] = correct_bin
