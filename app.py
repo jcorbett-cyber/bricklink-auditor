@@ -11,40 +11,307 @@ st.set_page_config(page_title="Brick Audit", page_icon="🧱", layout="wide")
 
 st.markdown("""
 <style>
-.block-container { padding-top: 1rem; }
-.part-card { background:#1e1e2e; border:1px solid #313244; border-radius:12px; padding:14px; text-align:center; margin-bottom:8px; }
-.part-card.found { border-color:#a6e3a1; background:#1a2e1a; }
-.part-card.flagged { border-color:#f38ba8; background:#2e1a1a; }
-.part-card.lowstock { border-color:#fab387; background:#2e2010; }
-.part-card.highlight { border-color:#f9e2af; background:#2e2a10; box-shadow:0 0 12px #f9e2af88; }
-.part-card.overpriced { border-color:#f38ba8; background:#2e1a2e; }
-.part-img { width:100%; max-height:110px; object-fit:contain; margin-bottom:8px; }
-.part-name { font-size:0.8rem; color:#cdd6f4; font-weight:700; margin-bottom:3px; }
-.part-meta { font-size:0.72rem; color:#a6adc8; }
-.badge { display:inline-block; border-radius:6px; padding:2px 8px; font-size:0.68rem; font-weight:700; margin-top:4px; }
-.badge-n { background:#313244; color:#cdd6f4; }
-.badge-u { background:#45475a; color:#f9e2af; }
-.badge-found { background:#a6e3a1; color:#1e1e2e; }
-.badge-flagged { background:#f38ba8; color:#1e1e2e; }
-.badge-low { background:#fab387; color:#1e1e2e; }
-.badge-over { background:#cba6f7; color:#1e1e2e; }
-.bin-header { background:#181825; border-left:4px solid #cba6f7; border-radius:8px; padding:10px 16px; margin:18px 0 10px 0; }
-.bin-title { font-size:1.1rem; font-weight:800; color:#cba6f7; margin:0; }
-.bin-stats { font-size:0.78rem; color:#a6adc8; margin:2px 0 0 0; }
-.scan-bar { background:#181825; border:2px solid #cba6f7; border-radius:12px; padding:12px 18px; margin-bottom:18px; }
-.metric-card { background:#181825; border:1px solid #313244; border-radius:12px; padding:16px; text-align:center; margin-bottom:8px; }
-.metric-value { font-size:1.8rem; font-weight:800; color:#cba6f7; }
-.metric-label { font-size:0.78rem; color:#a6adc8; margin-top:4px; }
-@media (max-width:768px) {
-  .part-card { padding:8px; }
-  .part-img { max-height:70px; }
-  .part-name { font-size:0.7rem; }
-  .part-meta { font-size:0.62rem; }
-  .badge { font-size:0.6rem; padding:1px 5px; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ── Base ── */
+html, body, [class*="css"] {
+  font-family: 'Inter', sans-serif !important;
+}
+.block-container {
+  padding-top: 1.5rem;
+  background: transparent;
+}
+
+/* ── Sidebar ── */
+section[data-testid="stSidebar"] {
+  background: linear-gradient(180deg, #0d1117 0%, #161b27 100%) !important;
+  border-right: 1px solid #1e2a3a;
+}
+section[data-testid="stSidebar"] * {
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* ── Main background ── */
+.stApp {
+  background: linear-gradient(135deg, #0d1117 0%, #111827 50%, #0f172a 100%);
+}
+
+/* ── Cards ── */
+.part-card {
+  background: linear-gradient(145deg, #161b27, #1a2235);
+  border: 1px solid #1e2d45;
+  border-radius: 16px;
+  padding: 14px 10px;
+  text-align: center;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.2);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.part-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3);
+  border-color: #2a3f5f;
+}
+.part-card.found {
+  background: linear-gradient(145deg, #0d2818, #112d1c);
+  border-color: #2d6a4f;
+  box-shadow: 0 4px 15px rgba(45,106,79,0.2), 0 1px 4px rgba(0,0,0,0.2);
+}
+.part-card.found:hover {
+  border-color: #40916c;
+  box-shadow: 0 8px 25px rgba(45,106,79,0.3);
+}
+.part-card.flagged {
+  background: linear-gradient(145deg, #2d0d1a, #331220);
+  border-color: #7f1d35;
+  box-shadow: 0 4px 15px rgba(127,29,53,0.2), 0 1px 4px rgba(0,0,0,0.2);
+}
+.part-card.flagged:hover {
+  border-color: #be2d52;
+  box-shadow: 0 8px 25px rgba(127,29,53,0.3);
+}
+.part-card.lowstock {
+  background: linear-gradient(145deg, #2d1a08, #331f0c);
+  border-color: #7c3d0e;
+  box-shadow: 0 4px 15px rgba(124,61,14,0.2), 0 1px 4px rgba(0,0,0,0.2);
+}
+.part-card.lowstock:hover {
+  border-color: #c2601a;
+  box-shadow: 0 8px 25px rgba(124,61,14,0.3);
+}
+.part-card.highlight {
+  background: linear-gradient(145deg, #2a2208, #32290d);
+  border-color: #b5860d;
+  box-shadow: 0 4px 20px rgba(181,134,13,0.25), 0 0 0 1px rgba(181,134,13,0.1);
+}
+.part-card.highlight:hover {
+  border-color: #d4a017;
+  box-shadow: 0 8px 30px rgba(181,134,13,0.35);
+}
+.part-card.overpriced {
+  background: linear-gradient(145deg, #1e0d2d, #241035);
+  border-color: #5b21b6;
+  box-shadow: 0 4px 15px rgba(91,33,182,0.2), 0 1px 4px rgba(0,0,0,0.2);
+}
+.part-card.overpriced:hover {
+  border-color: #7c3aed;
+  box-shadow: 0 8px 25px rgba(91,33,182,0.3);
+}
+
+/* ── Part card text ── */
+.part-img {
+  width: 100%;
+  max-height: 110px;
+  object-fit: contain;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+.part-name {
+  font-size: 0.78rem;
+  color: #e2e8f0;
+  font-weight: 700;
+  margin-bottom: 4px;
+  letter-spacing: 0.01em;
+}
+.part-meta {
+  font-size: 0.68rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* ── Badges ── */
+.badge {
+  display: inline-block;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.badge-n       { background: rgba(30,42,61,0.8); color: #94a3b8; border: 1px solid #1e2d45; }
+.badge-u       { background: rgba(45,35,10,0.8); color: #f59e0b; border: 1px solid #78450a; }
+.badge-found   { background: rgba(13,40,24,0.9); color: #4ade80; border: 1px solid #2d6a4f; }
+.badge-flagged { background: rgba(45,13,26,0.9); color: #fb7185; border: 1px solid #7f1d35; }
+.badge-low     { background: rgba(45,26,8,0.9);  color: #fb923c; border: 1px solid #7c3d0e; }
+.badge-over    { background: rgba(30,13,45,0.9); color: #a78bfa; border: 1px solid #5b21b6; }
+
+/* ── Bin headers ── */
+.bin-header {
+  background: linear-gradient(135deg, #161b27, #1a2235);
+  border-left: 3px solid #6d28d9;
+  border-radius: 12px;
+  padding: 12px 20px;
+  margin: 24px 0 12px 0;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+.bin-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #a78bfa;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+.bin-stats {
+  font-size: 0.72rem;
+  color: #475569;
+  margin: 3px 0 0 0;
+  font-weight: 500;
+}
+
+/* ── Scan bar ── */
+.scan-bar {
+  background: linear-gradient(135deg, #161b27, #1a2235);
+  border: 1px solid #1e2d45;
+  border-radius: 14px;
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+/* ── Metric cards ── */
+.metric-card {
+  background: linear-gradient(145deg, #161b27, #1a2235);
+  border: 1px solid #1e2d45;
+  border-radius: 16px;
+  padding: 20px 16px;
+  text-align: center;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.35);
+}
+.metric-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #a78bfa;
+  letter-spacing: -0.02em;
+}
+.metric-label {
+  font-size: 0.72rem;
+  color: #475569;
+  margin-top: 6px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Streamlit overrides ── */
+.stButton > button {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  border: 1px solid #1e2d45 !important;
+  background: linear-gradient(135deg, #161b27, #1a2235) !important;
+  color: #94a3b8 !important;
+  transition: all 0.15s ease !important;
+  font-size: 0.75rem !important;
+}
+.stButton > button:hover {
+  border-color: #6d28d9 !important;
+  color: #a78bfa !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(109,40,217,0.2) !important;
+}
+.stButton > button[kind="primary"] {
+  background: linear-gradient(135deg, #5b21b6, #6d28d9) !important;
+  border-color: #7c3aed !important;
+  color: #f5f3ff !important;
+}
+.stButton > button[kind="primary"]:hover {
+  background: linear-gradient(135deg, #6d28d9, #7c3aed) !important;
+  box-shadow: 0 4px 15px rgba(109,40,217,0.4) !important;
+}
+.stTextInput > div > div > input {
+  font-family: 'Inter', sans-serif !important;
+  background: #161b27 !important;
+  border: 1px solid #1e2d45 !important;
+  border-radius: 10px !important;
+  color: #e2e8f0 !important;
+}
+.stTextInput > div > div > input:focus {
+  border-color: #6d28d9 !important;
+  box-shadow: 0 0 0 2px rgba(109,40,217,0.2) !important;
+}
+.stSelectbox > div > div {
+  background: #161b27 !important;
+  border: 1px solid #1e2d45 !important;
+  border-radius: 10px !important;
+  color: #e2e8f0 !important;
+}
+.stMultiSelect > div {
+  background: #161b27 !important;
+  border: 1px solid #1e2d45 !important;
+  border-radius: 10px !important;
+}
+.stProgress > div > div > div {
+  background: linear-gradient(90deg, #5b21b6, #7c3aed) !important;
+  border-radius: 10px !important;
+}
+div[data-testid="stExpander"] {
+  background: #161b27 !important;
+  border: 1px solid #1e2d45 !important;
+  border-radius: 10px !important;
+}
+.stDataFrame {
+  border-radius: 12px !important;
+  overflow: hidden;
+  border: 1px solid #1e2d45 !important;
+}
+h1 {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 800 !important;
+  color: #e2e8f0 !important;
+  letter-spacing: -0.03em !important;
+}
+h2, h3 {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  color: #cbd5e1 !important;
+  letter-spacing: -0.02em !important;
+}
+.stCaption, .stMarkdown p {
+  color: #475569 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+div[data-testid="stSuccess"] {
+  background: rgba(13,40,24,0.8) !important;
+  border: 1px solid #2d6a4f !important;
+  border-radius: 10px !important;
+}
+div[data-testid="stWarning"] {
+  background: rgba(45,26,8,0.8) !important;
+  border: 1px solid #7c3d0e !important;
+  border-radius: 10px !important;
+}
+div[data-testid="stError"] {
+  background: rgba(45,13,26,0.8) !important;
+  border: 1px solid #7f1d35 !important;
+  border-radius: 10px !important;
+}
+div[data-testid="stInfo"] {
+  background: rgba(13,22,40,0.8) !important;
+  border: 1px solid #1e3a5f !important;
+  border-radius: 10px !important;
+}
+.stDivider {
+  border-color: #1e2d45 !important;
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .part-card { padding: 8px 6px; border-radius: 12px; }
+  .part-img { max-height: 70px; }
+  .part-name { font-size: 0.68rem; }
+  .part-meta { font-size: 0.6rem; }
+  .badge { font-size: 0.56rem; padding: 2px 6px; }
 }
 </style>
 """, unsafe_allow_html=True)
-
 LOGO                = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/iTunesArtwork%402x.png"
 LOW_STOCK_THRESHOLD = 2
 PRICE_FLAG_PCT      = 25  # flag if more than 25% above market
