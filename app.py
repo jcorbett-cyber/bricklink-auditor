@@ -568,7 +568,7 @@ with st.sidebar:
         st.success("Credentials loaded")
 
     load_btn = st.button(
-        f"{icon('refresh-cw', 14, '#f5f3ff')} Load Inventory",
+        "Load Inventory",
         use_container_width=True, type="primary")
 
     st.divider()
@@ -579,10 +579,10 @@ with st.sidebar:
     if st.button(f"{icon('package',14,'#94a3b8')} Audit",
                  use_container_width=True):
         st.session_state.page = "audit"; st.rerun()
-    if st.button(f"{icon('bar-chart-2',14,'#94a3b8')} Summary",
+    if st.button("Summary",
                  use_container_width=True):
         st.session_state.page = "summary"; st.rerun()
-    if st.button(f"{icon('calendar',14,'#94a3b8')} Audit History",
+    if st.button("Audit History",
                  use_container_width=True):
         st.session_state.page = "history"; st.rerun()
     if st.button(f"{icon('tag',14,'#94a3b8')} Price Checker",
@@ -638,12 +638,12 @@ with st.sidebar:
         pushable = get_pushable_flags()
         if pushable:
             if st.button(
-                f"{icon('upload-cloud',14,'#f5f3ff')} Push {len(pushable)} fixes",
+                f"Push {len(pushable)} fixes",
                 use_container_width=True, type="primary"):
                 st.session_state.show_bulk_confirm = True
 
         if st.button(
-            f"{icon('save',14,'#94a3b8')} Save Audit Snapshot",
+            "Save Audit Snapshot",
             use_container_width=True):
             if save_audit_snapshot():
                 st.success("Snapshot saved")
@@ -1149,7 +1149,7 @@ if st.session_state.show_bulk_confirm:
         c1, c2 = st.columns(2)
         with c1:
             if st.button(
-                f"{icon('upload-cloud',14,'#f5f3ff')} Confirm — push all",
+                "Confirm — push all",
                 type="primary", use_container_width=True):
                 auth = make_auth(*st.session_state.auth)
                 with st.spinner("Pushing…"):
@@ -1161,7 +1161,7 @@ if st.session_state.show_bulk_confirm:
                     st.error(f"Failed for {f['pno']}: {f['error']}")
                 st.rerun()
         with c2:
-            if st.button(f"{icon('x',14,'#94a3b8')} Cancel", use_container_width=True):
+            if st.button("Cancel", use_container_width=True):
                 st.session_state.show_bulk_confirm = False
                 st.rerun()
     else:
@@ -1339,7 +1339,7 @@ for group_name, group_items in groupby(inv, key=get_group):
                                             label_visibility="collapsed",
                                             placeholder="e.g. found in back of bin…")
                     if st.button(
-                        f"{icon('save',12,'#94a3b8')} Save note",
+                        "Save note",
                         key=f"savenote_{lid}", use_container_width=True):
                         st.session_state.notes[lid] = new_note
                         status = ("checked" if is_found else
@@ -1351,7 +1351,7 @@ for group_name, group_items in groupby(inv, key=get_group):
                         st.rerun()
 
                 if not is_found and not is_flagged:
-                    with col.expander(f"{icon('flag',11,'#64748b')} Flag issue"):
+                    with col.expander("Flag issue"):
                         reason = st.radio(
                             "Issue type",
                             ["Wrong quantity", "Wrong part in bin", "Wrong bin"],
