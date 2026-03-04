@@ -89,7 +89,14 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 .part-card.overpriced { background: linear-gradient(145deg, #1e0d2d, #241035); border-color: #5b21b6; }
 .part-card.overpriced:hover { border-color: #7c3aed; box-shadow: 0 8px 25px rgba(91,33,182,0.3); }
 
-.part-img { width:100%; max-height:110px; object-fit:contain; margin-bottom:10px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+.part-img-wrap { position:relative; display:block; width:100%; margin-bottom:10px; }
+.part-img { width:100%; max-height:110px; object-fit:contain; display:block; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+.qty-badge {
+  position:absolute; top:4px; left:6px;
+  font-size:1.3rem; font-weight:800; color:#e2e8f0;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
+  line-height:1;
+}
 .part-name { font-size:0.78rem; color:#e2e8f0; font-weight:700; margin-bottom:4px; letter-spacing:0.01em; }
 .part-meta { font-size:0.68rem; color:#64748b; line-height:1.5; }
 
@@ -121,12 +128,9 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   border:1px solid #1e2d45; border-radius:16px;
   padding:16px; text-align:center; margin-bottom:8px;
   box-shadow:0 4px 15px rgba(0,0,0,0.25);
-  transition:transform 0.15s ease, box-shadow 0.15s ease;
-  cursor:pointer;
+  transition:transform 0.15s ease;
 }
-.zone-card:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(0,0,0,0.35); border-color:#6d28d9; }
-.zone-card-value { font-size:1.6rem; font-weight:800; color:#a78bfa; }
-.zone-card-label { font-size:0.7rem; color:#475569; margin-top:4px; text-transform:uppercase; letter-spacing:0.06em; font-weight:600; }
+.zone-card:hover { transform:translateY(-2px); border-color:#6d28d9; }
 
 .restock-table-header {
   background:linear-gradient(135deg,#2d1a08,#331f0c);
@@ -147,7 +151,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   border:1px solid #1e2d45; border-radius:16px;
   padding:20px 16px; text-align:center; margin-bottom:10px;
   box-shadow:0 4px 15px rgba(0,0,0,0.25);
-  transition:transform 0.15s ease, box-shadow 0.15s ease;
+  transition:transform 0.15s ease;
 }
 .metric-card:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(0,0,0,0.35); }
 .metric-value { font-size:2rem; font-weight:800; color:#a78bfa; letter-spacing:-0.02em; }
@@ -213,6 +217,7 @@ div[data-testid="stInfo"]    { background:rgba(13,22,40,0.8) !important; border:
   .block-container { padding-left:0.5rem !important; padding-right:0.5rem !important; }
   .part-card { padding:10px 8px; border-radius:12px; }
   .part-img { max-height:80px; }
+  .qty-badge { font-size:1rem; }
   .part-name { font-size:0.72rem; }
   .part-meta { font-size:0.62rem; }
   .badge { font-size:0.58rem; padding:2px 7px; }
@@ -248,15 +253,11 @@ SALE_DISCOUNT       = 0.70
 
 # ── Zone detection ────────────────────────────────────────────────────────────
 def detect_zone(remarks):
-    if not remarks:
-        return "other"
+    if not remarks: return "other"
     r = remarks.strip()
-    if r.upper().startswith("TUB"):
-        return "tub"
-    if r.upper().startswith("TRAY"):
-        return "tray"
-    if len(r) >= 2 and r[:2].isalpha() and r[:2].isupper():
-        return "bin"
+    if r.upper().startswith("TUB"):  return "tub"
+    if r.upper().startswith("TRAY"): return "tray"
+    if len(r) >= 2 and r[:2].isalpha() and r[:2].isupper(): return "bin"
     return "other"
 
 def get_bin_code(remarks):
@@ -299,10 +300,10 @@ BASE = "https://api.bricklink.com/api/store/v1"
 # ── BrickLink helpers ─────────────────────────────────────────────────────────
 def make_auth(ck, cs, tv, ts):
     return OAuth1(ck, cs, tv, ts)
-    
+
 @st.cache_data(ttl=3600)
-def fetch_inventory(auth):
-    r = requests.get(f"{BASE}/inventories", auth=auth, timeout=30)
+def fetch_inventory(_auth):
+    r = requests.get(f"{BASE}/inventories", auth=_auth, timeout=30)
     r.raise_for_status()
     data = r.json()
     if data.get("meta", {}).get("code") != 200:
@@ -342,8 +343,7 @@ def fetch_price_guide(auth, part_no, color_id, condition="N"):
                              "new_or_used": condition}, timeout=30)
     r.raise_for_status()
     data = r.json()
-    if data.get("meta", {}).get("code") != 200:
-        return None
+    if data.get("meta", {}).get("code") != 200: return None
     pg = data.get("data", {})
     return {"avg_price": float(pg.get("avg_price", 0) or 0),
             "qty_avg_price": float(pg.get("qty_avg_price", 0) or 0)}
@@ -424,6 +424,7 @@ def save_audit_snapshot():
         st.warning(f"Could not save snapshot: {e}")
         return False
 
+@st.cache_data(ttl=300)
 def load_audit_history():
     if not DB_LOADED: return []
     try:
@@ -501,6 +502,17 @@ def push_all_flags(auth):
             results["failed"].append({**item, "error": str(e)})
     return results
 
+# ── Card image with qty overlay ───────────────────────────────────────────────
+def img_with_qty(pno, color_id, qty):
+    return (
+        f'<div class="part-img-wrap">'
+        f'<img class="part-img" '
+        f'src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" '
+        f'onerror="this.style.opacity=\'0.15\'"/>'
+        f'<span class="qty-badge">{qty}</span>'
+        f'</div>'
+    )
+
 # ── Card renderer (shared between Audit and Stockroom) ────────────────────────
 def render_card_grid(lots, cols_count, show_flag_controls=True):
     for row_start in range(0, len(lots), cols_count):
@@ -554,15 +566,10 @@ def render_card_grid(lots, cols_count, show_flag_controls=True):
             with col:
                 st.markdown(
                     f'<div class="{card_cls}">'
-                    f'<div style="position:relative;display:inline-block;width:100%;">'
-f'<img class="part-img" src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" '
-f'onerror="this.style.opacity=\'0.15\'"/>'
-f'<span style="position:absolute;top:4px;left:6px;font-size:1.4rem;font-weight:800;'
-f'color:#e2e8f0;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0 8px rgba(0,0,0,0.8);">'
-f'{qty}</span></div>'
+                    f'{img_with_qty(pno, color_id, qty)}'
                     f'<div class="part-name">{pno}</div>'
                     f'<div class="part-meta">{pname[:26] if not is_mobile else pname[:18]}</div>'
-                    f'<div class="part-meta">{color} · ×{qty}</div>'
+                    f'<div class="part-meta">{color}</div>'
                     f'<div class="part-meta">${price}</div>'
                     f'<span class="badge {b_cls}">{b_svg}{b_lbl}</span>'
                     f'{note_html}</div>', unsafe_allow_html=True)
@@ -781,6 +788,10 @@ if load_btn:
                 else:
                     st.info("Starting fresh.")
 
+if not st.session_state.loaded:
+    st.info("Click Load Inventory in the sidebar to get started.")
+    st.stop()
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: SUMMARY
 # ══════════════════════════════════════════════════════════════════════════════
@@ -890,8 +901,6 @@ if st.session_state.page == "stockroom":
     st.write("")
 
     inv = st.session_state.inventory
-
-    # ── Zone overview metrics ──
     bins_lots  = [i for i in inv if detect_zone(i.get("remarks","")) == "bin"]
     tubs_lots  = [i for i in inv if detect_zone(i.get("remarks","")) == "tub"]
     trays_lots = [i for i in inv if detect_zone(i.get("remarks","")) == "tray"]
@@ -921,244 +930,107 @@ if st.session_state.page == "stockroom":
                 f'</div></div>', unsafe_allow_html=True)
 
     st.divider()
-
-    # ── Zone tabs ──
     tab_bins, tab_tubs, tab_trays = st.tabs(["Bins", "Tubs", "Trays"])
 
-    # ── BINS TAB ──
+    def render_zone_tab(zone_lots, zone_key, zone_label_singular, select_label,
+                        all_options, header_color, header_icon):
+        selected = st.selectbox(select_label, ["All " + zone_label_singular + "s"] + all_options,
+                                key=f"stockroom_{zone_key}_select")
+        filtered = zone_lots if selected.startswith("All") else [
+            i for i in zone_lots if (
+                get_bin_code(i.get("remarks","")) == selected if zone_key == "bin"
+                else get_zone_number(i.get("remarks","")) == selected
+            )]
+        if not filtered:
+            st.info(f"No lots found."); return
+
+        total_f  = len(filtered)
+        found_f  = sum(1 for i in filtered if i.get("inventory_id") in st.session_state.checked)
+        flagged_f= sum(1 for i in filtered if i.get("inventory_id") in st.session_state.flagged)
+        low_f    = [i for i in filtered if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD]
+
+        m1,m2,m3,m4 = st.columns(4)
+        for col, val, label, color in [
+            (m1, str(total_f),   "Total Lots", header_color),
+            (m2, str(found_f),   "Found",      "#4ade80"),
+            (m3, str(flagged_f), "Flagged",    "#fb7185"),
+            (m4, str(len(low_f)),"Low Stock",  "#fb923c"),
+        ]:
+            with col:
+                st.markdown(f'<div class="metric-card" style="padding:12px 8px;">'
+                            f'<div class="metric-value" style="font-size:1.4rem;color:{color}">{val}</div>'
+                            f'<div class="metric-label">{label}</div></div>',
+                            unsafe_allow_html=True)
+        st.write("")
+
+        sort_key = (lambda x: x.get("remarks","") or "")
+        for group_name, group_items in groupby(sorted(filtered, key=sort_key),
+                                               key=lambda x: x.get("remarks","") or f"(no {zone_label_singular})"):
+            group_lots  = list(group_items)
+            bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
+            bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
+            bin_pct     = int(bin_found / len(group_lots) * 100) if group_lots else 0
+            flagged_note = (f'&nbsp;&nbsp;{icon("alert-circle",11,"#fb7185")}'
+                            f'<span style="font-size:0.7rem;color:#fb7185;">'
+                            f'{bin_flagged} flagged</span>' if bin_flagged else "")
+            ct, cb = st.columns([4,1])
+            with ct:
+                st.markdown(f'<div class="bin-header" style="border-left-color:{header_color};">'
+                            f'<p class="bin-title" style="color:{header_color};">'
+                            f'{icon(header_icon,14,header_color)} {group_name}</p>'
+                            f'<p class="bin-stats">{bin_found}/{len(group_lots)} found · {bin_pct}%'
+                            f'{flagged_note}</p></div>', unsafe_allow_html=True)
+            with cb:
+                st.write(""); st.write("")
+                if st.button("Mark all found", key=f"{zone_key}mkall_{group_name}",
+                             use_container_width=True):
+                    for x in group_lots:
+                        lid = x.get("inventory_id")
+                        st.session_state.checked.add(lid)
+                        save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
+                    st.rerun()
+            render_card_grid(group_lots, COLS)
+            st.divider()
+
+        if low_f:
+            st.markdown(
+                f'<div class="restock-table-header">'
+                f'<p class="restock-title">{icon("alert-triangle",16,"#fb923c")} '
+                f'Restock List — {len(low_f)} lots need attention</p></div>',
+                unsafe_allow_html=True)
+            restock_df = pd.DataFrame([{
+                "Part #": i.get("item",{}).get("no",""),
+                "Name":   i.get("item",{}).get("name",""),
+                "Color":  i.get("color_name",""),
+                "Location": i.get("remarks",""),
+                "Qty Left": i.get("quantity",0),
+                "Price":  f"${i.get('unit_price','')}",
+            } for i in sorted(low_f, key=lambda x: x.get("remarks","") or "")])
+            st.dataframe(restock_df, use_container_width=True, hide_index=True)
+            st.download_button(f"Export Restock List CSV",
+                               restock_df.to_csv(index=False),
+                               f"restock_{zone_key}.csv", "text/csv",
+                               use_container_width=True)
+
     with tab_bins:
         all_bin_codes = sorted(set(get_bin_code(i.get("remarks",""))
                                    for i in bins_lots if get_bin_code(i.get("remarks",""))))
-        selected_bin  = st.selectbox("Select bin", ["All bins"] + all_bin_codes,
-                                     key="stockroom_bin_select")
+        render_zone_tab(bins_lots, "bin", "bin", "Select bin",
+                        all_bin_codes, "#a78bfa", "archive")
 
-        filtered = bins_lots if selected_bin == "All bins" else [
-            i for i in bins_lots if get_bin_code(i.get("remarks","")) == selected_bin]
-
-        if filtered:
-            total_f  = len(filtered)
-            found_f  = sum(1 for i in filtered if i.get("inventory_id") in st.session_state.checked)
-            flagged_f= sum(1 for i in filtered if i.get("inventory_id") in st.session_state.flagged)
-            low_f    = [i for i in filtered if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD]
-            pct_f    = int(found_f / total_f * 100) if total_f else 0
-
-            m1,m2,m3,m4 = st.columns(4)
-            for col, val, label, color in [
-                (m1, str(total_f),  "Total Lots",  "#a78bfa"),
-                (m2, str(found_f),  "Found",       "#4ade80"),
-                (m3, str(flagged_f),"Flagged",     "#fb7185"),
-                (m4, str(len(low_f)),"Low Stock",  "#fb923c"),
-            ]:
-                with col:
-                    st.markdown(f'<div class="metric-card" style="padding:12px 8px;">'
-                                f'<div class="metric-value" style="font-size:1.4rem;color:{color}">{val}</div>'
-                                f'<div class="metric-label">{label}</div></div>',
-                                unsafe_allow_html=True)
-
-            st.write("")
-            sorted_filtered = sorted(filtered, key=lambda x: x.get("remarks","") or "")
-            for group_name, group_items in groupby(sorted_filtered,
-                                                    key=lambda x: x.get("remarks","") or "(no bin)"):
-                group_lots  = list(group_items)
-                bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
-                bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
-                bin_pct     = int(bin_found / len(group_lots) * 100) if group_lots else 0
-                flagged_note = (f'&nbsp;&nbsp;{icon("alert-circle",11,"#fb7185")}'
-                                f'<span style="font-size:0.7rem;color:#fb7185;">'
-                                f'{bin_flagged} flagged</span>' if bin_flagged else "")
-                ct, cb = st.columns([4,1])
-                with ct:
-                    st.markdown(f'<div class="bin-header">'
-                                f'<p class="bin-title">{icon("archive",14,"#a78bfa")} {group_name}</p>'
-                                f'<p class="bin-stats">{bin_found}/{len(group_lots)} found · {bin_pct}%'
-                                f'{flagged_note}</p></div>', unsafe_allow_html=True)
-                with cb:
-                    st.write(""); st.write("")
-                    if st.button("Mark all found", key=f"srmkall_{group_name}", use_container_width=True):
-                        for x in group_lots:
-                            lid = x.get("inventory_id")
-                            st.session_state.checked.add(lid)
-                            save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
-                        st.rerun()
-                render_card_grid(group_lots, COLS)
-                st.divider()
-
-            # Restock section
-            if low_f:
-                st.markdown(
-                    f'<div class="restock-table-header">'
-                    f'<p class="restock-title">{icon("alert-triangle",16,"#fb923c")} '
-                    f'Restock List — {len(low_f)} lots need attention</p></div>',
-                    unsafe_allow_html=True)
-                restock_df = pd.DataFrame([{
-                    "Part #":   i.get("item",{}).get("no",""),
-                    "Name":     i.get("item",{}).get("name",""),
-                    "Color":    i.get("color_name",""),
-                    "Bin":      i.get("remarks",""),
-                    "Qty Left": i.get("quantity",0),
-                    "Price":    f"${i.get('unit_price','')}",
-                } for i in sorted(low_f, key=lambda x: x.get("remarks","") or "")])
-                st.dataframe(restock_df, use_container_width=True, hide_index=True)
-                st.download_button("Export Restock List CSV",
-                                   restock_df.to_csv(index=False),
-                                   f"restock_bins{'_'+selected_bin if selected_bin != 'All bins' else ''}.csv",
-                                   "text/csv", use_container_width=True)
-        else:
-            st.info("No lots found in this bin.")
-
-    # ── TUBS TAB ──
     with tab_tubs:
         all_tub_nums = sorted(set(get_zone_number(i.get("remarks",""))
                                   for i in tubs_lots if get_zone_number(i.get("remarks",""))),
                               key=lambda x: int(x) if x.isdigit() else 0)
-        selected_tub = st.selectbox("Select tub", ["All tubs"] + all_tub_nums,
-                                    key="stockroom_tub_select")
+        render_zone_tab(tubs_lots, "tub", "tub", "Select tub",
+                        all_tub_nums, "#60a5fa", "box")
 
-        filtered = tubs_lots if selected_tub == "All tubs" else [
-            i for i in tubs_lots if get_zone_number(i.get("remarks","")) == selected_tub]
-
-        if filtered:
-            total_f  = len(filtered)
-            found_f  = sum(1 for i in filtered if i.get("inventory_id") in st.session_state.checked)
-            flagged_f= sum(1 for i in filtered if i.get("inventory_id") in st.session_state.flagged)
-            low_f    = [i for i in filtered if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD]
-
-            m1,m2,m3,m4 = st.columns(4)
-            for col, val, label, color in [
-                (m1, str(total_f),  "Total Lots", "#60a5fa"),
-                (m2, str(found_f),  "Found",      "#4ade80"),
-                (m3, str(flagged_f),"Flagged",    "#fb7185"),
-                (m4, str(len(low_f)),"Low Stock", "#fb923c"),
-            ]:
-                with col:
-                    st.markdown(f'<div class="metric-card" style="padding:12px 8px;">'
-                                f'<div class="metric-value" style="font-size:1.4rem;color:{color}">{val}</div>'
-                                f'<div class="metric-label">{label}</div></div>',
-                                unsafe_allow_html=True)
-
-            st.write("")
-            for group_name, group_items in groupby(
-                    sorted(filtered, key=lambda x: x.get("remarks","") or ""),
-                    key=lambda x: x.get("remarks","") or "(no tub)"):
-                group_lots  = list(group_items)
-                bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
-                bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
-                bin_pct     = int(bin_found / len(group_lots) * 100) if group_lots else 0
-                flagged_note = (f'&nbsp;&nbsp;{icon("alert-circle",11,"#fb7185")}'
-                                f'<span style="font-size:0.7rem;color:#fb7185;">'
-                                f'{bin_flagged} flagged</span>' if bin_flagged else "")
-                ct, cb = st.columns([4,1])
-                with ct:
-                    st.markdown(f'<div class="bin-header" style="border-left-color:#60a5fa;">'
-                                f'<p class="bin-title" style="color:#60a5fa;">'
-                                f'{icon("box",14,"#60a5fa")} {group_name}</p>'
-                                f'<p class="bin-stats">{bin_found}/{len(group_lots)} found · {bin_pct}%'
-                                f'{flagged_note}</p></div>', unsafe_allow_html=True)
-                with cb:
-                    st.write(""); st.write("")
-                    if st.button("Mark all found", key=f"tubmkall_{group_name}", use_container_width=True):
-                        for x in group_lots:
-                            lid = x.get("inventory_id")
-                            st.session_state.checked.add(lid)
-                            save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
-                        st.rerun()
-                render_card_grid(group_lots, COLS)
-                st.divider()
-
-            if low_f:
-                st.markdown(
-                    f'<div class="restock-table-header">'
-                    f'<p class="restock-title">{icon("alert-triangle",16,"#fb923c")} '
-                    f'Restock List — {len(low_f)} lots need attention</p></div>',
-                    unsafe_allow_html=True)
-                restock_df = pd.DataFrame([{
-                    "Part #": i.get("item",{}).get("no",""), "Name": i.get("item",{}).get("name",""),
-                    "Color": i.get("color_name",""), "Tub": i.get("remarks",""),
-                    "Qty Left": i.get("quantity",0), "Price": f"${i.get('unit_price','')}",
-                } for i in sorted(low_f, key=lambda x: x.get("remarks","") or "")])
-                st.dataframe(restock_df, use_container_width=True, hide_index=True)
-                st.download_button("Export Restock List CSV",
-                                   restock_df.to_csv(index=False),
-                                   f"restock_tubs.csv", "text/csv", use_container_width=True)
-        else:
-            st.info("No lots found in this tub.")
-
-    # ── TRAYS TAB ──
     with tab_trays:
         all_tray_nums = sorted(set(get_zone_number(i.get("remarks",""))
                                    for i in trays_lots if get_zone_number(i.get("remarks",""))),
                                key=lambda x: int(x) if x.isdigit() else 0)
-        selected_tray = st.selectbox("Select tray", ["All trays"] + all_tray_nums,
-                                     key="stockroom_tray_select")
-
-        filtered = trays_lots if selected_tray == "All trays" else [
-            i for i in trays_lots if get_zone_number(i.get("remarks","")) == selected_tray]
-
-        if filtered:
-            total_f  = len(filtered)
-            found_f  = sum(1 for i in filtered if i.get("inventory_id") in st.session_state.checked)
-            flagged_f= sum(1 for i in filtered if i.get("inventory_id") in st.session_state.flagged)
-            low_f    = [i for i in filtered if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD]
-
-            m1,m2,m3,m4 = st.columns(4)
-            for col, val, label, color in [
-                (m1, str(total_f),  "Total Lots", "#34d399"),
-                (m2, str(found_f),  "Found",      "#4ade80"),
-                (m3, str(flagged_f),"Flagged",    "#fb7185"),
-                (m4, str(len(low_f)),"Low Stock", "#fb923c"),
-            ]:
-                with col:
-                    st.markdown(f'<div class="metric-card" style="padding:12px 8px;">'
-                                f'<div class="metric-value" style="font-size:1.4rem;color:{color}">{val}</div>'
-                                f'<div class="metric-label">{label}</div></div>',
-                                unsafe_allow_html=True)
-
-            st.write("")
-            for group_name, group_items in groupby(
-                    sorted(filtered, key=lambda x: x.get("remarks","") or ""),
-                    key=lambda x: x.get("remarks","") or "(no tray)"):
-                group_lots  = list(group_items)
-                bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
-                bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
-                bin_pct     = int(bin_found / len(group_lots) * 100) if group_lots else 0
-                flagged_note = (f'&nbsp;&nbsp;{icon("alert-circle",11,"#fb7185")}'
-                                f'<span style="font-size:0.7rem;color:#fb7185;">'
-                                f'{bin_flagged} flagged</span>' if bin_flagged else "")
-                ct, cb = st.columns([4,1])
-                with ct:
-                    st.markdown(f'<div class="bin-header" style="border-left-color:#34d399;">'
-                                f'<p class="bin-title" style="color:#34d399;">'
-                                f'{icon("layers",14,"#34d399")} {group_name}</p>'
-                                f'<p class="bin-stats">{bin_found}/{len(group_lots)} found · {bin_pct}%'
-                                f'{flagged_note}</p></div>', unsafe_allow_html=True)
-                with cb:
-                    st.write(""); st.write("")
-                    if st.button("Mark all found", key=f"traymkall_{group_name}", use_container_width=True):
-                        for x in group_lots:
-                            lid = x.get("inventory_id")
-                            st.session_state.checked.add(lid)
-                            save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
-                        st.rerun()
-                render_card_grid(group_lots, COLS)
-                st.divider()
-
-            if low_f:
-                st.markdown(
-                    f'<div class="restock-table-header">'
-                    f'<p class="restock-title">{icon("alert-triangle",16,"#fb923c")} '
-                    f'Restock List — {len(low_f)} lots need attention</p></div>',
-                    unsafe_allow_html=True)
-                restock_df = pd.DataFrame([{
-                    "Part #": i.get("item",{}).get("no",""), "Name": i.get("item",{}).get("name",""),
-                    "Color": i.get("color_name",""), "Tray": i.get("remarks",""),
-                    "Qty Left": i.get("quantity",0), "Price": f"${i.get('unit_price','')}",
-                } for i in sorted(low_f, key=lambda x: x.get("remarks","") or "")])
-                st.dataframe(restock_df, use_container_width=True, hide_index=True)
-                st.download_button("Export Restock List CSV",
-                                   restock_df.to_csv(index=False),
-                                   f"restock_trays.csv", "text/csv", use_container_width=True)
-        else:
-            st.info("No lots found in this tray.")
+        render_zone_tab(trays_lots, "tray", "tray", "Select tray",
+                        all_tray_nums, "#34d399", "layers")
 
     st.stop()
 
@@ -1170,8 +1042,7 @@ if st.session_state.page == "history":
                 f'<span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;'
                 f'vertical-align:middle;">Audit History</span>', unsafe_allow_html=True)
     st.write("")
-    
-    @st.cache_data(ttl=300)
+
     history = load_audit_history()
     if not history:
         st.info("No snapshots yet. Click Save Audit Snapshot in the sidebar.")
@@ -1459,7 +1330,6 @@ for group_name, group_items in groupby(inv, key=lambda x: x.get("remarks","") or
                 save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
             st.rerun()
 
-    # Pass scan_ids context to highlight cards on audit page
     for row_start in range(0, len(group_lots), COLS):
         row_items = group_lots[row_start:row_start+COLS]
         cols      = st.columns(COLS)
@@ -1513,15 +1383,10 @@ for group_name, group_items in groupby(inv, key=lambda x: x.get("remarks","") or
             with col:
                 st.markdown(
                     f'<div class="{card_cls}">'
-                    f'<div style="position:relative;display:inline-block;width:100%;">'
-f'<img class="part-img" src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" '
-f'onerror="this.style.opacity=\'0.15\'"/>'
-f'<span style="position:absolute;top:4px;left:6px;font-size:1.4rem;font-weight:800;'
-f'color:#e2e8f0;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0 8px rgba(0,0,0,0.8);">'
-f'{qty}</span></div>'
+                    f'{img_with_qty(pno, color_id, qty)}'
                     f'<div class="part-name">{pno}</div>'
                     f'<div class="part-meta">{pname[:26] if not is_mobile else pname[:18]}</div>'
-                    f'<div class="part-meta">{color} · ×{qty}</div>'
+                    f'<div class="part-meta">{color}</div>'
                     f'<div class="part-meta">${price}</div>'
                     f'<span class="badge {b_cls}">{b_svg}{b_lbl}</span>'
                     f'{note_html}</div>', unsafe_allow_html=True)
