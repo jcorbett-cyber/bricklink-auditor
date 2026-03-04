@@ -299,7 +299,8 @@ BASE = "https://api.bricklink.com/api/store/v1"
 # ── BrickLink helpers ─────────────────────────────────────────────────────────
 def make_auth(ck, cs, tv, ts):
     return OAuth1(ck, cs, tv, ts)
-
+    
+@st.cache_data(ttl=3600)
 def fetch_inventory(auth):
     r = requests.get(f"{BASE}/inventories", auth=auth, timeout=30)
     r.raise_for_status()
@@ -367,6 +368,7 @@ def delete_progress(inventory_id):
     except Exception as e:
         st.warning(f"Could not delete progress: {e}")
 
+@st.cache_data(ttl=300)
 def load_progress():
     if not DB_LOADED: return set(), {}, {}
     try:
@@ -431,6 +433,7 @@ def load_audit_history():
         st.warning(f"Could not load history: {e}")
         return []
 
+@st.cache_data(ttl=3600)
 def load_price_cache():
     if not DB_LOADED: return {}
     try:
@@ -1163,7 +1166,8 @@ if st.session_state.page == "history":
                 f'<span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;'
                 f'vertical-align:middle;">Audit History</span>', unsafe_allow_html=True)
     st.write("")
-
+    
+    @st.cache_data(ttl=300)
     history = load_audit_history()
     if not history:
         st.info("No snapshots yet. Click Save Audit Snapshot in the sidebar.")
