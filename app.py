@@ -554,8 +554,12 @@ def render_card_grid(lots, cols_count, show_flag_controls=True):
             with col:
                 st.markdown(
                     f'<div class="{card_cls}">'
-                    f'<img class="part-img" src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" '
-                    f'onerror="this.style.opacity=\'0.15\'"/>'
+                    f'<div style="position:relative;display:inline-block;width:100%;">'
+f'<img class="part-img" src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" '
+f'onerror="this.style.opacity=\'0.15\'"/>'
+f'<span style="position:absolute;top:4px;left:6px;font-size:1.4rem;font-weight:800;'
+f'color:#e2e8f0;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0 8px rgba(0,0,0,0.8);">'
+f'{qty}</span></div>'
                     f'<div class="part-name">{pno}</div>'
                     f'<div class="part-meta">{pname[:26] if not is_mobile else pname[:18]}</div>'
                     f'<div class="part-meta">{color} · ×{qty}</div>'
@@ -1509,8 +1513,12 @@ for group_name, group_items in groupby(inv, key=lambda x: x.get("remarks","") or
             with col:
                 st.markdown(
                     f'<div class="{card_cls}">'
-                    f'<img class="part-img" src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" '
-                    f'onerror="this.style.opacity=\'0.15\'"/>'
+                    f'<div style="position:relative;display:inline-block;width:100%;">'
+f'<img class="part-img" src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" '
+f'onerror="this.style.opacity=\'0.15\'"/>'
+f'<span style="position:absolute;top:4px;left:6px;font-size:1.4rem;font-weight:800;'
+f'color:#e2e8f0;text-shadow:0 1px 4px rgba(0,0,0,0.9),0 0 8px rgba(0,0,0,0.8);">'
+f'{qty}</span></div>'
                     f'<div class="part-name">{pno}</div>'
                     f'<div class="part-meta">{pname[:26] if not is_mobile else pname[:18]}</div>'
                     f'<div class="part-meta">{color} · ×{qty}</div>'
