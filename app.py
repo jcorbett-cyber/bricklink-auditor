@@ -17,11 +17,9 @@ def icon(name, size=16, color="currentColor"):
         "bar-chart-2":    '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
         "calendar":       '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
         "tag":            '<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
-        "key":            '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
         "sliders":        '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
         "archive":        '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
         "activity":       '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
-        "upload-cloud":   '<polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>',
         "save":           '<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
         "trash-2":        '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
         "download":       '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
@@ -40,6 +38,9 @@ def icon(name, size=16, color="currentColor"):
         "grid":           '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
         "box":            '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>',
         "refresh-cw":     '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>',
+        "zap":            '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+        "skip-forward":   '<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/>',
+        "log-out":        '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
     }
     paths = icons.get(name, "")
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
@@ -123,14 +124,29 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 .bin-title { font-size:1rem; font-weight:700; color:#a78bfa; margin:0; letter-spacing:0.02em; }
 .bin-stats { font-size:0.72rem; color:#475569; margin:3px 0 0 0; font-weight:500; }
 
-.zone-card {
-  background:linear-gradient(145deg,#161b27,#1a2235);
-  border:1px solid #1e2d45; border-radius:16px;
-  padding:16px; text-align:center; margin-bottom:8px;
-  box-shadow:0 4px 15px rgba(0,0,0,0.25);
-  transition:transform 0.15s ease;
+.audit-mode-header {
+  background: linear-gradient(135deg, #1a0a2e, #2d1060);
+  border: 1px solid #6d28d9; border-radius: 16px;
+  padding: 20px 24px; margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(109,40,217,0.3);
 }
-.zone-card:hover { transform:translateY(-2px); border-color:#6d28d9; }
+.audit-mode-title {
+  font-size: 1.6rem; font-weight: 800; color: #a78bfa;
+  letter-spacing: -0.02em; margin: 0 0 4px 0;
+}
+.audit-mode-sub {
+  font-size: 0.8rem; color: #6d28d9; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.audit-mode-progress {
+  margin-top: 12px;
+}
+.audit-complete {
+  background: linear-gradient(135deg, #0d2818, #112d1c);
+  border: 2px solid #2d6a4f; border-radius: 20px;
+  padding: 40px; text-align: center;
+  box-shadow: 0 8px 30px rgba(45,106,79,0.3);
+}
 
 .restock-table-header {
   background:linear-gradient(135deg,#2d1a08,#331f0c);
@@ -229,7 +245,6 @@ div[data-testid="stInfo"]    { background:rgba(13,22,40,0.8) !important; border:
 </style>
 """, unsafe_allow_html=True)
 
-# ── Screen detection ──────────────────────────────────────────────────────────
 st.components.v1.html("""
 <script>
 function sendScreenWidth() {
@@ -291,6 +306,7 @@ for key, default in [
     ("loaded", False), ("auth", None), ("show_bulk_confirm", False),
     ("scan_query", ""), ("page", "audit"), ("price_cache", {}),
     ("price_results", []), ("screen_width", 1200),
+    ("audit_mode", False), ("audit_mode_queue", []), ("audit_mode_index", 0),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -513,8 +529,25 @@ def img_with_qty(pno, color_id, qty):
         f'</div>'
     )
 
-# ── Card renderer (shared between Audit and Stockroom) ────────────────────────
-def render_card_grid(lots, cols_count, show_flag_controls=True):
+# ── Audit mode helpers ────────────────────────────────────────────────────────
+def build_audit_queue(zone_filter="all"):
+    inv = st.session_state.inventory
+    all_remarks = sorted(set(i.get("remarks","") or "(no remarks)" for i in inv))
+    if zone_filter == "all":
+        return all_remarks
+    return [r for r in all_remarks if detect_zone(r) == zone_filter]
+
+def current_bin_complete(remarks):
+    lots = [i for i in st.session_state.inventory
+            if (i.get("remarks","") or "(no remarks)") == remarks]
+    return all(
+        i.get("inventory_id") in st.session_state.checked or
+        i.get("inventory_id") in st.session_state.flagged
+        for i in lots
+    )
+
+# ── Card renderer ─────────────────────────────────────────────────────────────
+def render_card_grid(lots, cols_count):
     for row_start in range(0, len(lots), cols_count):
         row_items = lots[row_start:row_start+cols_count]
         cols      = st.columns(cols_count)
@@ -598,7 +631,7 @@ def render_card_grid(lots, cols_count, show_flag_controls=True):
                                       flag.get("correct_bin"), new_note)
                         st.rerun()
 
-                if show_flag_controls and not is_found and not is_flagged:
+                if not is_found and not is_flagged:
                     with col.expander("Flag issue"):
                         reason = st.radio("Issue type",
                                           ["Wrong quantity","Wrong part in bin","Wrong bin"],
@@ -649,147 +682,278 @@ def render_card_grid(lots, cols_count, show_flag_controls=True):
                                 save_progress(lid,"flagged","Wrong part",None,None,
                                               st.session_state.notes.get(lid)); st.rerun()
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR
+# ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     st.image(LOGO, width=200)
 
-    if not SECRETS_LOADED:
-        st.warning("No saved credentials found.")
-        ck = st.text_input("Consumer Key",    type="password")
-        cs = st.text_input("Consumer Secret", type="password")
-        tv = st.text_input("Token Value",     type="password")
-        ts = st.text_input("Token Secret",    type="password")
+    # ── Audit mode sidebar ──
+    if st.session_state.audit_mode:
+        queue = st.session_state.audit_mode_queue
+        idx   = st.session_state.audit_mode_index
+
+        st.markdown(f'<div style="background:linear-gradient(135deg,#1a0a2e,#2d1060);'
+                    f'border:1px solid #6d28d9;border-radius:12px;padding:14px 16px;'
+                    f'margin-bottom:12px;">'
+                    f'<div style="font-size:0.65rem;font-weight:700;color:#6d28d9;'
+                    f'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">'
+                    f'{icon("zap",12,"#6d28d9")} Audit Mode</div>'
+                    f'<div style="font-size:1.1rem;font-weight:800;color:#a78bfa;">'
+                    f'{queue[idx] if idx < len(queue) else "Done"}</div>'
+                    f'<div style="font-size:0.7rem;color:#475569;margin-top:4px;">'
+                    f'Bin {idx+1} of {len(queue)}</div>'
+                    f'</div>', unsafe_allow_html=True)
+
+        if idx < len(queue):
+            current_remarks = queue[idx]
+            current_lots    = [i for i in st.session_state.inventory
+                               if (i.get("remarks","") or "(no remarks)") == current_remarks]
+            done_count = sum(1 for i in current_lots
+                             if i.get("inventory_id") in st.session_state.checked
+                             or i.get("inventory_id") in st.session_state.flagged)
+            total_count = len(current_lots)
+            pct = int(done_count / total_count * 100) if total_count else 0
+            st.progress(pct / 100)
+            st.caption(f"{done_count}/{total_count} lots done · {pct}%")
+
+        if st.button("Skip to Next Bin", use_container_width=True):
+            st.session_state.audit_mode_index += 1; st.rerun()
+
+        if st.button("Exit Audit Mode", use_container_width=True, type="primary"):
+            st.session_state.audit_mode       = False
+            st.session_state.audit_mode_queue = []
+            st.session_state.audit_mode_index = 0
+            st.rerun()
+
     else:
-        ck, cs, tv, ts = CK, CS, TV, TS
-        st.success("Credentials loaded")
+        # ── Normal sidebar ──
+        if not SECRETS_LOADED:
+            st.warning("No saved credentials found.")
+            ck = st.text_input("Consumer Key",    type="password")
+            cs = st.text_input("Consumer Secret", type="password")
+            tv = st.text_input("Token Value",     type="password")
+            ts = st.text_input("Token Secret",    type="password")
+        else:
+            ck, cs, tv, ts = CK, CS, TV, TS
+            st.success("Credentials loaded")
 
-    load_btn = st.button("Load Inventory", use_container_width=True, type="primary")
+        load_btn = st.button("Load Inventory", use_container_width=True, type="primary")
 
-    st.divider()
-    st.markdown(f'<div class="section-label">{ic("package")} Pages</div>',
-                unsafe_allow_html=True)
-    if st.button("Audit",         use_container_width=True):
-        st.session_state.page = "audit";     st.rerun()
-    if st.button("Summary",       use_container_width=True):
-        st.session_state.page = "summary";   st.rerun()
-    if st.button("Stockroom",     use_container_width=True):
-        st.session_state.page = "stockroom"; st.rerun()
-    if st.button("Audit History", use_container_width=True):
-        st.session_state.page = "history";   st.rerun()
-    if st.button("Price Checker", use_container_width=True):
-        st.session_state.page = "prices";    st.rerun()
-
-    st.divider()
-    if st.session_state.page == "audit":
-        st.markdown(f'<div class="section-label">{ic("sliders")} Filters</div>',
+        st.divider()
+        st.markdown(f'<div class="section-label">{ic("package")} Pages</div>',
                     unsafe_allow_html=True)
-        search_term = st.text_input("Search part # or name")
-        cond_filter = st.multiselect("Condition", ["New", "Used"], default=["New", "Used"])
-        show_filter = st.radio("Show", ["All", "Found", "Flagged", "Not yet found", "Low stock"])
-        all_remarks = sorted(set(i.get("remarks","") or "(no remarks)"
-                                 for i in st.session_state.inventory))
-        remarks_filter = "All"
-        if len(all_remarks) > 1:
-            remarks_filter = st.selectbox("Jump to bin", ["All"] + all_remarks)
-    else:
-        search_term = ""; cond_filter = ["New","Used"]; show_filter = "All"; remarks_filter = "All"
+        if st.button("Audit",         use_container_width=True):
+            st.session_state.page = "audit";     st.rerun()
+        if st.button("Summary",       use_container_width=True):
+            st.session_state.page = "summary";   st.rerun()
+        if st.button("Stockroom",     use_container_width=True):
+            st.session_state.page = "stockroom"; st.rerun()
+        if st.button("Audit History", use_container_width=True):
+            st.session_state.page = "history";   st.rerun()
+        if st.button("Price Checker", use_container_width=True):
+            st.session_state.page = "prices";    st.rerun()
 
-    st.divider()
-    if st.session_state.inventory:
-        total     = len(st.session_state.inventory)
-        found_n   = len(st.session_state.checked)
-        flagged_n = len(st.session_state.flagged)
-        low_n     = sum(1 for i in st.session_state.inventory
-                        if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
-        pct       = int(found_n / total * 100) if total else 0
-
-        st.markdown(f'<div class="section-label">{ic("activity")} Progress</div>',
-                    unsafe_allow_html=True)
-        st.progress(pct / 100)
-        st.markdown(f"**{found_n}/{total}** found · {pct}%")
-        if flagged_n:
-            st.markdown(f'<span style="color:#fb7185;font-size:0.82rem;">'
-                        f'{ic("alert-circle",13,"#fb7185")} {flagged_n} flagged</span>',
+        st.divider()
+        if st.session_state.page == "audit":
+            st.markdown(f'<div class="section-label">{ic("sliders")} Filters</div>',
                         unsafe_allow_html=True)
-        if low_n:
-            st.markdown(f'<span style="color:#fb923c;font-size:0.82rem;">'
-                        f'{ic("alert-triangle",13,"#fb923c")} {low_n} low stock</span>',
+            search_term = st.text_input("Search part # or name")
+            cond_filter = st.multiselect("Condition", ["New", "Used"], default=["New", "Used"])
+            show_filter = st.radio("Show", ["All", "Found", "Flagged", "Not yet found", "Low stock"])
+            all_remarks = sorted(set(i.get("remarks","") or "(no remarks)"
+                                     for i in st.session_state.inventory))
+            remarks_filter = "All"
+            if len(all_remarks) > 1:
+                remarks_filter = st.selectbox("Jump to bin", ["All"] + all_remarks)
+        else:
+            search_term = ""; cond_filter = ["New","Used"]; show_filter = "All"; remarks_filter = "All"
+
+        st.divider()
+        if st.session_state.inventory:
+            total     = len(st.session_state.inventory)
+            found_n   = len(st.session_state.checked)
+            flagged_n = len(st.session_state.flagged)
+            low_n     = sum(1 for i in st.session_state.inventory
+                            if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
+            pct       = int(found_n / total * 100) if total else 0
+
+            st.markdown(f'<div class="section-label">{ic("activity")} Progress</div>',
                         unsafe_allow_html=True)
+            st.progress(pct / 100)
+            st.markdown(f"**{found_n}/{total}** found · {pct}%")
+            if flagged_n:
+                st.markdown(f'<span style="color:#fb7185;font-size:0.82rem;">'
+                            f'{ic("alert-circle",13,"#fb7185")} {flagged_n} flagged</span>',
+                            unsafe_allow_html=True)
+            if low_n:
+                st.markdown(f'<span style="color:#fb923c;font-size:0.82rem;">'
+                            f'{ic("alert-triangle",13,"#fb923c")} {low_n} low stock</span>',
+                            unsafe_allow_html=True)
 
-        pushable = get_pushable_flags()
-        if pushable:
-            if st.button(f"Push {len(pushable)} fixes to BrickLink",
-                         use_container_width=True, type="primary"):
-                st.session_state.show_bulk_confirm = True
+            st.divider()
+            st.markdown(f'<div class="section-label">{ic("zap","#f59e0b")} Start Audit Mode</div>',
+                        unsafe_allow_html=True)
+            zone_choice = st.selectbox("Zone", ["All zones", "Bins only", "Tubs only", "Trays only"],
+                                       key="audit_mode_zone_select")
+            zone_map = {"All zones": "all", "Bins only": "bin",
+                        "Tubs only": "tub", "Trays only": "tray"}
 
-        if st.button("Save Audit Snapshot", use_container_width=True):
-            if save_audit_snapshot(): st.success("Snapshot saved")
+            all_remarks_for_start = sorted(set(
+                i.get("remarks","") or "(no remarks)" for i in st.session_state.inventory))
+            zone_key = zone_map[zone_choice]
+            filtered_remarks = [r for r in all_remarks_for_start
+                                if zone_key == "all" or detect_zone(r) == zone_key]
+            start_from = st.selectbox("Start from", filtered_remarks,
+                                      key="audit_mode_start_select") if filtered_remarks else None
 
-        if st.button("Reset All Checkmarks", use_container_width=True):
-            st.session_state.checked = set(); st.session_state.flagged = {}
-            st.session_state.notes = {}; st.session_state.show_bulk_confirm = False
-            clear_all_progress(); st.rerun()
+            if start_from and st.button("Start Audit Mode", use_container_width=True, type="primary"):
+                queue = [r for r in filtered_remarks]
+                start_idx = queue.index(start_from) if start_from in queue else 0
+                st.session_state.audit_mode       = True
+                st.session_state.audit_mode_queue = queue
+                st.session_state.audit_mode_index = start_idx
+                st.session_state.page             = "audit"
+                st.rerun()
 
-        remaining = [i for i in st.session_state.inventory
-                     if i.get("inventory_id") not in st.session_state.checked]
-        if remaining:
-            st.download_button("Export Remaining CSV",
-                pd.DataFrame([{"Inventory ID": r.get("inventory_id",""),
-                    "Part #": r.get("item",{}).get("no",""),
-                    "Name": r.get("item",{}).get("name",""),
-                    "Color": r.get("color_name",""),
-                    "Condition": "New" if r.get("new_or_used")=="N" else "Used",
-                    "Quantity": r.get("quantity",0), "Price": r.get("unit_price",""),
-                    "Bin": r.get("remarks",""),
-                    "Notes": st.session_state.notes.get(r.get("inventory_id"),""),
-                } for r in remaining]).to_csv(index=False),
-                "remaining_lots.csv", "text/csv", use_container_width=True)
+            st.divider()
+            pushable = get_pushable_flags()
+            if pushable:
+                if st.button(f"Push {len(pushable)} fixes to BrickLink",
+                             use_container_width=True, type="primary"):
+                    st.session_state.show_bulk_confirm = True
 
-        flagged_lots = [{**i, **st.session_state.flagged.get(i.get("inventory_id"),{})}
-                        for i in st.session_state.inventory
-                        if i.get("inventory_id") in st.session_state.flagged]
-        if flagged_lots:
-            st.download_button("Export Flagged CSV",
-                pd.DataFrame([{"Inventory ID": f.get("inventory_id",""),
-                    "Part #": f.get("item",{}).get("no",""),
-                    "Name": f.get("item",{}).get("name",""),
-                    "Color": f.get("color_name",""),
-                    "Listed Qty": f.get("quantity",0), "Actual Qty": f.get("actual_qty",""),
-                    "Current Bin": f.get("remarks",""), "Correct Bin": f.get("correct_bin",""),
-                    "Flag Reason": f.get("reason",""),
-                    "Notes": st.session_state.notes.get(f.get("inventory_id"),""),
-                } for f in flagged_lots]).to_csv(index=False),
-                "flagged_lots.csv", "text/csv", use_container_width=True)
+            if st.button("Save Audit Snapshot", use_container_width=True):
+                if save_audit_snapshot(): st.success("Snapshot saved")
 
-# ── Load inventory ────────────────────────────────────────────────────────────
-if load_btn:
-    if not all([ck, cs, tv, ts]):
-        st.error("Please fill in all four credential fields.")
-    else:
-        with st.spinner("Loading inventory from BrickLink…"):
-            try:
-                auth = make_auth(ck, cs, tv, ts)
-                inv  = fetch_inventory(auth)
-                st.session_state.inventory = inv
-                st.session_state.loaded    = True
-                st.session_state.auth      = (ck, cs, tv, ts)
-                st.success(f"Loaded {len(inv)} lots")
-            except Exception as e:
-                st.error(f"Error: {e}")
-        if DB_LOADED and st.session_state.loaded:
-            with st.spinner("Restoring saved progress…"):
-                checked, flagged, notes = load_progress()
-                st.session_state.checked     = checked
-                st.session_state.flagged     = flagged
-                st.session_state.notes       = notes
-                st.session_state.price_cache = load_price_cache()
-                if checked or flagged:
-                    st.success(f"Restored {len(checked)} checked, {len(flagged)} flagged")
-                else:
-                    st.info("Starting fresh.")
+            if st.button("Reset All Checkmarks", use_container_width=True):
+                st.session_state.checked = set(); st.session_state.flagged = {}
+                st.session_state.notes = {}; st.session_state.show_bulk_confirm = False
+                clear_all_progress(); st.rerun()
+
+            remaining = [i for i in st.session_state.inventory
+                         if i.get("inventory_id") not in st.session_state.checked]
+            if remaining:
+                st.download_button("Export Remaining CSV",
+                    pd.DataFrame([{"Inventory ID": r.get("inventory_id",""),
+                        "Part #": r.get("item",{}).get("no",""),
+                        "Name": r.get("item",{}).get("name",""),
+                        "Color": r.get("color_name",""),
+                        "Condition": "New" if r.get("new_or_used")=="N" else "Used",
+                        "Quantity": r.get("quantity",0), "Price": r.get("unit_price",""),
+                        "Bin": r.get("remarks",""),
+                        "Notes": st.session_state.notes.get(r.get("inventory_id"),""),
+                    } for r in remaining]).to_csv(index=False),
+                    "remaining_lots.csv", "text/csv", use_container_width=True)
+
+            flagged_lots = [{**i, **st.session_state.flagged.get(i.get("inventory_id"),{})}
+                            for i in st.session_state.inventory
+                            if i.get("inventory_id") in st.session_state.flagged]
+            if flagged_lots:
+                st.download_button("Export Flagged CSV",
+                    pd.DataFrame([{"Inventory ID": f.get("inventory_id",""),
+                        "Part #": f.get("item",{}).get("no",""),
+                        "Name": f.get("item",{}).get("name",""),
+                        "Color": f.get("color_name",""),
+                        "Listed Qty": f.get("quantity",0), "Actual Qty": f.get("actual_qty",""),
+                        "Current Bin": f.get("remarks",""), "Correct Bin": f.get("correct_bin",""),
+                        "Flag Reason": f.get("reason",""),
+                        "Notes": st.session_state.notes.get(f.get("inventory_id"),""),
+                    } for f in flagged_lots]).to_csv(index=False),
+                    "flagged_lots.csv", "text/csv", use_container_width=True)
+
+# ── Load inventory (only available outside audit mode) ───────────────────────
+if not st.session_state.audit_mode:
+    if 'load_btn' in dir() and load_btn:
+        if not all([ck, cs, tv, ts]):
+            st.error("Please fill in all four credential fields.")
+        else:
+            with st.spinner("Loading inventory from BrickLink…"):
+                try:
+                    auth = make_auth(ck, cs, tv, ts)
+                    inv  = fetch_inventory(auth)
+                    st.session_state.inventory = inv
+                    st.session_state.loaded    = True
+                    st.session_state.auth      = (ck, cs, tv, ts)
+                    st.success(f"Loaded {len(inv)} lots")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            if DB_LOADED and st.session_state.loaded:
+                with st.spinner("Restoring saved progress…"):
+                    checked, flagged, notes = load_progress()
+                    st.session_state.checked     = checked
+                    st.session_state.flagged     = flagged
+                    st.session_state.notes       = notes
+                    st.session_state.price_cache = load_price_cache()
+                    if checked or flagged:
+                        st.success(f"Restored {len(checked)} checked, {len(flagged)} flagged")
+                    else:
+                        st.info("Starting fresh.")
 
 if not st.session_state.loaded:
     st.info("Click Load Inventory in the sidebar to get started.")
+    st.stop()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AUDIT MODE PAGE
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.audit_mode:
+    queue = st.session_state.audit_mode_queue
+    idx   = st.session_state.audit_mode_index
+
+    if idx >= len(queue):
+        st.markdown(
+            f'<div class="audit-complete">'
+            f'<div style="font-size:3rem;margin-bottom:12px;">🎉</div>'
+            f'<div style="font-size:2rem;font-weight:800;color:#4ade80;margin-bottom:8px;">'
+            f'Audit Complete!</div>'
+            f'<div style="font-size:1rem;color:#475569;">'
+            f'All {len(queue)} bins have been audited.</div>'
+            f'</div>', unsafe_allow_html=True)
+        st.stop()
+
+    current_remarks = queue[idx]
+    current_lots    = [i for i in st.session_state.inventory
+                       if (i.get("remarks","") or "(no remarks)") == current_remarks]
+    done_count  = sum(1 for i in current_lots
+                      if i.get("inventory_id") in st.session_state.checked
+                      or i.get("inventory_id") in st.session_state.flagged)
+    total_count = len(current_lots)
+    flagged_count = sum(1 for i in current_lots
+                        if i.get("inventory_id") in st.session_state.flagged)
+    pct = int(done_count / total_count * 100) if total_count else 0
+
+    # Auto-advance when bin is complete
+    if total_count > 0 and done_count == total_count:
+        st.markdown(
+            f'<div style="background:linear-gradient(135deg,#0d2818,#112d1c);'
+            f'border:2px solid #2d6a4f;border-radius:16px;padding:24px;'
+            f'text-align:center;margin-bottom:20px;">'
+            f'<div style="font-size:1.8rem;margin-bottom:8px;">✅</div>'
+            f'<div style="font-size:1.2rem;font-weight:800;color:#4ade80;">'
+            f'{current_remarks} complete!</div>'
+            f'<div style="font-size:0.8rem;color:#475569;margin-top:6px;">'
+            f'{total_count} lots · {flagged_count} flagged</div>'
+            f'</div>', unsafe_allow_html=True)
+        time.sleep(1.2)
+        st.session_state.audit_mode_index += 1
+        st.rerun()
+
+    # Bin header
+    st.markdown(
+        f'<div class="audit-mode-header">'
+        f'<div class="audit-mode-sub">{icon("zap",14,"#6d28d9")} Audit Mode · '
+        f'Bin {idx+1} of {len(queue)}</div>'
+        f'<div class="audit-mode-title">{current_remarks}</div>'
+        f'<div class="audit-mode-progress">', unsafe_allow_html=True)
+    st.progress(pct / 100)
+    st.markdown(
+        f'<div style="font-size:0.75rem;color:#6d7a8f;margin-top:6px;">'
+        f'{done_count}/{total_count} lots done · {pct}%'
+        f'{" · " + str(flagged_count) + " flagged" if flagged_count else ""}'
+        f'</div></div></div>', unsafe_allow_html=True)
+
+    render_card_grid(current_lots, COLS)
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -963,9 +1127,9 @@ if st.session_state.page == "stockroom":
                             unsafe_allow_html=True)
         st.write("")
 
-        sort_key = (lambda x: x.get("remarks","") or "")
-        for group_name, group_items in groupby(sorted(filtered, key=sort_key),
-                                               key=lambda x: x.get("remarks","") or f"(no {zone_label_singular})"):
+        for group_name, group_items in groupby(
+                sorted(filtered, key=lambda x: x.get("remarks","") or ""),
+                key=lambda x: x.get("remarks","") or f"(no {zone_label_singular})"):
             group_lots  = list(group_items)
             bin_found   = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.checked)
             bin_flagged = sum(1 for x in group_lots if x.get("inventory_id") in st.session_state.flagged)
@@ -1031,7 +1195,6 @@ if st.session_state.page == "stockroom":
                                key=lambda x: int(x) if x.isdigit() else 0)
         render_zone_tab(trays_lots, "tray", "tray", "Select tray",
                         all_tray_nums, "#34d399", "layers")
-
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
