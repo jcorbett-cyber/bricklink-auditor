@@ -1292,8 +1292,20 @@ if st.session_state.page == "prices":
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: AUDIT (main)
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown('<div class="scan-bar">', unsafe_allow_html=True)
-sc1,sc2=st.columns([5,1])
+# ── Color filter bar ──────────────────────────────────────────────────────────
+st.markdown('<div class="color-filter-bar">', unsafe_allow_html=True)
+all_colors = sorted(set(i.get("color_name", "") for i in st.session_state.inventory if i.get("color_name")))
+color_filter = st.multiselect(
+    "Filter by color",
+    options=all_colors,
+    default=[],
+    placeholder="All colors — type to search…",
+    label_visibility="collapsed",
+    key="color_filter"
+)
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="scan-bar">', unsafe_allow_html=True)sc1,sc2=st.columns([5,1])
 with sc1:
     scan_query=st.text_input("Scan / quick find",value=st.session_state.scan_query,placeholder="Type or scan a part number…",label_visibility="collapsed",key="scan_input")
 with sc2:
