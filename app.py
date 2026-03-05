@@ -730,6 +730,7 @@ with st.sidebar:
         if st.button("Duplicates",       use_container_width=True): st.session_state.page = "dupes";     st.rerun()
         if st.button("Audit History",    use_container_width=True): st.session_state.page = "history";   st.rerun()
         if st.button("Price Checker",    use_container_width=True): st.session_state.page = "prices";    st.rerun()
+        if st.button("Pull Orders",      use_container_width=True): st.session_state.page = "orders";    st.rerun()
 
         st.divider()
         if st.session_state.page == "browse":
@@ -950,13 +951,14 @@ if st.session_state.page == "dashboard":
     st.divider()
     st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Quick Access</div>', unsafe_allow_html=True)
 
-    c1,c2,c3,c4,c5 = st.columns(5)
+    c1,c2,c3,c4,c5,c6 = st.columns(6)
     actions = [
         (c1, "browse",    "package",  "#a78bfa", "Browse Inventory", f"{total:,} lots"),
         (c2, "stockroom", "grid",     "#60a5fa", "Stockroom",        f"{n_bins} bins"),
         (c3, "dupes",     "copy",     "#fb923c", "Duplicates",       f"{len(dupes)} groups"),
         (c4, "prices",    "tag",      "#4ade80", "Price Checker",    "Check market rates"),
-        (c5, "history",   "calendar", "#94a3b8", "Audit History",    "View past audits"),
+        (c5, "orders",    "box",      "#f472b6", "Pull Orders",      "Pick open orders"),
+        (c6, "history",   "calendar", "#94a3b8", "Audit History",    "View past audits"),
     ]
     for col, page, ico, color, title, sub in actions:
         with col:
@@ -1303,7 +1305,305 @@ if st.session_state.page == "prices":
         st.download_button("Download Price Report CSV",pd.DataFrame([{"Part #":r["pno"],"Name":r["name"],"Color":r["color"],"Bin":r["bin"],"My Price":r["my_price"],"Market Avg":r["mkt_avg"],"% vs Market":round(r["pct_diff"],1),"Suggested":r["target"],"Flagged":"Yes" if r["flagged"] else "No"}for r in rows]).to_csv(index=False),"price_report.csv","text/csv",use_container_width=True)
     else: st.info("No cached prices yet — fetch some lots above to see results.")
     st.stop()
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: ORDERS
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.page == "orders":
+    st.markdown(f'{icon("box",22,"#f472b6")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Pull Orders</span>', unsafe_allow_html=True)
+    st.write("")
 
+    ORDER_COLORS = ["#f472b6","#60a5fa","#4ade80","#fb923c","#a78bfa","#f87171","#34d399","#fbbf24"]
+
+    if "orders_data" not in st.session_state:       st.session_state.orders_data = []
+    if "pick_mode" not in st.session_state:          st.session_state.pick_mode = False
+    if "pick_queue" not in st.session_state:         st.session_state.pick_queue = []
+    if "pick_index" not in st.session_state:         st.session_state.pick_index = 0
+    if "picked_items" not in st.session_state:       st.session_state.picked_items = set()
+    if "fulfilled_orders" not in st.session_state:   st.session_state.fulfilled_orders = set()
+
+    @st.cache_data(ttl=300)
+    def fetch_orders(_auth):
+        r = requests.get(f"{BASE}/orders", auth=_auth,
+                         params={"direction":"in","status":"PENDING,UPDATED,PROCESSING"},
+                         timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        if data.get("meta",{}).get("code") != 200:
+            raise ValueError(data.get("meta",{}).get("description","API error"))
+        return data.get("data",[])
+
+    @st.cache_data(ttl=300)
+    def fetch_order_items(_auth, order_id):
+        r = requests.get(f"{BASE}/orders/{order_id}/items", auth=_auth, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        if data.get("meta",{}).get("code") != 200: return []
+        raw = data.get("data",[])
+        if isinstance(raw, list) and raw and isinstance(raw[0], list):
+            items = [item for sublist in raw for item in sublist]
+        else:
+            items = raw
+        return items
+
+    def get_bin_for_part(part_no, color_id):
+        for lot in st.session_state.inventory:
+            if (lot.get("item",{}).get("no","") == part_no and
+                lot.get("color_id",0) == color_id):
+                return lot.get("remarks","") or "(no bin)"
+        return "(not in inventory)"
+
+    # ── Load orders button ────────────────────────────────────────────────────
+    if not st.session_state.pick_mode:
+        if st.button("Load Open Orders", type="primary", use_container_width=False):
+            if not st.session_state.auth:
+                st.error("No credentials loaded — load inventory first.")
+            else:
+                with st.spinner("Fetching open orders from BrickLink…"):
+                    try:
+                        auth = make_auth(*st.session_state.auth)
+                        orders = fetch_orders(auth)
+                        enriched = []
+                        pb = st.progress(0)
+                        for i, order in enumerate(orders):
+                            oid = order.get("order_id")
+                            items = fetch_order_items(auth, oid)
+                            for item in items:
+                                pno      = item.get("item",{}).get("no","")
+                                color_id = item.get("color_id",0)
+                                item["bin_location"] = get_bin_for_part(pno, color_id)
+                            enriched.append({**order, "items": items})
+                            pb.progress((i+1)/len(orders))
+                        pb.empty()
+                        st.session_state.orders_data     = enriched
+                        st.session_state.picked_items    = set()
+                        st.session_state.fulfilled_orders= set()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Could not load orders: {e}")
+
+        if not st.session_state.orders_data:
+            st.info("Click Load Open Orders to fetch from BrickLink.")
+            st.stop()
+
+        orders = st.session_state.orders_data
+        letter_map = {o["order_id"]: chr(65+i) for i,o in enumerate(orders)}
+
+        # ── Order overview cards ──────────────────────────────────────────────
+        st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">{len(orders)} Open Orders</div>', unsafe_allow_html=True)
+
+        for order in orders:
+            oid     = order.get("order_id")
+            letter  = letter_map[oid]
+            color   = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
+            buyer   = order.get("buyer_name","Unknown")
+            total   = order.get("cost",{}).get("grand_total","?")
+            items   = order.get("items",[])
+            n_items = sum(i.get("quantity",1) for i in items)
+            is_done = oid in st.session_state.fulfilled_orders
+            picked_count = sum(1 for i in items
+                               if f"{oid}_{i.get('item',{}).get('no','')}_{i.get('color_id',0)}" in st.session_state.picked_items)
+
+            done_html = '<span style="color:#4ade80;font-size:0.72rem;font-weight:700;">✓ Fulfilled</span>' if is_done else f'<span style="font-size:0.72rem;color:#475569;">{picked_count}/{len(items)} picked</span>'
+            st.markdown(
+                f'<div style="background:linear-gradient(145deg,#161b27,#1a2235);border:1px solid #1e2d45;'
+                f'border-left:4px solid {color};border-radius:14px;padding:14px 20px;margin-bottom:10px;'
+                f'display:flex;align-items:center;gap:16px;">'
+                f'<div style="background:{color};color:#0d1117;font-size:1.1rem;font-weight:900;'
+                f'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;'
+                f'justify-content:center;flex-shrink:0;">{letter}</div>'
+                f'<div style="flex:1;">'
+                f'<div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">{buyer} — #{oid}</div>'
+                f'<div style="font-size:0.72rem;color:#475569;margin-top:2px;">{n_items} pieces · {len(items)} lots · ${total}</div>'
+                f'</div>{done_html}</div>', unsafe_allow_html=True)
+
+        st.write("")
+
+        # ── Build pick queue ──────────────────────────────────────────────────
+        all_pick_items = []
+        for order in orders:
+            oid    = order.get("order_id")
+            letter = letter_map[oid]
+            color  = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
+            for item in order.get("items",[]):
+                pno      = item.get("item",{}).get("no","")
+                color_id = item.get("color_id",0)
+                pick_key = f"{oid}_{pno}_{color_id}"
+                all_pick_items.append({
+                    "order_id":   oid,
+                    "order_letter": letter,
+                    "order_color":  color,
+                    "buyer":      order.get("buyer_name",""),
+                    "pno":        pno,
+                    "pname":      item.get("item",{}).get("name",""),
+                    "color_id":   color_id,
+                    "color_name": item.get("color_name",""),
+                    "quantity":   item.get("quantity",1),
+                    "bin":        item.get("bin_location","(no bin)"),
+                    "pick_key":   pick_key,
+                })
+
+        # Sort by bin, then part number
+        all_pick_items.sort(key=lambda x: (x["bin"], x["pno"]))
+
+        # Group into bins for pick mode queue
+        from itertools import groupby as igrp
+        pick_bins = []
+        for bin_name, bin_items in igrp(all_pick_items, key=lambda x: x["bin"]):
+            pick_bins.append({"bin": bin_name, "items": list(bin_items)})
+
+        if st.button("Start Pick Run", type="primary", use_container_width=False):
+            st.session_state.pick_mode   = True
+            st.session_state.pick_queue  = pick_bins
+            st.session_state.pick_index  = 0
+            st.rerun()
+
+        st.divider()
+
+        # ── Full pick list preview ────────────────────────────────────────────
+        st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Full Pick List</div>', unsafe_allow_html=True)
+        for bin_group in pick_bins:
+            bin_name  = bin_group["bin"]
+            bin_items = bin_group["items"]
+            st.markdown(f'<div class="bin-header" style="border-left-color:#f472b6;"><p class="bin-title" style="color:#f472b6;">{icon("box",14,"#f472b6")} {bin_name}</p></div>', unsafe_allow_html=True)
+            cols = st.columns(COLS)
+            for i, item in enumerate(bin_items):
+                col = cols[i % COLS]
+                pick_key   = item["pick_key"]
+                is_picked  = pick_key in st.session_state.picked_items
+                order_color= item["order_color"]
+                card_cls   = "part-card found" if is_picked else "part-card"
+                with col:
+                    st.markdown(
+                        f'<div class="{card_cls}">'
+                        f'{img_with_qty(item["pno"],item["color_id"],item["quantity"])}'
+                        f'<div class="part-name">{item["pno"]}</div>'
+                        f'<div class="part-meta">{item["pname"][:24]}</div>'
+                        f'<div class="part-meta">{item["color_name"]}</div>'
+                        f'<span class="badge" style="background:{order_color}22;color:{order_color};border:1px solid {order_color}55;">'
+                        f'Order {item["order_letter"]} · {item["buyer"][:12]}</span>'
+                        f'</div>', unsafe_allow_html=True)
+
+    # ── PICK MODE ─────────────────────────────────────────────────────────────
+    else:
+        queue = st.session_state.pick_queue
+        idx   = st.session_state.pick_index
+        orders= st.session_state.orders_data
+        letter_map = {o["order_id"]: chr(65+i) for i,o in enumerate(orders)}
+
+        # Legend in sidebar-style info box
+        legend_html = " &nbsp;·&nbsp; ".join(
+            f'<span style="color:{ORDER_COLORS[i if i<len(ORDER_COLORS) else 0]};font-weight:700;">'
+            f'{chr(65+i)}</span> <span style="color:#94a3b8;font-size:0.72rem;">'
+            f'{o.get("buyer_name","")} #{o.get("order_id","")}</span>'
+            for i,o in enumerate(orders))
+        st.markdown(
+            f'<div style="background:#161b27;border:1px solid #1e2d45;border-radius:12px;'
+            f'padding:10px 16px;margin-bottom:16px;font-size:0.78rem;">'
+            f'{legend_html}</div>', unsafe_allow_html=True)
+
+        if idx >= len(queue):
+            # All bins picked
+            all_items  = [i for b in queue for i in b["items"]]
+            total_items= len(all_items)
+            picked_n   = sum(1 for i in all_items if i["pick_key"] in st.session_state.picked_items)
+            st.markdown(
+                f'<div class="audit-complete">'
+                f'<div style="font-size:3rem;margin-bottom:12px;">📦</div>'
+                f'<div style="font-size:2rem;font-weight:800;color:#4ade80;margin-bottom:8px;">Pick Run Complete!</div>'
+                f'<div style="font-size:1rem;color:#475569;">{picked_n}/{total_items} items picked across {len(orders)} orders.</div>'
+                f'</div>', unsafe_allow_html=True)
+            st.write("")
+            for order in orders:
+                oid    = order.get("order_id")
+                letter = letter_map[oid]
+                color  = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
+                o_items= [i for b in queue for i in b["items"] if i["order_id"]==oid]
+                o_picked=sum(1 for i in o_items if i["pick_key"] in st.session_state.picked_items)
+                status = "✓ Complete" if o_picked==len(o_items) else f"{o_picked}/{len(o_items)} picked"
+                st.markdown(
+                    f'<div style="background:#161b27;border:1px solid #1e2d45;border-left:4px solid {color};'
+                    f'border-radius:12px;padding:12px 16px;margin-bottom:8px;">'
+                    f'<span style="color:{color};font-weight:800;margin-right:10px;">{letter}</span>'
+                    f'<span style="color:#e2e8f0;font-weight:600;">{order.get("buyer_name","")} #{oid}</span>'
+                    f'<span style="float:right;color:#4ade80;">{status}</span></div>', unsafe_allow_html=True)
+            if st.button("Mark All Orders Fulfilled", type="primary"):
+                for order in orders:
+                    st.session_state.fulfilled_orders.add(order.get("order_id"))
+                st.session_state.pick_mode = False
+                st.rerun()
+            if st.button("Back to Orders", use_container_width=False):
+                st.session_state.pick_mode = False; st.rerun()
+            st.stop()
+
+        current_bin   = queue[idx]["bin"]
+        current_items = queue[idx]["items"]
+        done_count    = sum(1 for i in current_items if i["pick_key"] in st.session_state.picked_items)
+        total_count   = len(current_items)
+        pct           = int(done_count/total_count*100) if total_count else 0
+
+        # Auto-advance when bin complete
+        if total_count > 0 and done_count == total_count:
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#0d2818,#112d1c);border:2px solid #2d6a4f;'
+                f'border-radius:16px;padding:24px;text-align:center;margin-bottom:20px;">'
+                f'<div style="font-size:1.8rem;margin-bottom:8px;">✅</div>'
+                f'<div style="font-size:1.2rem;font-weight:800;color:#4ade80;">{current_bin} complete!</div>'
+                f'</div>', unsafe_allow_html=True)
+            time.sleep(1.2)
+            st.session_state.pick_index += 1; st.rerun()
+
+        # Header
+        all_total  = sum(len(b["items"]) for b in queue)
+        all_picked = sum(1 for b in queue for i in b["items"] if i["pick_key"] in st.session_state.picked_items)
+        st.markdown(
+            f'<div class="audit-mode-header">'
+            f'<div class="audit-mode-sub">{icon("box",14,"#f472b6")} Pick Mode · Bin {idx+1} of {len(queue)}</div>'
+            f'<div class="audit-mode-title" style="color:#f472b6;">{current_bin}</div>'
+            f'<div style="margin-top:12px;">', unsafe_allow_html=True)
+        st.progress(all_picked / all_total if all_total else 0)
+        st.markdown(
+            f'<div style="font-size:0.75rem;color:#6d7a8f;margin-top:6px;">'
+            f'{all_picked}/{all_total} total items picked · bin {done_count}/{total_count}</div>'
+            f'</div></div>', unsafe_allow_html=True)
+
+        # Cards for this bin
+        for row_start in range(0, len(current_items), COLS):
+            row_items = current_items[row_start:row_start+COLS]
+            cols      = st.columns(COLS)
+            for col, item in zip(cols, row_items):
+                pick_key    = item["pick_key"]
+                is_picked   = pick_key in st.session_state.picked_items
+                order_color = item["order_color"]
+                card_cls    = "part-card found" if is_picked else "part-card"
+                with col:
+                    st.markdown(
+                        f'<div class="{card_cls}">'
+                        f'{img_with_qty(item["pno"],item["color_id"],item["quantity"])}'
+                        f'<div class="part-name">{item["pno"]}</div>'
+                        f'<div class="part-meta">{item["pname"][:24]}</div>'
+                        f'<div class="part-meta">{item["color_name"]}</div>'
+                        f'<span class="badge" style="background:{order_color}22;color:{order_color};'
+                        f'border:1px solid {order_color}55;font-size:0.65rem;font-weight:800;">'
+                        f'Order {item["order_letter"]}</span>'
+                        f'</div>', unsafe_allow_html=True)
+                    if is_picked:
+                        if col.button("Unpick", key=f"unpick_{pick_key}", use_container_width=True):
+                            st.session_state.picked_items.discard(pick_key); st.rerun()
+                    else:
+                        if col.button("Picked", key=f"pick_{pick_key}", use_container_width=True):
+                            st.session_state.picked_items.add(pick_key); st.rerun()
+
+        st.write("")
+        c1, c2 = st.columns([1,1])
+        with c1:
+            if st.button("Skip to Next Bin", use_container_width=True):
+                st.session_state.pick_index += 1; st.rerun()
+        with c2:
+            if st.button("Exit Pick Mode", use_container_width=True, type="primary"):
+                st.session_state.pick_mode = False; st.rerun()
+
+    st.stop()
+    
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: BROWSE INVENTORY
 # ══════════════════════════════════════════════════════════════════════════════
