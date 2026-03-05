@@ -323,7 +323,7 @@ def update_price_on_bricklink(auth, inventory_id, new_price):
 
 def move_to_stockroom_a(auth, inventory_id):
     r = requests.put(f"{BASE}/inventories/{inventory_id}", auth=auth,
-                     json={"is_stockroom": True, "stockroom_id": "A"}, timeout=30)
+                     json={"is_stock_room": True, "stock_room_id": "A"}, timeout=30)
     r.raise_for_status()
     data = r.json()
     if data.get("meta", {}).get("code") != 200:
