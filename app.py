@@ -69,8 +69,8 @@ section[data-testid="stSidebar"] {
 section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important; }
 .stApp { background: linear-gradient(135deg, #0d1117 0%, #111827 50%, #0f172a 100%); }
 .part-card {
-  background: linear-gradient(145deg, #161b27, #1a2235);
-  border: 1px solid #1e2d45; border-radius: 16px;
+  background: linear-gradient(145deg, #1a2236, #1e2640);
+  border: 1px solid #2a3f5f; border-radius: 16px;
   padding: 14px 10px; text-align: center; margin-bottom: 10px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.3);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
@@ -90,8 +90,8 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   font-size:1.3rem; font-weight:800; color:#e2e8f0;
   text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8); line-height:1;
 }
-.part-name { font-size:0.78rem; color:#e2e8f0; font-weight:700; margin-bottom:4px; letter-spacing:0.01em; }
-.part-meta { font-size:0.68rem; color:#64748b; line-height:1.5; }
+.part-name { font-size:0.78rem; color:#f1f5f9; font-weight:800; margin-bottom:4px; letter-spacing:0.01em; }
+.part-meta { font-size:0.68rem; color:#94a3b8; line-height:1.5; }
 .badge {
   display:inline-flex; align-items:center; gap:3px; border-radius:20px; padding:3px 9px;
   font-size:0.6rem; font-weight:700; margin-top:6px; letter-spacing:0.04em; text-transform:uppercase;
@@ -688,8 +688,11 @@ with st.sidebar:
             f'</div>', unsafe_allow_html=True)
         if idx < len(queue):
             current_remarks = queue[idx]
-            current_lots    = [i for i in st.session_state.inventory
-                               if (i.get("remarks","") or "(no remarks)") == current_remarks]
+            current_lots    = sorted(
+                [i for i in st.session_state.inventory
+                 if (i.get("remarks","") or "(no remarks)") == current_remarks],
+                key=lambda x: (x.get("item",{}).get("no",""), -x.get("quantity",0))
+            )
             done_count  = sum(1 for i in current_lots
                               if i.get("inventory_id") in st.session_state.checked
                               or i.get("inventory_id") in st.session_state.flagged)
