@@ -280,6 +280,7 @@ for key, default in [
     ("scan_query", ""), ("page", "audit"), ("price_cache", {}),
     ("price_results", []), ("screen_width", 1200),
     ("audit_mode", False), ("audit_mode_queue", []), ("audit_mode_index", 0),
+    ("bin_audit_dates", {}),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
