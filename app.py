@@ -619,6 +619,12 @@ def render_card_grid(lots, cols_count):
                     if col.button("Found", key=f"found_{lid}", use_container_width=True):
                         st.session_state.checked.add(lid)
                         save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
+                        # Check if bin is now complete
+                        bin_name = lot.get("remarks","") or "(no remarks)"
+                        bin_lots = [i for i in st.session_state.inventory if (i.get("remarks","") or "(no remarks)") == bin_name]
+                        if all(i.get("inventory_id") in st.session_state.checked or i.get("inventory_id") in st.session_state.flagged for i in bin_lots):
+                            save_bin_audit_date(bin_name)
+                            st.session_state.bin_audit_dates[bin_name] = datetime.now().strftime("%Y-%m-%d")
                         st.rerun()
 
                 with col.expander("Note"):
