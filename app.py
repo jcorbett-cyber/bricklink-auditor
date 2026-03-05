@@ -1003,8 +1003,9 @@ if st.session_state.page == "stockroom":
             bin_pct=int(bin_found/len(group_lots)*100) if group_lots else 0
             flagged_note=(f'&nbsp;&nbsp;{icon("alert-circle",11,"#fb7185")}<span style="font-size:0.7rem;color:#fb7185;">{bin_flagged} flagged</span>' if bin_flagged else "")
             ct,cb=st.columns([4,1])
-            with ct: st.markdown(f'<div class="bin-header" style="border-left-color:{header_color};"><p class="bin-title" style="color:{header_color};">{icon(header_icon,14,header_color)} {group_name}</p><p class="bin-stats">{bin_found}/{len(group_lots)} found · {bin_pct}%{flagged_note}</p></div>', unsafe_allow_html=True)
-            with cb:
+last_audited = st.session_state.bin_audit_dates.get(group_name, "")
+audited_html = f'&nbsp;&nbsp;<span style="color:#2d6a4f;font-size:0.68rem;">✓ audited {last_audited}</span>' if last_audited else ""
+st.markdown(f'<div class="bin-header" style="border-left-color:{header_color};"><p class="bin-title" style="color:{header_color};">{icon(header_icon,14,header_color)} {group_name}</p><p class="bin-stats">{bin_found}/{len(group_lots)} found · {bin_pct}%{flagged_note}{audited_html}</p></div>', unsafe_allow_html=True)            with cb:
                 st.write(""); st.write("")
                 if st.button("Mark all found",key=f"{zone_key}mkall_{group_name}",use_container_width=True):
                     for x in group_lots:
@@ -1398,7 +1399,9 @@ for group_name,group_items in groupby(inv,key=lambda x:x.get("remarks","") or "(
     col_title,col_btn=st.columns([4,1])
     with col_title:
         flagged_note=(f'&nbsp;&nbsp;{icon("alert-circle",11,"#fb7185")}<span style="font-size:0.7rem;color:#fb7185;">{bin_flagged} flagged</span>' if bin_flagged else "")
-        st.markdown(f'<div class="bin-header"><p class="bin-title">{icon("archive",14,"#a78bfa")} {group_name}</p><p class="bin-stats">{bin_found}/{bin_total} found · {bin_pct}%{flagged_note}</p></div>', unsafe_allow_html=True)
+        last_audited = st.session_state.bin_audit_dates.get(group_name, "")
+audited_html = f'&nbsp;&nbsp;<span style="color:#2d6a4f;font-size:0.68rem;">✓ audited {last_audited}</span>' if last_audited else ""
+st.markdown(f'<div class="bin-header"><p class="bin-title">{icon("archive",14,"#a78bfa")} {group_name}</p><p class="bin-stats">{bin_found}/{bin_total} found · {bin_pct}%{flagged_note}{audited_html}</p></div>', unsafe_allow_html=True)
     with col_btn:
         st.write(""); st.write("")
         if st.button("Mark all found",key=f"markall_{group_name}",use_container_width=True):
