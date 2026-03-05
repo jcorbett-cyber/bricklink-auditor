@@ -1316,7 +1316,7 @@ if st.session_state.page == "orders":
 
     ORDER_COLORS = ["#f472b6","#60a5fa","#4ade80","#fb923c","#a78bfa","#f87171","#34d399","#fbbf24"]
 
-        @st.cache_data(ttl=300)
+    @st.cache_data(ttl=300)
     def fetch_orders(_auth):
         r = requests.get(f"{BASE}/orders", auth=_auth,
                          params={"direction":"in","status":"PENDING,UPDATED,PROCESSING"},
