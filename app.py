@@ -455,7 +455,25 @@ def save_price_to_cache(part_no, color_id, condition, avg_price, qty_avg_price):
         }, on_conflict="part_no,color_id,condition").execute()
     except Exception as e:
         st.warning(f"Could not save price: {e}")
+def save_bin_audit_date(bin_name):
+    if not DB_LOADED: return
+    try:
+        supabase.table("bin_audit_dates").upsert({
+            "bin_name": bin_name,
+            "last_audited": datetime.now().isoformat(),
+        }, on_conflict="bin_name").execute()
+    except Exception as e:
+        st.warning(f"Could not save bin audit date: {e}")
 
+@st.cache_data(ttl=300)
+def load_bin_audit_dates():
+    if not DB_LOADED: return {}
+    try:
+        result = supabase.table("bin_audit_dates").select("*").execute()
+        return {r["bin_name"]: r["last_audited"][:10] for r in result.data}
+    except Exception as e:
+        st.warning(f"Could not load bin audit dates: {e}")
+        return {}
 # ── Duplicate detection ───────────────────────────────────────────────────────
 def find_duplicates(inventory):
     from collections import defaultdict
