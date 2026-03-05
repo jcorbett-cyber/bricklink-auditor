@@ -144,8 +144,13 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   border-radius:12px; padding:12px 20px; margin:20px 0 10px 0;
 }
 .restock-title { font-size:1rem; font-weight:700; color:#fb923c; margin:0; }
-.scan-bar {
-  background:linear-gradient(135deg,#161b27,#1a2235); border:1px solid #1e2d45;
+.color-filter-bar {
+  background:linear-gradient(135deg,#161b27,#1a2235);
+  border:1px solid #1e2d45; border-radius:14px;
+  padding:10px 20px; margin-bottom:16px;
+  box-shadow:0 2px 10px rgba(0,0,0,0.2);
+}
+.scan-bar {  background:linear-gradient(135deg,#161b27,#1a2235); border:1px solid #1e2d45;
   border-radius:14px; padding:14px 20px; margin-bottom:20px; box-shadow:0 2px 10px rgba(0,0,0,0.2);
 }
 .metric-card {
