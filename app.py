@@ -1321,8 +1321,7 @@ with sc1:
                               label_visibility="collapsed",key="scan_input")
 with sc2:
     if st.button("Clear",use_container_width=True): st.session_state.scan_query=""; st.rerun()
-html=True)
-
+st.markdown('</div>', unsafe_allow_html=True)
 if scan_query != st.session_state.scan_query:
     st.session_state.scan_query=scan_query; st.rerun()
 
