@@ -1310,7 +1310,8 @@ color_filter = st.multiselect(
 )
 st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('<div class="scan-bar">', unsafe_allow_html=True)sc1,sc2=st.columns([5,1])
+st.markdown('<div class="scan-bar">', unsafe_allow_html=True)
+sc1,sc2=st.columns([5,1])
 with sc1:
     scan_query=st.text_input("Scan / quick find",value=st.session_state.scan_query,placeholder="Type or scan a part number…",label_visibility="collapsed",key="scan_input")
 with sc2:
