@@ -849,6 +849,8 @@ if not st.session_state.audit_mode:
                     st.session_state.flagged     = flagged
                     st.session_state.notes       = notes
                     st.session_state.price_cache = load_price_cache()
+                    st.session_state.bin_audit_dates = load_bin_audit_dates()
+
                     if checked or flagged:
                         st.success(f"Restored {len(checked)} checked, {len(flagged)} flagged")
                     else:
