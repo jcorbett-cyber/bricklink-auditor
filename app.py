@@ -289,6 +289,8 @@ for key, default in [
     ("price_results", []), ("screen_width", 1200),
     ("audit_mode", False), ("audit_mode_queue", []), ("audit_mode_index", 0),
     ("bin_audit_dates", {}),
+    ("orders_data", []), ("pick_mode", False), ("pick_queue", []),
+    ("pick_index", 0), ("picked_items", set()), ("fulfilled_orders", set()),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -1314,14 +1316,7 @@ if st.session_state.page == "orders":
 
     ORDER_COLORS = ["#f472b6","#60a5fa","#4ade80","#fb923c","#a78bfa","#f87171","#34d399","#fbbf24"]
 
-    if "orders_data" not in st.session_state:       st.session_state.orders_data = []
-    if "pick_mode" not in st.session_state:          st.session_state.pick_mode = False
-    if "pick_queue" not in st.session_state:         st.session_state.pick_queue = []
-    if "pick_index" not in st.session_state:         st.session_state.pick_index = 0
-    if "picked_items" not in st.session_state:       st.session_state.picked_items = set()
-    if "fulfilled_orders" not in st.session_state:   st.session_state.fulfilled_orders = set()
-
-    @st.cache_data(ttl=300)
+        @st.cache_data(ttl=300)
     def fetch_orders(_auth):
         r = requests.get(f"{BASE}/orders", auth=_auth,
                          params={"direction":"in","status":"PENDING,UPDATED,PROCESSING"},
