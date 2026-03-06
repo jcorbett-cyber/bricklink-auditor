@@ -1041,7 +1041,7 @@ if st.session_state.page == "stockroom":
     st.markdown(f'{icon("grid",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Stockroom</span>', unsafe_allow_html=True)
     st.write("")
     inv=st.session_state.inventory
-   bins_lots =[i for i in inv if detect_zone(i.get("remarks",""))=="bin"]
+    bins_lots =[i for i in inv if detect_zone(i.get("remarks",""))=="bin"]
     tubs_lots =[i for i in inv if detect_zone(i.get("remarks",""))=="tub"]
     trays_lots=[i for i in inv if detect_zone(i.get("remarks",""))=="tray"]
     wd_lots   =[i for i in inv if detect_zone(i.get("remarks",""))=="wd"]
