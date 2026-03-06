@@ -599,7 +599,7 @@ def render_card_grid(lots, cols_count):
                     if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
                         st.session_state.checked.discard(lid); delete_progress(lid); st.rerun()
                 else:
-                    if col.button("Found", key=f"found_{lid}", use_container_width=True):
+                    if col.button("Found", key=f"found_{lid}_{i}", use_container_width=True):
                         st.session_state.checked.add(lid)
                         save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
                         bin_name = lot.get("remarks","") or "(no remarks)"
@@ -1740,7 +1740,7 @@ for group_name,group_items in groupby(inv,key=lambda x:x.get("remarks","") or "(
                     if col.button("Unmark",key=f"unmark_{lid}",use_container_width=True):
                         st.session_state.checked.discard(lid); delete_progress(lid); st.rerun()
                 else:
-                    if col.button("Found",key=f"found_{lid}",use_container_width=True):
+                    if col.button("Found",key=f"found_{lid}_{i}",use_container_width=True):
                         st.session_state.checked.add(lid)
                         save_progress(lid,"checked",notes=st.session_state.notes.get(lid))
                         bin_name=lot.get("remarks","") or "(no remarks)"
