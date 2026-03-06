@@ -777,7 +777,7 @@ with st.sidebar:
             if remaining:
                 st.download_button("Export Remaining CSV",
                     pd.DataFrame([{"Inventory ID": r.get("inventory_id",""),
-                        "Part #": r.get("item",{}).get(, "Name": r.get("item",{}).get("name",""),
+                        "Part #": r.get("item",{}).get("no",""), "Name": r.get("item",{}).get("name",""),
                         "Color": r.get("color_name",""),
                         "Condition": "New" if r.get("new_or_used")=="N" else "Used",
                         "Quantity": r.get("quantity",0), "Price": r.get("unit_price",""),
