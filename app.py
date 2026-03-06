@@ -1319,7 +1319,7 @@ if st.session_state.page == "orders":
     @st.cache_data(ttl=300)
     def fetch_orders(_auth):
         r = requests.get(f"{BASE}/orders", auth=_auth,
-                         params={"direction":"in","status":"PENDING,UPDATED,PROCESSING"},
+                         params={"direction":"in"},
                          timeout=30)
         r.raise_for_status()
         data = r.json()
