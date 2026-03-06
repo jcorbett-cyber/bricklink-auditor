@@ -1448,11 +1448,31 @@ if st.session_state.page == "orders":
         for bin_name, bin_items in igrp(all_pick_items, key=lambda x: x["bin"]):
             pick_bins.append({"bin": bin_name, "items": list(bin_items)})
 
-        if st.button("Start Pick Run", type="primary", use_container_width=False):
-            st.session_state.pick_mode   = True
-            st.session_state.pick_queue  = pick_bins
-            st.session_state.pick_index  = 0
-            st.rerun()
+        col_all, col_spacer = st.columns([2,4])
+        with col_all:
+            if st.button("Start Full Pick Run", type="primary", use_container_width=True):
+                st.session_state.pick_mode   = True
+                st.session_state.pick_queue  = pick_bins
+                st.session_state.pick_index  = 0
+                st.rerun()
+
+        st.write("")
+        st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Or pick a single order</div>', unsafe_allow_html=True)
+        for order in orders:
+            oid    = order.get("order_id")
+            letter = letter_map[oid]
+            color  = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
+            buyer  = order.get("buyer_name","Unknown")
+            if st.button(f"Pick Order {letter} — {buyer} #{oid}", key=f"pickone_{oid}", use_container_width=False):
+                single_items = [i for b in pick_bins for i in b["items"] if i["order_id"]==oid]
+                single_items.sort(key=lambda x: (x["bin"], x["pno"]))
+                single_bins = []
+                for bin_name, bin_items in igrp(single_items, key=lambda x: x["bin"]):
+                    single_bins.append({"bin": bin_name, "items": list(bin_items)})
+                st.session_state.pick_mode   = True
+                st.session_state.pick_queue  = single_bins
+                st.session_state.pick_index  = 0
+                st.rerun()
 
         st.divider()
 
