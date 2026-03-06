@@ -702,7 +702,7 @@ with st.sidebar:
                               or i.get("inventory_id") in st.session_state.flagged)
             total_count = len(current_lots)
             pct = int(done_count / total_count * 100) if total_count else 0
-            st.progress(pct / 100)
+            st.progress(min(max(pct / 100, 0.0), 1.0))
             st.caption(f"{done_count}/{total_count} lots done · {pct}%")
         if st.button("Skip to Next Bin", use_container_width=True):
             st.session_state.audit_mode_index += 1; st.rerun()
@@ -1577,7 +1577,7 @@ if st.session_state.page == "orders":
             f'<div class="audit-mode-sub">{icon("box",14,"#f472b6")} Pick Mode · Bin {idx+1} of {len(queue)}</div>'
             f'<div class="audit-mode-title" style="color:#f472b6;">{current_bin}</div>'
             f'<div style="margin-top:12px;">', unsafe_allow_html=True)
-        st.progress(all_picked / all_total if all_total else 0)
+        st.progress(min(max(all_picked / all_total if all_total else 0, 0.0), 1.0))
         st.markdown(
             f'<div style="font-size:0.75rem;color:#6d7a8f;margin-top:6px;">'
             f'{all_picked}/{all_total} total items picked · bin {done_count}/{total_count}</div>'
