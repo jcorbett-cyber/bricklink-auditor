@@ -755,7 +755,7 @@ with st.sidebar:
             found_n   = len(st.session_state.checked)
             flagged_n = len(st.session_state.flagged)
             low_n     = sum(1 for i in st.session_state.inventory if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
-            pct       = int(found_n / total * 100) if total else 0
+            pct       = min(int(found_n / total * 100) if total else 0, 100)
             st.markdown(f'<div class="section-label">{ic("activity")} Progress</div>', unsafe_allow_html=True)
             st.progress(min(max(pct / 100, 0.0), 1.0))
             st.markdown(f"**{found_n}/{total}** found · {pct}%")
@@ -874,7 +874,7 @@ if st.session_state.audit_mode:
         f'<div class="audit-mode-sub">{icon("zap",14,"#6d28d9")} Audit Mode · Bin {idx+1} of {len(queue)}</div>'
         f'<div class="audit-mode-title">{current_remarks}</div>'
         f'<div style="margin-top:12px;">', unsafe_allow_html=True)
-    st.progress(pct / 100)
+    st.progress(min(max(pct / 100, 0.0), 1.0))
     st.markdown(
         f'<div style="font-size:0.75rem;color:#6d7a8f;margin-top:6px;">'
         f'{done_count}/{total_count} lots done · {pct}%'
@@ -892,7 +892,7 @@ if st.session_state.page == "dashboard":
     found_n   = len(st.session_state.checked)
     flagged_n = len(st.session_state.flagged)
     low_n     = sum(1 for i in inv if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
-    pct       = int(found_n / total * 100) if total else 0
+    pct       = min(int(found_n / total * 100) if total else 0, 100)
     n_bins    = len(set(i.get("remarks","") or "(no remarks)" for i in inv))
     dupes     = find_duplicates(inv)
 
@@ -920,7 +920,7 @@ if st.session_state.page == "dashboard":
                 f'<div class="metric-value" style="font-size:1.6rem;color:{color}">{val}</div>'
                 f'<div class="metric-label">{label}</div></div>', unsafe_allow_html=True)
 
-    st.progress(pct / 100)
+    st.progress(min(max(pct / 100, 0.0), 1.0))
     st.write("")
 
     st.markdown(
