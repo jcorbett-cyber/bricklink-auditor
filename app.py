@@ -1416,7 +1416,7 @@ if st.session_state.page == "orders":
                 single_items = [i for order in st.session_state.orders_data for i in order.get("items",[]) if order.get("order_id")==oid]
                 single_items.sort(key=lambda x: (x.get("bin_location",""), x.get("item",{}).get("no","")))
                 single_bins = []
-                for bin_name, bin_items in igrp(single_items, key=lambda x: x["bin"]):
+                for bin_name, bin_items in igrp(single_items, key=lambda x: x.get("bin_location","")):
                     single_bins.append({"bin": bin_name, "items": list(bin_items)})
                 st.session_state.pick_mode   = True
                 st.session_state.pick_queue  = single_bins
