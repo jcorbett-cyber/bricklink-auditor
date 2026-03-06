@@ -1359,9 +1359,24 @@ if st.session_state.page == "orders":
                     try:
                         auth = make_auth(*st.session_state.auth)
                         all_orders = fetch_orders(auth)
-                        for o in all_orders:
-                            st.write(f"Order {o.get('order_id')} | status: {o.get('status')} | filed: {o.get('is_filed')}")
-                        st.stop()
+                        KEEP_STATUSES = {"PAID","PENDING","UPDATED","PROCESSING","PACKED","READY"}
+                        orders = [o for o in all_orders if o.get("status","").upper() in KEEP_STATUSES]
+                        enriched = []
+                        pb = st.progress(0)
+                        for i, order in enumerate(orders):
+                            oid = order.get("order_id")
+                            items = fetch_order_items(auth, oid)
+                            for item in items:
+                                pno      = item.get("item",{}).get("no","")
+                                color_id = item.get("color_id",0)
+                                item["bin_location"] = get_bin_for_part(pno, color_id)
+                            enriched.append({**order, "items": items})
+                            pb.progress(min((i+1)/len(orders), 1.0) if orders else 1.0)
+                        pb.empty()
+                        st.session_state.orders_data     = enriched
+                        st.session_state.picked_items    = set()
+                        st.session_state.fulfilled_orders= set()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Could not load orders: {e}")
 
