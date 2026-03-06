@@ -1492,7 +1492,7 @@ if st.session_state.page == "orders":
             cols = st.columns(COLS)
             for i, item in enumerate(bin_items):
                 col = cols[i % COLS]
-                pick_key   = item["pick_key"]
+                pick_key   = item[.get("pick_key","")
                 is_picked  = pick_key in st.session_state.picked_items
                 order_color= item["order_color"]
                 card_cls   = "part-card found" if is_picked else "part-card"
@@ -1529,7 +1529,7 @@ if st.session_state.page == "orders":
             # All bins picked
             all_items  = [i for b in queue for i in b["items"]]
             total_items= len(all_items)
-            picked_n   = sum(1 for i in all_items if i["pick_key"] in st.session_state.picked_items)
+            picked_n   = sum(1 for i in all_items if i[.get("pick_key","") in st.session_state.picked_items)
             st.markdown(
                 f'<div class="audit-complete">'
                 f'<div style="font-size:3rem;margin-bottom:12px;">📦</div>'
@@ -1542,7 +1542,7 @@ if st.session_state.page == "orders":
                 letter = letter_map[oid]
                 color  = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
                 o_items= [i for b in queue for i in b["items"] if i["order_id"]==oid]
-                o_picked=sum(1 for i in o_items if i["pick_key"] in st.session_state.picked_items)
+                o_picked=sum(1 for i in o_items if i[.get("pick_key","") in st.session_state.picked_items)
                 status = "✓ Complete" if o_picked==len(o_items) else f"{o_picked}/{len(o_items)} picked"
                 st.markdown(
                     f'<div style="background:#161b27;border:1px solid #1e2d45;border-left:4px solid {color};'
@@ -1561,7 +1561,7 @@ if st.session_state.page == "orders":
 
         current_bin   = queue[idx]["bin"]
         current_items = queue[idx]["items"]
-        done_count    = sum(1 for i in current_items if i["pick_key"] in st.session_state.picked_items)
+        done_count    = sum(1 for i in current_items if i[.get("pick_key","") in st.session_state.picked_items)
         total_count   = len(current_items)
         pct           = int(done_count/total_count*100) if total_count else 0
 
@@ -1578,7 +1578,7 @@ if st.session_state.page == "orders":
 
         # Header
         all_total  = sum(len(b["items"]) for b in queue)
-        all_picked = sum(1 for b in queue for i in b["items"] if i["pick_key"] in st.session_state.picked_items)
+        all_picked = sum(1 for b in queue for i in b["items"] if i[.get("pick_key","") in st.session_state.picked_items)
         st.markdown(
             f'<div class="audit-mode-header">'
             f'<div class="audit-mode-sub">{icon("box",14,"#f472b6")} Pick Mode · Bin {idx+1} of {len(queue)}</div>'
@@ -1595,7 +1595,7 @@ if st.session_state.page == "orders":
             row_items = current_items[row_start:row_start+COLS]
             cols      = st.columns(COLS)
             for col, item in zip(cols, row_items):
-                pick_key    = item["pick_key"]
+                pick_key    = item[.get("pick_key","")
                 is_picked   = pick_key in st.session_state.picked_items
                 order_color = item["order_color"]
                 card_cls    = "part-card found" if is_picked else "part-card"
