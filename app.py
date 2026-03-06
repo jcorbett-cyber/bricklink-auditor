@@ -253,6 +253,7 @@ SALE_DISCOUNT       = 0.70
 def detect_zone(remarks):
     if not remarks: return "other"
     r = remarks.strip()
+    if r.upper().startswith("WD"):   return "wd"
     if r.upper().startswith("TUB"):  return "tub"
     if r.upper().startswith("TRAY"): return "tray"
     if len(r) >= 2 and r[:2].isalpha() and r[:2].isupper(): return "bin"
@@ -1040,20 +1041,21 @@ if st.session_state.page == "stockroom":
     st.markdown(f'{icon("grid",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Stockroom</span>', unsafe_allow_html=True)
     st.write("")
     inv=st.session_state.inventory
-    bins_lots =[i for i in inv if detect_zone(i.get("remarks",""))=="bin"]
+   bins_lots =[i for i in inv if detect_zone(i.get("remarks",""))=="bin"]
     tubs_lots =[i for i in inv if detect_zone(i.get("remarks",""))=="tub"]
     trays_lots=[i for i in inv if detect_zone(i.get("remarks",""))=="tray"]
+    wd_lots   =[i for i in inv if detect_zone(i.get("remarks",""))=="wd"]
     def zone_low(lots): return sum(1 for i in lots if 0<i.get("quantity",0)<=LOW_STOCK_THRESHOLD)
     def zone_pct(lots):
         if not lots: return 0
         return int(sum(1 for i in lots if i.get("inventory_id") in st.session_state.checked)/len(lots)*100)
-    z1,z2,z3=st.columns(3)
-    for col,label,lots,color in [(z1,"Bins (AA–AT)",bins_lots,"#a78bfa"),(z2,"Tubs (01–28)",tubs_lots,"#60a5fa"),(z3,"Trays (01–26)",trays_lots,"#34d399")]:
+    z1,z2,z3,z4=st.columns(4)
+    for col,label,lots,color in [(z1,"Bins (AA–AT)",bins_lots,"#a78bfa"),(z2,"Tubs (01–28)",tubs_lots,"#60a5fa"),(z3,"Trays (01–26)",trays_lots,"#34d399"),(z4,"White Drawers",wd_lots,"#f472b6")]:
         with col:
             low=zone_low(lots); pct=zone_pct(lots)
             st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:{color}">{len(lots)}</div><div class="metric-label">{label}</div><div style="font-size:0.7rem;color:#475569;margin-top:6px;">{pct}% audited{" · "+str(low)+" low stock" if low else ""}</div></div>', unsafe_allow_html=True)
     st.divider()
-    tab_bins,tab_tubs,tab_trays=st.tabs(["Bins","Tubs","Trays"])
+    tab_bins,tab_tubs,tab_trays,tab_wd=st.tabs(["Bins","Tubs","Trays","White Drawers"])
     def render_zone_tab(zone_lots,zone_key,zone_label_singular,select_label,all_options,header_color,header_icon):
         selected=st.selectbox(select_label,["All "+zone_label_singular+"s"]+all_options,key=f"stockroom_{zone_key}_select")
         filtered=zone_lots if selected.startswith("All") else [i for i in zone_lots if (get_bin_code(i.get("remarks",""))==selected if zone_key=="bin" else get_zone_number(i.get("remarks",""))==selected)]
@@ -1100,8 +1102,10 @@ if st.session_state.page == "stockroom":
     with tab_trays:
         all_tray_nums=sorted(set(get_zone_number(i.get("remarks","")) for i in trays_lots if get_zone_number(i.get("remarks",""))),key=lambda x:int(x) if x.isdigit() else 0)
         render_zone_tab(trays_lots,"tray","tray","Select tray",all_tray_nums,"#34d399","layers")
+    with tab_wd:
+        all_wd_nums=sorted(set(i.get("remarks","").strip() for i in wd_lots if i.get("remarks","")))
+        render_zone_tab(wd_lots,"wd","drawer","Select drawer",all_wd_nums,"#f472b6","inbox")
     st.stop()
-
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: DUPLICATES
 # ══════════════════════════════════════════════════════════════════════════════
