@@ -611,7 +611,7 @@ def render_card_grid(lots, cols_count):
                             st.session_state.bin_audit_dates[bin_name] = datetime.now().strftime("%Y-%m-%d")
                         st.rerun()
                 with col.expander("Note"):
-                    new_note = st.text_area("Note", value=note_val, key=f"note_{lid}",
+                    new_note = st.text_area("Note", value=note_val, key=f"note_{lid}_{i}",
                                             height=80, label_visibility="collapsed",
                                             placeholder="e.g. found in back of bin…")
                     if st.button("Save note", key=f"savenote_{lid}", use_container_width=True):
@@ -628,7 +628,7 @@ def render_card_grid(lots, cols_count):
                                           key=f"reason_{lid}")
                         if reason == "Wrong quantity":
                             actual_qty = st.number_input(f"Actual qty (listed: {qty})",
-                                                          min_value=0, value=qty, key=f"qty_{lid}")
+                                                          min_value=0, value=qty, key=f"qty_{lid}_{i}")
                             if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason":"Wrong qty","actual_qty":actual_qty}
                                 save_progress(lid,"flagged","Wrong qty",actual_qty,None,
