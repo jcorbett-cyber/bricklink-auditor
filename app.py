@@ -511,7 +511,7 @@ def get_pushable_flags():
                              "change": f"Qty: {lot.get('quantity')} → {flag['actual_qty']}",
                              "type": "qty", "value": flag["actual_qty"]})
         elif reason == "Wrong bin" and flag.get("correct_bin"):
-            pushable.append({"lid": lid, "pno": lot.get("item",{}).get(,
+            pushable.append({"lid": lid, "pno": lot.get("item",{}).get("no",""),
                              "name": lot.get("item",{}).get("name",""),
                              "bin": lot.get("remarks",""),
                              "change": f"Bin: '{lot.get('remarks','')}' → '{flag['correct_bin']}'",
