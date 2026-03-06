@@ -412,7 +412,7 @@ def save_audit_snapshot():
                             for i in inv if i.get("inventory_id") in checked)
         val_unchecked = sum(float(i.get("unit_price",0) or 0)*int(i.get("quantity",0) or 0)
                             for i in inv if i.get("inventory_id") not in checked)
-        discrepancies = [{"inventory_id": i.get("inventory_id"),
+        discrepancies = ({"inventory_id": i.get("inventory_id"),
                           "part_no": i.get("item",{}).get(,
                           "name": i.get("item",{}).get("name",""),
                           "reason": flagged[i.get("inventory_id")].get("reason",""),
