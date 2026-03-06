@@ -1318,7 +1318,7 @@ if st.session_state.page == "orders":
 
     ORDER_COLORS = ["#f472b6","#60a5fa","#4ade80","#fb923c","#a78bfa","#f87171","#34d399","#fbbf24"]
 
-    @st.cache_data(ttl=300)
+    @st.cache_data(ttl=60)
     def fetch_orders(_auth):
         r = requests.get(f"{BASE}/orders", auth=_auth,
                          params={"direction":"in"},
@@ -1328,7 +1328,7 @@ if st.session_state.page == "orders":
         if data.get("meta",{}).get("code") != 200:
             raise ValueError(data.get("meta",{}).get("description","API error"))
         return data.get("data",[])
-
+        
     @st.cache_data(ttl=300)
     def fetch_order_items(_auth, order_id):
         r = requests.get(f"{BASE}/orders/{order_id}/items", auth=_auth, timeout=30)
@@ -1358,24 +1358,10 @@ if st.session_state.page == "orders":
                 with st.spinner("Fetching open orders from BrickLink…"):
                     try:
                         auth = make_auth(*st.session_state.auth)
-                        orders = fetch_orders(auth)
-                        st.write("Raw order statuses:", [(o.get("order_id"), o.get("status"), o.get("is_filed")) for o in orders])
-                        enriched = []
-                        pb = st.progress(0)
-                        for i, order in enumerate(orders):
-                            oid = order.get("order_id")
-                            items = fetch_order_items(auth, oid)
-                            for item in items:
-                                pno      = item.get("item",{}).get("no","")
-                                color_id = item.get("color_id",0)
-                                item["bin_location"] = get_bin_for_part(pno, color_id)
-                            enriched.append({**order, "items": items})
-                            pb.progress((i+1)/len(orders))
-                        pb.empty()
-                        st.session_state.orders_data     = enriched
-                        st.session_state.picked_items    = set()
-                        st.session_state.fulfilled_orders= set()
-                        st.rerun()
+                        all_orders = fetch_orders(auth)
+                        for o in all_orders:
+                            st.write(f"Order {o.get('order_id')} | status: {o.get('status')} | filed: {o.get('is_filed')}")
+                        st.stop()
                     except Exception as e:
                         st.error(f"Could not load orders: {e}")
 
