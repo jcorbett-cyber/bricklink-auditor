@@ -94,7 +94,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 .part-meta { font-size:0.68rem; color:#94a3b8; line-height:1.5; }
 .badge {
   display:inline-flex; align-items:center; gap:3px; border-radius:20px; padding:3px 9px;
-  font-size:0.6rem; font-weight:700; margin-top:6px; letter-spacing:0.04em; text-transform:uppercase;
+  font-size:0.6rem; ; margin-top:6px; letter-spacing:0.04em; text-transform:uppercase;
 }
 .badge svg { margin-right:0 !important; }
 .badge-n       { background:rgba(30,42,61,0.8);  color:#94a3b8; border:1px solid #1e2d45; }
@@ -107,7 +107,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   background:linear-gradient(135deg,#161b27,#1a2235); border-left:3px solid #6d28d9;
   border-radius:12px; padding:12px 20px; margin:24px 0 12px 0; box-shadow:0 2px 10px rgba(0,0,0,0.2);
 }
-.bin-title { font-size:1rem; font-weight:700; color:#a78bfa; margin:0; letter-spacing:0.02em; }
+.bin-title { font-size:1rem; ; color:#a78bfa; margin:0; letter-spacing:0.02em; }
 .bin-stats { font-size:0.72rem; color:#475569; margin:3px 0 0 0; font-weight:500; }
 .dup-group {
   background:linear-gradient(145deg,#1a1225,#1e1535); border:1px solid #4c1d95;
@@ -119,14 +119,14 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   background:rgba(255,255,255,0.04); border:1px solid #2d1f4a; flex-shrink:0;
 }
 .dup-part-info { flex:1; }
-.dup-part-name { font-size:0.9rem; font-weight:700; color:#e2e8f0; margin:0 0 2px 0; }
+.dup-part-name { font-size:0.9rem; ; color:#e2e8f0; margin:0 0 2px 0; }
 .dup-part-sub  { font-size:0.72rem; color:#6d28d9; font-weight:600; }
 .dup-bin-row {
   display:flex; align-items:center; justify-content:space-between;
   background:rgba(109,40,217,0.08); border:1px solid #2d1f4a;
   border-radius:10px; padding:8px 14px; margin-bottom:6px; font-size:0.78rem;
 }
-.dup-bin-name  { color:#a78bfa; font-weight:700; }
+.dup-bin-name  { color:#a78bfa; ; }
 .dup-bin-qty   { color:#e2e8f0; font-weight:600; }
 .dup-bin-price { color:#475569; }
 .action-card {
@@ -137,7 +137,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 }
 .action-card:hover { transform:translateY(-4px); box-shadow:0 10px 30px rgba(0,0,0,0.4); border-color:#6d28d9; }
 .action-card-icon { font-size:2rem; margin-bottom:10px; }
-.action-card-title { font-size:1rem; font-weight:700; color:#e2e8f0; margin-bottom:4px; }
+.action-card-title { font-size:1rem; ; color:#e2e8f0; margin-bottom:4px; }
 .action-card-sub { font-size:0.72rem; color:#475569; }
 .audit-mode-header {
   background:linear-gradient(135deg,#1a0a2e,#2d1060); border:1px solid #6d28d9;
@@ -153,7 +153,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   background:linear-gradient(135deg,#2d1a08,#331f0c); border-left:3px solid #fb923c;
   border-radius:12px; padding:12px 20px; margin:20px 0 10px 0;
 }
-.restock-title { font-size:1rem; font-weight:700; color:#fb923c; margin:0; }
+.restock-title { font-size:1rem; ; color:#fb923c; margin:0; }
 .color-filter-bar {
   background:linear-gradient(135deg,#161b27,#1a2235); border:1px solid #1e2d45;
   border-radius:14px; padding:10px 20px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.2);
@@ -206,7 +206,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 div[data-testid="stExpander"] { background:#161b27 !important; border:1px solid #1e2d45 !important; border-radius:10px !important; }
 .stDataFrame { border-radius:12px !important; overflow:hidden; border:1px solid #1e2d45 !important; }
 h1 { font-family:'Inter',sans-serif !important; font-weight:800 !important; color:#e2e8f0 !important; }
-h2, h3 { font-family:'Inter',sans-serif !important; font-weight:700 !important; color:#cbd5e1 !important; }
+h2, h3 { font-family:'Inter',sans-serif !important;  !important; color:#cbd5e1 !important; }
 .stCaption, .stMarkdown p { color:#475569 !important; font-family:'Inter',sans-serif !important; }
 div[data-testid="stSuccess"] { background:rgba(13,40,24,0.8) !important; border:1px solid #2d6a4f !important; border-radius:10px !important; }
 div[data-testid="stWarning"] { background:rgba(45,26,8,0.8) !important; border:1px solid #7c3d0e !important; border-radius:10px !important; }
@@ -1458,24 +1458,7 @@ if st.session_state.page == "orders":
                 st.session_state.pick_index  = 0
                 st.rerun()
 
-        st.write("")
-        st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Or pick a single order</div>', unsafe_allow_html=True)
-        for order in orders:
-            oid    = order.get("order_id")
-            letter = letter_map[oid]
-            color  = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
-            buyer  = order.get("buyer_name","Unknown")
-            if st.button(f"Pick Order {letter} — {buyer} #{oid}", key=f"pickone_{oid}", use_container_width=False):
-                single_items = [i for b in pick_bins for i in b["items"] if i["order_id"]==oid]
-                single_items.sort(key=lambda x: (x["bin"], x["pno"]))
-                single_bins = []
-                for bin_name, bin_items in igrp(single_items, key=lambda x: x["bin"]):
-                    single_bins.append({"bin": bin_name, "items": list(bin_items)})
-                st.session_state.pick_mode   = True
-                st.session_state.pick_queue  = single_bins
-                st.session_state.pick_index  = 0
-                st.rerun()
-
+        
         st.divider()
 
         # ── Full pick list preview ────────────────────────────────────────────
