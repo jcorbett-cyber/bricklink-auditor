@@ -1359,6 +1359,7 @@ if st.session_state.page == "orders":
                     try:
                         auth = make_auth(*st.session_state.auth)
                         orders = fetch_orders(auth)
+                        st.write("Raw order statuses:", [(o.get("order_id"), o.get("status"), o.get("is_filed")) for o in orders])
                         enriched = []
                         pb = st.progress(0)
                         for i, order in enumerate(orders):
