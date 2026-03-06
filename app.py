@@ -1161,7 +1161,7 @@ if st.session_state.page == "dupes":
     st.divider()
     shown=0
     for key,lots in sorted(dupes.items(),key=lambda x:-len(x[1])):
-        pno=lots[0].get("item",{}).get(; pname=lots[0].get("item",{}).get("name","")
+        pno=lots[0].get("item",{}).get("no",""); pname=lots[0].get("item",{}).get("name","")
         color=lots[0].get("color_name",""); color_id=lots[0].get("color_id",0)
         if dup_search:
             q=dup_search.lower()
