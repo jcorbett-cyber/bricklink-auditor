@@ -310,9 +310,10 @@ def fetch_inventory(_auth):
         raise ValueError(data.get("meta", {}).get("description", "API error"))
     return data["data"]
 
-def update_quantity_on_bricklink(auth, inventory_id, new_qty):
+def update_quantity_on_bricklink(auth, inventory_id, new_qty, old_qty=0):
+    delta = new_qty - old_qty
     r = requests.put(f"{BASE}/inventories/{inventory_id}", auth=auth,
-                     json={"quantity": new_qty}, timeout=30)
+                     json={"quantity": delta}, timeout=30)
     r.raise_for_status()
     data = r.json()
     if data.get("meta", {}).get("code") != 200:
