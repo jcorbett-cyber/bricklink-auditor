@@ -303,7 +303,7 @@ def make_auth(ck, cs, tv, ts):
 @st.cache_data(ttl=3600)
 def fetch_inventory(_auth):
     r = requests.get(f"{BASE}/orders", auth=_auth,
-                         params={"direction":"in","status":"PENDING,UPDATED,PROCESSING,PACKED,READY"},
+                         params={"direction":"in","filed":"false"},
                          timeout=30)
     r.raise_for_status()
     data = r.json()
