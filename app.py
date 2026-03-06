@@ -1413,16 +1413,29 @@ if st.session_state.page == "orders":
                 f'<div style="font-size:0.72rem;color:#475569;margin-top:2px;">{n_items} pieces · {len(items)} lots · ${total}</div>'
                 f'</div>{done_html}</div>', unsafe_allow_html=True)
             if st.button(f"▶ Pick Order {letter} — {buyer}", key=f"pickone_{oid}", use_container_width=True, type="primary"):
-                single_items = [i for order in st.session_state.orders_data for i in order.get("items",[]) if order.get("order_id")==oid]
-                single_items.sort(key=lambda x: (x.get("bin_location",""), x.get("item",{}).get("no","")))
-                single_bins = []
+                raw_items = [i for order in st.session_state.orders_data for i in order.get("items",[]) if order.get("order_id")==oid]
+                single_items = []
+                for item in raw_items:
+                    pno      = item.get("item",{}).get("no","")
+                    color_id = item.get("color_id",0)
+                    pick_key = f"{oid}_{pno}_{color_id}"
+                    single_items.append({
+                        "order_id":     oid,
+                        "order_letter": letter,
+                        "order_color":  color,
+                        "buyer":        order.get("buyer_name",""),
+                        "pno":          pno,
+                        "pname":        item.get("item",{}).get("name",""),
+                        "color_id":     color_id,
+                        "color_name":   item.get("color_name",""),
+                        "quantity":     item.get("quantity",1),
+                        "bin":          item.get("bin_location","(no bin)"),
+                        "pick_key":     pick_key,
+                    })
+                single_items.sort(key=lambda x: (x["bin"], x["pno"]))
                 from itertools import groupby as igrp
-                for bin_name, bin_items in igrp(single_items, key=lambda x: x.get("bin_location","")):
+                for bin_name, bin_items in igrp(single_items, key=lambda x: x["bin"]):
                     single_bins.append({"bin": bin_name, "items": list(bin_items)})
-                st.session_state.pick_mode   = True
-                st.session_state.pick_queue  = single_bins
-                st.session_state.pick_index  = 0
-                st.rerun()
 
         st.write("")
 
