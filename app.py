@@ -1413,6 +1413,7 @@ if st.session_state.page == "orders":
                 f'<div style="font-size:0.72rem;color:#475569;margin-top:2px;">{n_items} pieces · {len(items)} lots · ${total}</div>'
                 f'</div>{done_html}</div>', unsafe_allow_html=True)
             if st.button(f"▶ Pick Order {letter} — {buyer}", key=f"pickone_{oid}", use_container_width=True, type="primary"):
+                single_bins = []
                 raw_items = [i for order in st.session_state.orders_data for i in order.get("items",[]) if order.get("order_id")==oid]
                 single_items = []
                 for item in raw_items:
