@@ -1542,7 +1542,7 @@ if st.session_state.page == "orders":
                 letter = letter_map[oid]
                 color  = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
                 o_items= [i for b in queue for i in b["items"] if i["order_id"]==oid]
-                o_picked=sum(1 for i in o_items if i[.get("pick_key","") in st.session_state.picked_items)
+                o_picked=sum(1 for i in o_items if i.get("pick_key","") in st.session_state.picked_items)
                 status = "✓ Complete" if o_picked==len(o_items) else f"{o_picked}/{len(o_items)} picked"
                 st.markdown(
                     f'<div style="background:#161b27;border:1px solid #1e2d45;border-left:4px solid {color};'
