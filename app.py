@@ -597,7 +597,7 @@ def render_card_grid(lots, cols_count):
                     if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
                         st.session_state.checked.discard(lid); delete_progress(lid); st.rerun()
                 else:
-                    if col.button("Found", key=f"found_{lid}_{i}", use_container_width=True):
+                    if col.button("Found", key=f"found_{lid}_{row_start}", use_container_width=True):
                         st.session_state.checked.add(lid)
                         save_progress(lid, "checked", notes=st.session_state.notes.get(lid))
                         bin_name = lot.get("remarks","") or "(no remarks)"
@@ -609,7 +609,7 @@ def render_card_grid(lots, cols_count):
                             st.session_state.bin_audit_dates[bin_name] = datetime.now().strftime("%Y-%m-%d")
                         st.rerun()
                 with col.expander("Note"):
-                    new_note = st.text_area("Note", value=note_val, key=f"note_{lid}_{i}",
+                    new_note = st.text_area("Note", value=note_val, key=f"note_{lid}_{row_start}",
                                             height=80, label_visibility="collapsed",
                                             placeholder="e.g. found in back of bin…")
                     if st.button("Save note", key=f"savenote_{lid}", use_container_width=True):
@@ -626,7 +626,7 @@ def render_card_grid(lots, cols_count):
                                           key=f"reason_{lid}")
                         if reason == "Wrong quantity":
                             actual_qty = st.number_input(f"Actual qty (listed: {qty})",
-                                                          min_value=0, value=qty, key=f"qty_{lid}_{i}")
+                                                          min_value=0, value=qty, key=f"qty_{lid}_{row_start}")
                             if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason":"Wrong qty","actual_qty":actual_qty}
                                 save_progress(lid,"flagged","Wrong qty",actual_qty,None,
@@ -1738,7 +1738,7 @@ for group_name,group_items in groupby(inv,key=lambda x:x.get("remarks","") or "(
                     if col.button("Unmark",key=f"unmark_{lid}",use_container_width=True):
                         st.session_state.checked.discard(lid); delete_progress(lid); st.rerun()
                 else:
-                    if col.button("Found",key=f"found_{lid}_{i}",use_container_width=True):
+                    if col.button("Found",key=f"found_{lid}_{row_start}",use_container_width=True):
                         st.session_state.checked.add(lid)
                         save_progress(lid,"checked",notes=st.session_state.notes.get(lid))
                         bin_name=lot.get("remarks","") or "(no remarks)"
