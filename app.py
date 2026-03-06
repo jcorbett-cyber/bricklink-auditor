@@ -790,7 +790,7 @@ with st.sidebar:
             if flagged_lots:
                 st.download_button("Export Flagged CSV",
                     pd.DataFrame([{"Inventory ID": f.get("inventory_id",""),
-                        "Part #": f.get("item",{}).get(, "Name": f.get("item",{}).get("name",""),
+                        "Part #": f.get("item",{}).get("no",""), "Name": f.get("item",{}).get("name",""),
                         "Color": f.get("color_name",""),
                         "Listed Qty": f.get("quantity",0), "Actual Qty": f.get("actual_qty",""),
                         "Current Bin": f.get("remarks",""), "Correct Bin": f.get("correct_bin",""),
