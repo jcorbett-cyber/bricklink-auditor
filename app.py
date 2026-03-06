@@ -694,7 +694,7 @@ with st.sidebar:
             current_lots    = sorted(
                 [i for i in st.session_state.inventory
                  if (i.get("remarks","") or "(no remarks)") == current_remarks],
-                key=lambda x: (x.get("item",{}).get(, x.get("color_name",""))
+                key=lambda x: (x.get("item",{}).get("no",""), x.get("color_name",""))
             )
             done_count  = sum(1 for i in current_lots
                               if i.get("inventory_id") in st.session_state.checked
@@ -1029,12 +1029,12 @@ if st.session_state.page == "summary":
         st.divider()
         st.markdown(f'{icon("flag",18,"#fb7185")} <span style="font-size:1.1rem;font-weight:700;color:#cbd5e1;vertical-align:middle;">Flagged Lots</span>', unsafe_allow_html=True)
         st.write("")
-        st.dataframe(pd.DataFrame([{"Part #":i.get("item",{}).get(,"Name":i.get("item",{}).get("name",""),"Color":i.get("color_name",""),"Bin":i.get("remarks",""),"Listed Qty":i.get("quantity",0),"Actual Qty":flagged[i.get("inventory_id")].get("actual_qty",""),"Correct Bin":flagged[i.get("inventory_id")].get("correct_bin",""),"Reason":flagged[i.get("inventory_id")].get("reason",""),"Notes":st.session_state.notes.get(i.get("inventory_id"),""),} for i in inv if i.get("inventory_id") in flagged]),use_container_width=True,hide_index=True)
+        st.dataframe(pd.DataFrame([{"Part #":i.get("item",{}).get("no",""),"Name":i.get("item",{}).get("name",""),"Color":i.get("color_name",""),"Bin":i.get("remarks",""),"Listed Qty":i.get("quantity",0),"Actual Qty":flagged[i.get("inventory_id")].get("actual_qty",""),"Correct Bin":flagged[i.get("inventory_id")].get("correct_bin",""),"Reason":flagged[i.get("inventory_id")].get("reason",""),"Notes":st.session_state.notes.get(i.get("inventory_id"),""),} for i in inv if i.get("inventory_id") in flagged]),use_container_width=True,hide_index=True)
     if low_lots:
         st.divider()
         st.markdown(f'{icon("alert-triangle",18,"#fb923c")} <span style="font-size:1.1rem;font-weight:700;color:#cbd5e1;vertical-align:middle;">Low Stock Lots</span>', unsafe_allow_html=True)
         st.write("")
-        st.dataframe(pd.DataFrame([{"Part #":i.get("item",{}).get(,"Name":i.get("item",{}).get("name",""),"Color":i.get("color_name",""),"Bin":i.get("remarks",""),"Quantity":i.get("quantity",0),"Price":f"${i.get('unit_price','')}",} for i in low_lots]),use_container_width=True,hide_index=True)
+        st.dataframe(pd.DataFrame([{"Part #":i.get("item",{}).get("no",""),"Name":i.get("item",{}).get("name",""),"Color":i.get("color_name",""),"Bin":i.get("remarks",""),"Quantity":i.get("quantity",0),"Price":f"${i.get('unit_price','')}",} for i in low_lots]),use_container_width=True,hide_index=True)
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1093,7 +1093,7 @@ if st.session_state.page == "stockroom":
             render_card_grid(group_lots,COLS); st.divider()
         if low_f:
             st.markdown(f'<div class="restock-table-header"><p class="restock-title">{icon("alert-triangle",16,"#fb923c")} Restock List — {len(low_f)} lots need attention</p></div>', unsafe_allow_html=True)
-            restock_df=pd.DataFrame([{"Part #":i.get("item",{}).get(,"Name":i.get("item",{}).get("name",""),"Color":i.get("color_name",""),"Location":i.get("remarks",""),"Qty Left":i.get("quantity",0),"Price":f"${i.get('unit_price','')}"}for i in sorted(low_f,key=lambda x:x.get("remarks","") or "")])
+            restock_df=pd.DataFrame([{"Part #":i.get("item",{}).get("no",""),"Name":i.get("item",{}).get("name",""),"Color":i.get("color_name",""),"Location":i.get("remarks",""),"Qty Left":i.get("quantity",0),"Price":f"${i.get('unit_price','')}"}for i in sorted(low_f,key=lambda x:x.get("remarks","") or "")])
             st.dataframe(restock_df,use_container_width=True,hide_index=True)
             st.download_button("Export Restock List CSV",restock_df.to_csv(index=False),f"restock_{zone_key}.csv","text/csv",use_container_width=True)
     with tab_bins:
@@ -1155,7 +1155,7 @@ if st.session_state.page == "dupes":
     export_rows=[]
     for key,lots in dupes.items():
         for lot in lots:
-            export_rows.append({"Part #":lot.get("item",{}).get(,"Name":lot.get("item",{}).get("name",""),"Color":lot.get("color_name",""),"Bin":lot.get("remarks",""),"Qty":lot.get("quantity",0),"Price":lot.get("unit_price",""),"Condition":"New" if lot.get("new_or_used")=="N" else "Used","In Stockroom":"Yes" if lot.get("is_stock_room") else "No",})
+            export_rows.append({"Part #":lot.get("item",{}).get("no",""),"Name":lot.get("item",{}).get("name",""),"Color":lot.get("color_name",""),"Bin":lot.get("remarks",""),"Qty":lot.get("quantity",0),"Price":lot.get("unit_price",""),"Condition":"New" if lot.get("new_or_used")=="N" else "Used","In Stockroom":"Yes" if lot.get("is_stock_room") else "No",})
     if export_rows:
         st.download_button("Export Duplicates CSV",pd.DataFrame(export_rows).to_csv(index=False),"duplicates.csv","text/csv",use_container_width=False)
     st.divider()
@@ -1261,14 +1261,14 @@ if st.session_state.page == "prices":
     if st.button(f"Fetch prices — next {batch_size} uncached lots",type="primary",use_container_width=True):
         auth,to_fetch=make_auth(*st.session_state.auth),[]
         for lot in lots_to_check:
-            pno,color_id=lot.get("item",{}).get(,lot.get("color_id",0)
+            pno,color_id=lot.get("item",{}).get("no",""),lot.get("color_id",0)
             if force_refresh or f"{pno}_{color_id}_N" not in st.session_state.price_cache: to_fetch.append(lot)
             if len(to_fetch)>=batch_size: break
         if not to_fetch: st.success("All cached! Check Force refresh to re-fetch.")
         else:
             pb,st_txt=st.progress(0),st.empty()
             for idx,lot in enumerate(to_fetch):
-                pno,color_id=lot.get("item",{}).get(,lot.get("color_id",0)
+                pno,color_id=lot.get("item",{}).get("no",""),lot.get("color_id",0)
                 st_txt.text(f"Fetching {idx+1}/{len(to_fetch)}: {pno}…")
                 try:
                     pg=fetch_price_guide(auth,pno,color_id,"N")
