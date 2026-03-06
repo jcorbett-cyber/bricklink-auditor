@@ -1413,7 +1413,7 @@ if st.session_state.page == "orders":
                 f'<div style="font-size:0.72rem;color:#475569;margin-top:2px;">{n_items} pieces · {len(items)} lots · ${total}</div>'
                 f'</div>{done_html}</div>', unsafe_allow_html=True)
             if st.button(f"▶ Pick Order {letter} — {buyer}", key=f"pickone_{oid}", use_container_width=True, type="primary"):
-                single_items = [i for b in pick_bins for i in b["items"] if i["order_id"]==oid]
+                single_items = [i for order in st.session_state.orders_data for i in order.get("items",[]) if i["order_id"]==oid]
                 single_items.sort(key=lambda x: (x["bin"], x["pno"]))
                 single_bins = []
                 for bin_name, bin_items in igrp(single_items, key=lambda x: x["bin"]):
