@@ -757,7 +757,7 @@ with st.sidebar:
             low_n     = sum(1 for i in st.session_state.inventory if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
             pct       = int(found_n / total * 100) if total else 0
             st.markdown(f'<div class="section-label">{ic("activity")} Progress</div>', unsafe_allow_html=True)
-            st.progress(pct / 100)
+            st.progress(min(max(pct / 100, 0.0), 1.0))
             st.markdown(f"**{found_n}/{total}** found · {pct}%")
             if flagged_n:
                 st.markdown(f'<span style="color:#fb7185;font-size:0.82rem;">{ic("alert-circle",13,"#fb7185")} {flagged_n} flagged</span>', unsafe_allow_html=True)
