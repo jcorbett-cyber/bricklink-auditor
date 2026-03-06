@@ -638,7 +638,7 @@ def render_card_grid(lots, cols_count):
                                              use_container_width=True, type="primary"):
                                     try:
                                         update_quantity_on_bricklink(
-                                            make_auth(*st.session_state.auth), lid, actual_qty)
+                                            make_auth(*st.session_state.auth), lid, actual_qty, qty)
                                         st.session_state.flagged[lid] = {"reason":"Qty updated","actual_qty":actual_qty}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id")==lid: x["quantity"]=actual_qty
