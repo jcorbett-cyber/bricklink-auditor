@@ -1529,7 +1529,7 @@ if st.session_state.page == "orders":
             # All bins picked
             all_items  = [i for b in queue for i in b["items"]]
             total_items= len(all_items)
-            picked_n   = sum(1 for i in all_items if i[.get("pick_key","") in st.session_state.picked_items)
+            picked_n   = sum(1 for i in all_items if i.get("pick_key","") in st.session_state.picked_items)
             st.markdown(
                 f'<div class="audit-complete">'
                 f'<div style="font-size:3rem;margin-bottom:12px;">📦</div>'
