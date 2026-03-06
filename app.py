@@ -1561,7 +1561,7 @@ if st.session_state.page == "orders":
 
         current_bin   = queue[idx]["bin"]
         current_items = queue[idx]["items"]
-        done_count    = sum(1 for i in current_items if i[.get("pick_key","") in st.session_state.picked_items)
+        done_count    = sum(1 for i in current_items if i.get("pick_key","") in st.session_state.picked_items)
         total_count   = len(current_items)
         pct           = int(done_count/total_count*100) if total_count else 0
 
@@ -1578,7 +1578,7 @@ if st.session_state.page == "orders":
 
         # Header
         all_total  = sum(len(b["items"]) for b in queue)
-        all_picked = sum(1 for b in queue for i in b["items"] if i[.get("pick_key","") in st.session_state.picked_items)
+        all_picked = sum(1 for b in queue for i in b["items"] if i(.get("pick_key","") in st.session_state.picked_items)
         st.markdown(
             f'<div class="audit-mode-header">'
             f'<div class="audit-mode-sub">{icon("box",14,"#f472b6")} Pick Mode · Bin {idx+1} of {len(queue)}</div>'
