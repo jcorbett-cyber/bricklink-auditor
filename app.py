@@ -505,7 +505,7 @@ def get_pushable_flags():
         reason = flag.get("reason", "")
         if reason in ("Qty updated", "Bin updated"): continue
         if reason == "Wrong qty" and "actual_qty" in flag:
-            pushable.append({"lid": lid, "pno": lot.get("item",{}).get(,
+            pushable.append({"lid": lid, "pno": lot.get("item",{}).get("no",""),
                              "name": lot.get("item",{}).get("name",""),
                              "bin": lot.get("remarks",""),
                              "change": f"Qty: {lot.get('quantity')} → {flag['actual_qty']}",
