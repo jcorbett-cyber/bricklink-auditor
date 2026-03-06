@@ -935,8 +935,8 @@ if st.session_state.page == "dashboard":
 
     am_col1, am_col2, am_col3 = st.columns([2,2,1])
     with am_col1:
-        zone_choice = st.selectbox("Zone", ["All zones","Bins only","Tubs only","Trays only"], key="dash_zone")
-        zone_map    = {"All zones":"all","Bins only":"bin","Tubs only":"tub","Trays only":"tray"}
+        zone_choice = st.selectbox("Zone", ["All zones","Bins only","Tubs only","Trays only","White Drawers only"], key="dash_zone")
+        zone_map    = {"All zones":"all","Bins only":"bin","Tubs only":"tub","Trays only":"tray","White Drawers only":"wd"}
     with am_col2:
         zone_key = zone_map[zone_choice]
         all_remarks_sorted = sorted(set(i.get("remarks","") or "(no remarks)" for i in inv))
