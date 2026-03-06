@@ -694,7 +694,7 @@ with st.sidebar:
             current_lots    = sorted(
                 [i for i in st.session_state.inventory
                  if (i.get("remarks","") or "(no remarks)") == current_remarks],
-                key=lambda x: (x.get("item",{}).get("no",""), -x.get("quantity",0))
+                key=lambda x: (x.get("item",{}).get("no",""), x.get("color_name",""))
             )
             done_count  = sum(1 for i in current_lots
                               if i.get("inventory_id") in st.session_state.checked
