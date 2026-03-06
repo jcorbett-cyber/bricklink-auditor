@@ -1492,7 +1492,7 @@ if st.session_state.page == "orders":
             cols = st.columns(COLS)
             for i, item in enumerate(bin_items):
                 col = cols[i % COLS]
-                pick_key   = item[.get("pick_key","")
+                pick_key   = item.get("pick_key","")
                 is_picked  = pick_key in st.session_state.picked_items
                 order_color= item["order_color"]
                 card_cls   = "part-card found" if is_picked else "part-card"
@@ -1595,7 +1595,7 @@ if st.session_state.page == "orders":
             row_items = current_items[row_start:row_start+COLS]
             cols      = st.columns(COLS)
             for col, item in zip(cols, row_items):
-                pick_key    = item[.get("pick_key","")
+                pick_key    = item.get("pick_key","")
                 is_picked   = pick_key in st.session_state.picked_items
                 order_color = item["order_color"]
                 card_cls    = "part-card found" if is_picked else "part-card"
