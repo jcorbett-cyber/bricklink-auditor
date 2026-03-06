@@ -302,14 +302,12 @@ def make_auth(ck, cs, tv, ts):
 
 @st.cache_data(ttl=3600)
 def fetch_inventory(_auth):
-    r = requests.get(f"{BASE}/orders", auth=_auth,
-                         params={"direction":"in","filed":"false"},
-                         timeout=30)
+    r = requests.get(f"{BASE}/inventories", auth=_auth, timeout=30)
     r.raise_for_status()
     data = r.json()
     if data.get("meta", {}).get("code") != 200:
         raise ValueError(data.get("meta", {}).get("description", "API error"))
-    return data["data"]
+    return data["data"]    return data["data"]
 
 def update_quantity_on_bricklink(auth, inventory_id, new_qty):
     r = requests.put(f"{BASE}/inventories/{inventory_id}", auth=auth,
