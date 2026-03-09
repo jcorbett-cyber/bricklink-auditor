@@ -1697,7 +1697,7 @@ if st.session_state.page == "orders":
             st.session_state.page = "dashboard"; st.rerun()
     st.write("")
     
-    st.markdown('<div class="color-filter-bar">', unsafe_allow_html=True) Sonnet 4.6
+    st.markdown('<div class="color-filter-bar">', unsafe_allow_html=True)
 all_colors=sorted(set(i.get("color_name","") for i in st.session_state.inventory if i.get("color_name")))
 color_filter=st.multiselect("Filter by color",options=all_colors,default=[],
     placeholder="All colors — type to search…",label_visibility="collapsed",key="color_filter")
