@@ -885,7 +885,8 @@ if st.session_state.audit_mode:
         f'{done_count}/{total_count} lots done · {pct}%'
         f'{" · "+str(flagged_count)+" flagged" if flagged_count else ""}'
         f'</div></div></div>', unsafe_allow_html=True)
-    render_card_grid(current_lots, COLS)
+    visible_lots = [i for i in current_lots if i.get("inventory_id") not in st.session_state.checked]
+    render_card_grid(visible_lots, COLS)
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
