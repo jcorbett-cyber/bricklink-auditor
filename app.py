@@ -1695,7 +1695,6 @@ h1, h2 = st.columns([8,1])
     with h2:
         if st.button("🏠", key="home_browse", help="Back to Dashboard"):
             st.session_state.page = "dashboard"; st.rerun()st.write("")
-
 st.markdown('<div class="color-filter-bar">', unsafe_allow_html=True)
 all_colors=sorted(set(i.get("color_name","") for i in st.session_state.inventory if i.get("color_name")))
 color_filter=st.multiselect("Filter by color",options=all_colors,default=[],
