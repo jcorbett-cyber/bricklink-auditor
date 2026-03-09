@@ -1689,8 +1689,12 @@ if st.session_state.page == "orders":
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: BROWSE INVENTORY
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown(f'{icon("package",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Browse Inventory</span>', unsafe_allow_html=True)
-st.write("")
+h1, h2 = st.columns([8,1])
+    with h1:
+        st.markdown(f'{icon("package",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Browse Inventory</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("🏠", key="home_browse", help="Back to Dashboard"):
+            st.session_state.page = "dashboard"; st.rerun()st.write("")
 
 st.markdown('<div class="color-filter-bar">', unsafe_allow_html=True)
 all_colors=sorted(set(i.get("color_name","") for i in st.session_state.inventory if i.get("color_name")))
