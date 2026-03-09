@@ -273,9 +273,11 @@ try:
     CS = st.secrets["BL_CONSUMER_SECRET"]
     TV = st.secrets["BL_TOKEN_VALUE"]
     TS = st.secrets["BL_TOKEN_SECRET"]
+    BO_KEY = st.secrets.get("BRICKOWL_API_KEY", "")
     SECRETS_LOADED = True
 except Exception:
     SECRETS_LOADED = False
+    BO_KEY = ""
 
 try:
     supabase  = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -1334,6 +1336,44 @@ if st.session_state.page == "orders":
         if data.get("meta",{}).get("code") != 200:
             raise ValueError(data.get("meta",{}).get("description","API error"))
         return data.get("data",[])
+
+    @st.cache_data(ttl=60)
+    def fetch_brickowl_orders(_key):
+        if not _key: return []
+        r = requests.get("https://api.brickowl.com/v1/order/list",
+                         params={"key": _key, "status": "payment_received,processing"},
+                         timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        orders = data if isinstance(data, list) else data.get("orders", [])
+        result = []
+        for order in orders:
+            oid = order.get("order_id")
+            # fetch order items
+            r2 = requests.get("https://api.brickowl.com/v1/order/items",
+                              params={"key": _key, "order_id": oid},
+                              timeout=30)
+            r2.raise_for_status()
+            items_data = r2.json()
+            items = items_data if isinstance(items_data, list) else items_data.get("items", [])
+            # normalize items to match BrickLink format
+            normalized = []
+            for item in items:
+                normalized.append({
+                    "item": {"no": item.get("bl_id", item.get("boid","")), "name": item.get("name","")},
+                    "color_id":   item.get("bl_color_id", 0),
+                    "color_name": item.get("color_name",""),
+                    "quantity":   int(item.get("ordered_quantity", 1)),
+                    "bin_location": "(not in inventory)"
+                })
+            result.append({
+                "order_id":   f"BO-{oid}",
+                "buyer_name": order.get("username", order.get("name","BrickOwl Buyer")),
+                "source":     "brickowl",
+                "cost":       {"grand_total": order.get("total_quantity", "?")},
+                "items":      normalized
+            })
+        return result
         
     @st.cache_data(ttl=300)
     def fetch_order_items(_auth, order_id):
@@ -1366,7 +1406,9 @@ if st.session_state.page == "orders":
                         auth = make_auth(*st.session_state.auth)
                         all_orders = fetch_orders(auth)
                         KEEP_STATUSES = {"PAID","PENDING","UPDATED","PROCESSING","PACKED","READY"}
-                        orders = [o for o in all_orders if o.get("status","").upper() in KEEP_STATUSES]
+                        bl_orders = [o for o in all_orders if o.get("status","").upper() in KEEP_STATUSES]
+                        bo_orders = fetch_brickowl_orders(BO_KEY) if BO_KEY else []
+                        orders = bl_orders + bo_orders
                         enriched = []
                         pb = st.progress(0)
                         for i, order in enumerate(orders):
