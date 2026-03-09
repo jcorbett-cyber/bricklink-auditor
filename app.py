@@ -630,7 +630,7 @@ def render_card_grid(lots, cols_count):
                                           key=f"reason_{lid}")
                         if reason == "Wrong quantity":
                             actual_qty = st.number_input(f"Actual qty (listed: {qty})",
-                                                          min_value=0, value=qty, key=f"qty_{lid}_{row_start}")
+                                                          min_value=0, value=qty, step=1, key=f"qty_{lid}_{row_start}")
                             if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason":"Wrong qty","actual_qty":actual_qty}
                                 save_progress(lid,"flagged","Wrong qty",actual_qty,None,
