@@ -947,16 +947,18 @@ if st.session_state.page == "dashboard":
         zone_key = zone_map[zone_choice]
         all_remarks_sorted = sorted(set(i.get("remarks","") or "(no remarks)" for i in inv))
         filtered_remarks   = [r for r in all_remarks_sorted if zone_key=="all" or detect_zone(r)==zone_key]
-        start_from = st.selectbox("Start from bin", filtered_remarks, key="dash_start") if filtered_remarks else None
+        with st.form("audit_start_form"):
+            start_from = st.selectbox("Start from bin", filtered_remarks, key="dash_start") if filtered_remarks else None
+            submitted = st.form_submit_button("Start Audit", use_container_width=True, type="primary")
+            if submitted and start_from:
+                start_idx = filtered_remarks.index(start_from)
+                st.session_state.audit_mode       = True
+                st.session_state.audit_mode_queue = filtered_remarks
+                st.session_state.audit_mode_index = start_idx
+                st.rerun()
     with am_col3:
-        st.write(""); st.write("")
-        if start_from and st.button("Start Audit", use_container_width=True, type="primary"):
-            start_idx = filtered_remarks.index(start_from)
-            st.session_state.audit_mode       = True
-            st.session_state.audit_mode_queue = filtered_remarks
-            st.session_state.audit_mode_index = start_idx
-            st.rerun()
-
+        st.write("")
+        
     st.divider()
     st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Quick Access</div>', unsafe_allow_html=True)
 
