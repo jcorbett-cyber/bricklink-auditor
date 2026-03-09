@@ -303,7 +303,7 @@ BASE = "https://api.bricklink.com/api/store/v1"
 def make_auth(ck, cs, tv, ts):
     return OAuth1(ck, cs, tv, ts)
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=1800)
 def fetch_inventory(_auth):
     r = requests.get(f"{BASE}/inventories", auth=_auth, timeout=30)
     r.raise_for_status()
@@ -910,6 +910,10 @@ if st.session_state.page == "dashboard":
         f'<div style="font-size:0.85rem;color:#475569;margin-top:6px;">'
         f'{total:,} lots across {n_bins} bins · {pct}% audited</div>'
         f'</div>', unsafe_allow_html=True)
+    if st.button("🔄 Refresh Inventory", key="refresh_inv"):
+        fetch_inventory.clear()
+        st.session_state.inventory = fetch_inventory(make_auth(*st.session_state.auth))
+        st.rerun()
 
     s1,s2,s3,s4,s5 = st.columns(5)
     for col, val, label, color in [
