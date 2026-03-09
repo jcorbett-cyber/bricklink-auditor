@@ -1689,15 +1689,15 @@ if st.session_state.page == "orders":
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: BROWSE INVENTORY
 # ══════════════════════════════════════════════════════════════════════════════
+    if st.session_state.page == "browse":
     h1, h2 = st.columns([8,1])
     with h1:
         st.markdown(f'{icon("package",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Browse Inventory</span>', unsafe_allow_html=True)
     with h2:
         if st.button("🏠", key="home_browse", help="Back to Dashboard"):
             st.session_state.page = "dashboard"; st.rerun()
-            st.write("")
-            
-st.markdown('<div class="color-filter-bar">', unsafe_allow_html=True)
+    st.write("")
+    st.markdown('<div class="color-filter-bar">', unsafe_allow_html=True) Sonnet 4.6
 all_colors=sorted(set(i.get("color_name","") for i in st.session_state.inventory if i.get("color_name")))
 color_filter=st.multiselect("Filter by color",options=all_colors,default=[],
     placeholder="All colors — type to search…",label_visibility="collapsed",key="color_filter")
