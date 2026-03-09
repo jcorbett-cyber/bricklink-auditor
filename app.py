@@ -1689,6 +1689,7 @@ if st.session_state.page == "orders":
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: BROWSE INVENTORY
 # ══════════════════════════════════════════════════════════════════════════════
+    if st.session_state.page == "browse":
     h1, h2 = st.columns([8,1])
     with h1:
         st.markdown(f'{icon("package",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Browse Inventory</span>', unsafe_allow_html=True)
