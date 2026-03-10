@@ -1845,7 +1845,6 @@ elif show_filter=="Flagged":       inv=[i for i in inv if i.get("inventory_id") 
 elif show_filter=="Not yet found": inv=[i for i in inv if i.get("inventory_id") not in st.session_state.checked and i.get("inventory_id") not in st.session_state.flagged]
 elif show_filter=="Low stock":     inv=[i for i in inv if 0<i.get("quantity",0)<=LOW_STOCK_THRESHOLD]
 if remarks_filter!="All":          inv=[i for i in inv if (i.get("remarks","") or "(no remarks)")==remarks_filter]
-
 scan_ids=set()
 if st.session_state.scan_query:
     sq=st.session_state.scan_query.lower()
@@ -1853,9 +1852,12 @@ if st.session_state.scan_query:
         if sq in lot.get("item",{}).get("no","").lower(): scan_ids.add(lot.get("inventory_id"))
     if not scan_ids: st.warning(f"No parts found matching {st.session_state.scan_query}")
 
+if remarks_filter == "All" and not st.session_state.scan_query:
+    st.info("Select a bin from the 'Jump to bin' dropdown above to browse its contents.")
+    st.stop()
+
 inv=sorted(inv,key=lambda x:(0 if x.get("inventory_id") in scan_ids else 1,x.get("remarks","") or ""))
 st.caption(f"Showing {len(inv)} lots"+(f" · {len(scan_ids)} highlighted" if scan_ids else "")+(" · Mobile" if is_mobile else " · Desktop"))
-
 for group_name,group_items in groupby(inv,key=lambda x:x.get("remarks","") or "(no remarks)"):
     group_lots=list(group_items)
     bin_total=len(group_lots)
