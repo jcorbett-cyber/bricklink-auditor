@@ -1341,9 +1341,9 @@ if st.session_state.page == "prices":
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "orders":
     h1,h2=st.columns([8,1])
-with h1: st.markdown(f'{icon("box",22,"#f472b6")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Pull Orders</span>', unsafe_allow_html=True)
-with h2:
-    if st.button("⌂", key="home_orders", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
+    with h1: st.markdown(f'{icon("box",22,"#f472b6")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Pull Orders</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_orders", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.write("")
 
     ORDER_COLORS = ["#f472b6","#60a5fa","#4ade80","#fb923c","#a78bfa","#f87171","#34d399","#fbbf24"]
