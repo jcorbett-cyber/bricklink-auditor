@@ -1797,6 +1797,8 @@ if st.session_state.page == "browse":
             st.session_state.page = "dashboard"; st.rerun()
     st.write("")
     
+    all_remarks_browse = sorted(set(i.get("remarks","") or "(no remarks)" for i in st.session_state.inventory))
+    remarks_filter = st.selectbox("Jump to bin", ["All"] + all_remarks_browse, key="browse_bin_select")
     st.markdown('<div class="color-filter-bar">', unsafe_allow_html=True)
     all_colors=sorted(set(i.get("color_name","") for i in st.session_state.inventory if i.get("color_name")))
     color_filter=st.multiselect("Filter by color",options=all_colors,default=[],
