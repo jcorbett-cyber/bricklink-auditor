@@ -834,7 +834,35 @@ if not st.session_state.audit_mode:
             st.rerun()
 
 if not st.session_state.loaded:
-    st.info("Click Load Inventory in the sidebar to get started.")
+    st.markdown(
+        '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
+        'padding:60px 20px;text-align:center;">'
+        '<div style="font-size:3rem;margin-bottom:16px;">🧱</div>'
+        '<div style="font-size:1.4rem;font-weight:800;color:#e2e8f0;margin-bottom:8px;">Welcome to Brick Audit</div>'
+        '<div style="font-size:0.9rem;color:#475569;margin-bottom:32px;">Load your BrickLink inventory to get started.</div>'
+        '</div>', unsafe_allow_html=True)
+    if SECRETS_LOADED:
+        if st.button("Load Inventory", type="primary", use_container_width=False):
+            with st.spinner("Loading inventory from BrickLink…"):
+                try:
+                    auth = make_auth(CK, CS, TV, TS)
+                    inv  = fetch_inventory(auth)
+                    st.session_state.inventory = inv
+                    st.session_state.loaded    = True
+                    st.session_state.auth      = (CK, CS, TV, TS)
+                    if DB_LOADED:
+                        checked, flagged, notes = load_progress()
+                        st.session_state.checked         = checked
+                        st.session_state.flagged         = flagged
+                        st.session_state.notes           = notes
+                        st.session_state.price_cache     = load_price_cache()
+                        st.session_state.bin_audit_dates = load_bin_audit_dates()
+                    st.session_state.page = "dashboard"
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+    else:
+        st.info("Enter your BrickLink credentials in the sidebar to get started.")
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
