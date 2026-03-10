@@ -1052,9 +1052,9 @@ if st.session_state.page == "summary":
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "stockroom":
     st.markdown(f'{icon("grid",22,"#a78bfa")} h1,h2=st.columns([8,1])
-with h1: st.markdown(f'{icon("grid",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Stockroom</span>', unsafe_allow_html=True)
-with h2:
-    if st.button("⌂", key="home_stockroom", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
+    with h1: st.markdown(f'{icon("grid",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Stockroom</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_stockroom", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.write("")
     inv=st.session_state.inventory
     bins_lots =[i for i in inv if detect_zone(i.get("remarks",""))=="bin"]
