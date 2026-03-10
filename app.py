@@ -493,7 +493,6 @@ def save_storage_history(inventory_id, part_no, color_name, from_bin, to_bin):
     except Exception as e:
         st.warning(f"Could not save storage history: {e}")
 
-@st.cache_data(ttl=300)
 def load_storage_history(inventory_id):
     if not DB_LOADED: return []
     try:
