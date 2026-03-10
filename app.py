@@ -244,7 +244,7 @@ if "screen_width" not in st.session_state:
 is_mobile = st.session_state.get("screen_width", 1200) < 768
 COLS      = 3 if is_mobile else 6
 
-LOGO                  = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/ba_logo.png"
+LOGO                  = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/BA_Logo.png"
 LOW_STOCK_THRESHOLD = 2
 PRICE_FLAG_PCT      = 25
 MARKUP              = 1.25
