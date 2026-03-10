@@ -1703,7 +1703,7 @@ if st.session_state.page == "browse":
     with h1:
         st.markdown(f'{icon("package",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Browse Inventory</span>', unsafe_allow_html=True)
     with h2:
-        if st.button("🏠", key="home_browse", help="Back to Dashboard"):
+        if st.button(icon("home", 16, "#6d7a8f"), key="home_browse", help="Back to Dashboard"):
             st.session_state.page = "dashboard"; st.rerun()
     st.write("")
     
