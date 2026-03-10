@@ -1417,18 +1417,25 @@ if st.session_state.page == "orders":
                         KEEP_STATUSES = {"PAID","PENDING","UPDATED","PROCESSING","PACKED","READY"}
                         bl_orders = [o for o in all_orders if o.get("status","").upper() in KEEP_STATUSES]
                         bo_orders = fetch_brickowl_orders(BO_KEY) if BO_KEY else []
-                        orders = bl_orders + bo_orders
                         enriched = []
                         pb = st.progress(0)
-                        for i, order in enumerate(orders):
-                            oid = order.get("order_id")
-                            items = fetch_order_items(auth, oid)
-                            for item in items:
-                                pno      = item.get("item",{}).get("no","")
-                                color_id = item.get("color_id",0)
-                                item["bin_location"] = get_bin_for_part(pno, color_id)
-                            enriched.append({**order, "items": items})
-                            pb.progress(min((i+1)/len(orders), 1.0) if orders else 1.0)
+                        all_to_enrich = bl_orders + bo_orders
+                        for i, order in enumerate(all_to_enrich):
+                            if order.get("source") == "brickowl":
+                                for item in order.get("items", []):
+                                    pno      = item.get("item",{}).get("no","")
+                                    color_id = item.get("color_id",0)
+                                    item["bin_location"] = get_bin_for_part(pno, color_id)
+                                enriched.append(order)
+                            else:
+                                oid = order.get("order_id")
+                                items = fetch_order_items(auth, oid)
+                                for item in items:
+                                    pno      = item.get("item",{}).get("no","")
+                                    color_id = item.get("color_id",0)
+                                    item["bin_location"] = get_bin_for_part(pno, color_id)
+                                enriched.append({**order, "items": items})
+                            pb.progress(min((i+1)/len(all_to_enrich), 1.0) if all_to_enrich else 1.0)
                         pb.empty()
                         st.session_state.orders_data     = enriched
                         st.session_state.picked_items    = set()
