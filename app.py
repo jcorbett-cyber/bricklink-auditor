@@ -1355,8 +1355,8 @@ if st.session_state.page == "orders":
         all_bo = data if isinstance(data, list) else data.get("orders", [])
         for o in all_bo:
             st.write(f"BO Order {o.get('order_id')} | status: {o.get('status')}")
-        KEEP_BO = {"payment_received", "processing", "paid"}
-        orders = [o for o in all_bo if o.get("status","").lower() in KEEP_BO]
+        st.stop()
+        orders = all_bo
         result = []
         for order in orders:
             oid = order.get("order_id")
