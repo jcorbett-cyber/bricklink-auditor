@@ -1235,9 +1235,9 @@ if st.session_state.page == "dupes":
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "history":
     h1,h2=st.columns([8,1])
-with h1: st.markdown(f'{icon("calendar",22,"#94a3b8")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit History</span>', unsafe_allow_html=True)
-with h2:
-    if st.button("⌂", key="home_history", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
+    with h1: st.markdown(f'{icon("calendar",22,"#94a3b8")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit History</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_history", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.write("")
     history=load_audit_history()
     if not history: st.info("No snapshots yet. Click Save Audit Snapshot in the sidebar."); st.stop()
