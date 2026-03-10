@@ -1266,9 +1266,9 @@ if st.session_state.page == "history":
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "prices":
     h1,h2=st.columns([8,1])
-with h1: st.markdown(f'{icon("tag",22,"#4ade80")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Price Checker</span>', unsafe_allow_html=True)
-with h2:
-    if st.button("⌂", key="home_prices", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
+    with h1: st.markdown(f'{icon("tag",22,"#4ade80")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Price Checker</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_prices", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.caption(f"Flags lots priced more than {PRICE_FLAG_PCT}% above BrickLink market average. Your strategy: +{int((MARKUP-1)*100)}% markup, {int((1-SALE_DISCOUNT)*100)}% sale = {int((MARKUP*SALE_DISCOUNT-1)*100):+d}% vs market.")
     inv=st.session_state.inventory
     col_a,col_b,col_c=st.columns([2,2,1])
