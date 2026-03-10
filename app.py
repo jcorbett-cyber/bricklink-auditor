@@ -1051,7 +1051,10 @@ if st.session_state.page == "summary":
 # PAGE: STOCKROOM
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "stockroom":
-    st.markdown(f'{icon("grid",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Stockroom</span>', unsafe_allow_html=True)
+    st.markdown(f'{icon("grid",22,"#a78bfa")} h1,h2=st.columns([8,1])
+with h1: st.markdown(f'{icon("grid",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Stockroom</span>', unsafe_allow_html=True)
+with h2:
+    if st.button("⌂", key="home_stockroom", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.write("")
     inv=st.session_state.inventory
     bins_lots =[i for i in inv if detect_zone(i.get("remarks",""))=="bin"]
@@ -1123,7 +1126,10 @@ if st.session_state.page == "stockroom":
 # PAGE: DUPLICATES
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "dupes":
-    st.markdown(f'{icon("copy",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Duplicate Lots</span>', unsafe_allow_html=True)
+    h1,h2=st.columns([8,1])
+with h1: st.markdown(f'{icon("copy",22,"#fb923c")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Duplicate Lots</span>', unsafe_allow_html=True)
+with h2:
+    if st.button("⌂", key="home_dupes", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.caption("Parts with the same part # and color listed in more than one bin.")
     st.write("")
     dupes=find_duplicates(st.session_state.inventory)
@@ -1228,7 +1234,10 @@ if st.session_state.page == "dupes":
 # PAGE: AUDIT HISTORY
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "history":
-    st.markdown(f'{icon("calendar",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit History</span>', unsafe_allow_html=True)
+    h1,h2=st.columns([8,1])
+with h1: st.markdown(f'{icon("calendar",22,"#94a3b8")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit History</span>', unsafe_allow_html=True)
+with h2:
+    if st.button("⌂", key="home_history", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.write("")
     history=load_audit_history()
     if not history: st.info("No snapshots yet. Click Save Audit Snapshot in the sidebar."); st.stop()
@@ -1256,7 +1265,10 @@ if st.session_state.page == "history":
 # PAGE: PRICE CHECKER
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "prices":
-    st.markdown(f'{icon("tag",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Price Checker</span>', unsafe_allow_html=True)
+    h1,h2=st.columns([8,1])
+with h1: st.markdown(f'{icon("tag",22,"#4ade80")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Price Checker</span>', unsafe_allow_html=True)
+with h2:
+    if st.button("⌂", key="home_prices", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.caption(f"Flags lots priced more than {PRICE_FLAG_PCT}% above BrickLink market average. Your strategy: +{int((MARKUP-1)*100)}% markup, {int((1-SALE_DISCOUNT)*100)}% sale = {int((MARKUP*SALE_DISCOUNT-1)*100):+d}% vs market.")
     inv=st.session_state.inventory
     col_a,col_b,col_c=st.columns([2,2,1])
@@ -1328,7 +1340,10 @@ if st.session_state.page == "prices":
 # PAGE: ORDERS
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "orders":
-    st.markdown(f'{icon("box",22,"#f472b6")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Pull Orders</span>', unsafe_allow_html=True)
+    h1,h2=st.columns([8,1])
+with h1: st.markdown(f'{icon("box",22,"#f472b6")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Pull Orders</span>', unsafe_allow_html=True)
+with h2:
+    if st.button("⌂", key="home_orders", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.write("")
 
     ORDER_COLORS = ["#f472b6","#60a5fa","#4ade80","#fb923c","#a78bfa","#f87171","#34d399","#fbbf24"]
