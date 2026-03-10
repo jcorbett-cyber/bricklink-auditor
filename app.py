@@ -1127,9 +1127,9 @@ if st.session_state.page == "stockroom":
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "dupes":
     h1,h2=st.columns([8,1])
-with h1: st.markdown(f'{icon("copy",22,"#fb923c")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Duplicate Lots</span>', unsafe_allow_html=True)
-with h2:
-    if st.button("⌂", key="home_dupes", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
+    with h1: st.markdown(f'{icon("copy",22,"#fb923c")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Duplicate Lots</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_dupes", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.caption("Parts with the same part # and color listed in more than one bin.")
     st.write("")
     dupes=find_duplicates(st.session_state.inventory)
