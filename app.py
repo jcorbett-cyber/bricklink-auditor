@@ -470,8 +470,16 @@ def save_price_to_cache(part_no, color_id, condition, avg_price, qty_avg_price):
         st.warning(f"Could not save price: {e}")
 
 def save_bin_audit_date(bin_name):
-    def save_storage_history(inventory_id, part_no, color_name, from_bin, to_bin):
     if not DB_LOADED: return
+    try:
+        supabase.table("bin_audit_dates").upsert({
+            "bin_name": bin_name,
+            "last_audited": datetime.now().isoformat(),
+        }, on_conflict="bin_name").execute()
+    except Exception as e:
+        st.warning(f"Could not save bin audit date: {e}")
+
+def save_storage_history(inventory_id, part_no, color_name, from_bin, to_bin):    if not DB_LOADED: return
     try:
         supabase.table("storage_history").insert({
             "inventory_id": inventory_id,
