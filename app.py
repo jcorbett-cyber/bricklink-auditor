@@ -1348,7 +1348,7 @@ if st.session_state.page == "orders":
     def fetch_brickowl_orders(_key):
         if not _key: return []
         r = requests.get("https://api.brickowl.com/v1/order/list",
-                         params={"key": _key, "status": "payment_received,processing"},
+                         params={"key": _key},
                          timeout=30)
         r.raise_for_status()
         data = r.json()
