@@ -1352,7 +1352,9 @@ if st.session_state.page == "orders":
                          timeout=30)
         r.raise_for_status()
         data = r.json()
-        orders = data if isinstance(data, list) else data.get("orders", [])
+        all_bo = data if isinstance(data, list) else data.get("orders", [])
+        KEEP_BO = {"payment_received", "processing", "paid"}
+        orders = [o for o in all_bo if o.get("status","").lower() in KEEP_BO]
         result = []
         for order in orders:
             oid = order.get("order_id")
