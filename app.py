@@ -509,16 +509,14 @@ def load_storage_history(inventory_id):
         return []
 
 def save_bin_audit_date(bin_name):
-    if not DB_LOADED:
-
-    @st.cache_data(ttl=300)
-    def load_bin_audit_dates():
-    if not DB_LOADED: return {}
+    if not DB_LOADED: return
     try:
-        result = supabase.table("bin_audit_dates").select("*").execute()
-        return {r["bin_name"]: r["last_audited"][:10] for r in result.data}
+        supabase.table("bin_audit_dates").upsert({
+            "bin_name": bin_name,
+            "last_audited": datetime.now().isoformat(),
+        }, on_conflict="bin_name").execute()
     except Exception as e:
-        st.warning(f"Could not load bin audit dates: {e}")
+        st.warning(f"Could not save bin audit date: {e}")
         return {}
 
 def find_duplicates(inventory):
