@@ -1763,9 +1763,10 @@ if st.session_state.page == "orders":
                         f'<div class="part-name">{item["pno"]}</div>'
                         f'<div class="part-meta">{item["pname"][:24]}</div>'
                         f'<div class="part-meta">{item["color_name"]}</div>'
-                        f'<span class="badge" style="background:{order_color}22;color:{order_color};'
-                        f'border:1px solid {order_color}55;font-size:0.65rem;font-weight:800;">'
-                        f'Order {item["order_letter"]}</span>'
+                        f'<div style="position:absolute;top:6px;right:6px;background:{order_color};'
+                        f'color:#0d1117;font-size:0.75rem;font-weight:900;width:22px;height:22px;'
+                        f'border-radius:50%;display:flex;align-items:center;justify-content:center;'
+                        f'z-index:10;">{item["order_letter"]}</div>'
                         f'</div>', unsafe_allow_html=True)
                     if is_picked:
                         if col.button("Unpick", key=f"unpick_{pick_key}", use_container_width=True):
