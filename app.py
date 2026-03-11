@@ -679,7 +679,7 @@ def render_card_grid(lots, cols_count):
                                         st.success("Updated"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
                     elif reason == "Wrong bin":
-                        correct_bin = st.text_input(
+                            correct_bin = st.text_input(
                             f"Correct bin (current: {remarks or 'none'})", key=f"bin_{lid}")
                             if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason":"Wrong bin","correct_bin":correct_bin}
