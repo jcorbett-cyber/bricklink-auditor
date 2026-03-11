@@ -479,10 +479,12 @@ def save_bin_audit_date(bin_name):
     except Exception as e:
         st.warning(f"Could not save bin audit date: {e}")
 
-def save_storage_history(inventory_id, part_no, color_name, from_bin, to_bin):    
-    if not DB_LOADED: return
+def save_storage_history(inventory_id, part_no, color_name, from_bin, to_bin):
+    if not DB_LOADED: 
+        st.error("DB not loaded — storage history not saved")
+        return
     try:
-        supabase.table("storage_history").insert({
+        result = supabase.table("storage_history").insert({
             "inventory_id": inventory_id,
             "part_no":      part_no,
             "color_name":   color_name,
@@ -490,8 +492,9 @@ def save_storage_history(inventory_id, part_no, color_name, from_bin, to_bin):
             "to_bin":       to_bin,
             "moved_at":     datetime.now().isoformat(),
         }).execute()
+        st.success(f"Storage history saved!")
     except Exception as e:
-        st.warning(f"Could not save storage history: {e}")
+        st.error(f"Storage history error: {e}")
 
 def load_storage_history(inventory_id):
     if not DB_LOADED: return []
