@@ -1958,7 +1958,9 @@ for group_name,group_items in groupby(inv,key=lambda x:x.get("remarks","") or "(
                                         update_remarks_on_bricklink(make_auth(*st.session_state.auth),lid,correct_bin)
                                         st.session_state.flagged[lid]={"reason":"Bin updated","correct_bin":correct_bin}
                                         for x in st.session_state.inventory:
-                                            if x.get("inventory_id")==lid: x["remarks"]=correct_bin
+                                            if x.get("inventory_id")==lid:
+                                                save_storage_history(lid, pno, color, x.get("remarks",""), correct_bin)
+                                                x["remarks"]=correct_bin
                                         save_progress(lid,"flagged","Bin updated",None,correct_bin,st.session_state.notes.get(lid))
                                         st.success("Bin updated"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
