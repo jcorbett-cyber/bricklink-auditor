@@ -1943,8 +1943,7 @@ for group_name,group_items in groupby(inv,key=lambda x:x.get("remarks","") or "(
                                         st.session_state.flagged[lid]={"reason":"Qty updated","actual_qty":actual_qty}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id")==lid:
-                                                save_storage_history(lid, pno, color, x.get("remarks",""), correct_bin)
-                                                x["remarks"]=correct_bin
+                                                x["quantity"]=actual_qty
                                         save_progress(lid,"flagged","Bin updated",None,correct_bin,st.session_state.notes.get(lid))
                                         st.success("Bin updated"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
