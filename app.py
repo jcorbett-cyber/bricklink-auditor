@@ -689,6 +689,8 @@ def render_card_grid(lots, cols_count):
                                 if st.button("Update on BrickLink", key=f"updatebin_{lid}",
                                              use_container_width=True, type="primary"):
                                     try:
+                                        st.write(f"DEBUG: About to update bin for lid={lid} to {correct_bin}")
+                                        st.stop()
                                         update_remarks_on_bricklink(
                                             make_auth(*st.session_state.auth), lid, correct_bin)
                                         st.session_state.flagged[lid] = {"reason":"Bin updated","correct_bin":correct_bin}
