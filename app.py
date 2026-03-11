@@ -678,7 +678,7 @@ def render_card_grid(lots, cols_count):
                                                       st.session_state.notes.get(lid))
                                         st.success("Updated"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
-                        elif reason == "Wrong bin":
+                   elif reason == "Wrong bin":
                             correct_bin = st.text_input(
                                 f"Correct bin (current: {remarks or 'none'})", key=f"bin_{lid}")
                             if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
@@ -689,22 +689,17 @@ def render_card_grid(lots, cols_count):
                                 if st.button("Update on BrickLink", key=f"updatebin_{lid}",
                                              use_container_width=True, type="primary"):
                                     try:
-                                        st.write(f"DEBUG: About to update bin for lid={lid} to {correct_bin}")
-                                        st.stop()
                                         update_remarks_on_bricklink(
                                             make_auth(*st.session_state.auth), lid, correct_bin)
                                         st.session_state.flagged[lid] = {"reason":"Bin updated","correct_bin":correct_bin}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id")==lid:
-                                                st.write(f"DEBUG: lid={lid} pno={pno} color={color} from={x.get('remarks','')} to={correct_bin}")
                                                 save_storage_history(lid, pno, color, x.get("remarks",""), correct_bin)
-                                                st.stop()
                                                 x["remarks"]=correct_bin
                                         save_progress(lid,"flagged","Bin updated",None,correct_bin,
                                                       st.session_state.notes.get(lid))
                                         st.success("Bin updated"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
-                        else:
                             if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason":"Wrong part"}
                                 save_progress(lid,"flagged","Wrong part",None,None,
