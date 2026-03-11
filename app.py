@@ -703,7 +703,7 @@ def render_card_grid(lots, cols_count):
                                 save_progress(lid,"flagged","Wrong part",None,None,
                                               st.session_state.notes.get(lid)); st.rerun()
                             with col.expander("Location History"):
-                    history = load_storage_history(lid)
+                                history = load_storage_history(lid)
                     if not history:
                         st.caption("No moves recorded yet.")
                     else:
