@@ -511,7 +511,7 @@ def load_storage_history(inventory_id):
 def save_bin_audit_date(bin_name):
     if not DB_LOADED:
 
-@st.cache_data(ttl=300)
+    @st.cache_data(ttl=300)
     def load_bin_audit_dates():
     if not DB_LOADED: return {}
     try:
