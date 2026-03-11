@@ -694,6 +694,7 @@ def render_card_grid(lots, cols_count):
                                         st.session_state.flagged[lid] = {"reason":"Bin updated","correct_bin":correct_bin}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id")==lid:
+                                                st.write(f"DEBUG: lid={lid} pno={pno} color={color} from={x.get('remarks','')} to={correct_bin}")
                                                 save_storage_history(lid, pno, color, x.get("remarks",""), correct_bin)
                                                 x["remarks"]=correct_bin
                                         save_progress(lid,"flagged","Bin updated",None,correct_bin,
