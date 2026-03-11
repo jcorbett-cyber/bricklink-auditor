@@ -700,23 +700,23 @@ def render_card_grid(lots, cols_count):
                                                       st.session_state.notes.get(lid))
                                         st.success("Bin updated"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
-                    else:
-                        if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
-                            st.session_state.flagged[lid] = {"reason":"Wrong part"}
-                            save_progress(lid,"flagged","Wrong part",None,None,
-                                          st.session_state.notes.get(lid)); st.rerun()
-                        with col.expander("Location History"):
-                            history = load_storage_history(lid)
-                            if not history:
-                                st.caption("No moves recorded yet.")
-                            else:
-                                for move in history:
-                                    st.markdown(
-                                        f'<div style="font-size:0.72rem;color:#94a3b8;padding:4px 0;'
-                                        f'border-bottom:1px solid #1e2d45;">'
-                                        f'<span style="color:#e2e8f0;">{move.get("from_bin","?")} → {move.get("to_bin","?")}</span>'
-                                        f'<span style="float:right;color:#475569;">{move.get("moved_at","")[:10]}</span>'
-                                        f'</div>', unsafe_allow_html=True)
+                        else:
+                            if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
+                                st.session_state.flagged[lid] = {"reason":"Wrong part"}
+                                save_progress(lid,"flagged","Wrong part",None,None,
+                                              st.session_state.notes.get(lid)); st.rerun()
+                            with col.expander("Location History"):
+                                history = load_storage_history(lid)
+                                if not history:
+                                    st.caption("No moves recorded yet.")
+                                else:
+                                    for move in history:
+                                        st.markdown(
+                                            f'<div style="font-size:0.72rem;color:#94a3b8;padding:4px 0;'
+                                            f'border-bottom:1px solid #1e2d45;">'
+                                            f'<span style="color:#e2e8f0;">{move.get("from_bin","?")} → {move.get("to_bin","?")}</span>'
+                                            f'<span style="float:right;color:#475569;">{move.get("moved_at","")[:10]}</span>'
+                                            f'</div>', unsafe_allow_html=True)
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
