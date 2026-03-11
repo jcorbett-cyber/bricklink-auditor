@@ -479,6 +479,14 @@ def save_bin_audit_date(bin_name):
     except Exception as e:
         st.warning(f"Could not save bin audit date: {e}")
 
+@st.cache_data(ttl=60)
+def load_bin_audit_dates():
+    if not DB_LOADED: return {}
+    try:
+        r = supabase.table("bin_audit_dates").select("*").execute()
+        return {row["bin_name"]: row["last_audited"] for row in (r.data or [])}
+    except:
+        return {}
 def save_storage_history(inventory_id, part_no, color_name, from_bin, to_bin):
     if not DB_LOADED: 
         st.error("DB not loaded — storage history not saved")
@@ -507,17 +515,6 @@ def load_storage_history(inventory_id):
         return r.data or []
     except:
         return []
-
-def save_bin_audit_date(bin_name):
-    if not DB_LOADED: return
-    try:
-        supabase.table("bin_audit_dates").upsert({
-            "bin_name": bin_name,
-            "last_audited": datetime.now().isoformat(),
-        }, on_conflict="bin_name").execute()
-    except Exception as e:
-        st.warning(f"Could not save bin audit date: {e}")
-        return {}
 
 def find_duplicates(inventory):
     from collections import defaultdict
