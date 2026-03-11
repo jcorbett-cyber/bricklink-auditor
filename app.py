@@ -1944,8 +1944,8 @@ for group_name,group_items in groupby(inv,key=lambda x:x.get("remarks","") or "(
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id")==lid:
                                                 x["quantity"]=actual_qty
-                                        save_progress(lid,"flagged","Bin updated",None,correct_bin,st.session_state.notes.get(lid))
-                                        st.success("Bin updated"); st.rerun()
+                                        save_progress(lid,"flagged","Qty updated",actual_qty,None,st.session_state.notes.get(lid))
+                                        st.success("Updated"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
                         elif reason=="Wrong bin":
                             correct_bin=st.text_input(f"Correct bin (current: {remarks or 'none'})",key=f"bin_{lid}")
