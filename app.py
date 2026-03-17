@@ -663,7 +663,6 @@ def render_card_grid(lots, cols_count):
 
                 if not is_found and not is_flagged:
                     with col.expander("Flag issue"):
-
 if not is_found and not is_flagged:
                         reason = st.radio("Issue type",
                                           ["Wrong quantity","Wrong part in bin","Wrong bin"],
