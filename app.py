@@ -307,7 +307,7 @@ for key, default in [
     if key not in st.session_state:
         st.session_state[key] = default
 
-        if "page" in st.query_params:
+if "page" in st.query_params:
     st.session_state.page = st.query_params["page"]
     st.query_params.clear()
     
