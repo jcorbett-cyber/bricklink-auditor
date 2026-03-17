@@ -56,8 +56,8 @@ def ic(name, size=14, color="#6d7a8f"):
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap');
+html, body, [class*="css"] { font-family: 'DM Sans', sans-serif !important; }
 .block-container { padding-top: 0rem !important; background: transparent; }
 header[data-testid="stHeader"] { background: transparent !important; height: 0rem !important; }
 #MainMenu { visibility: hidden; }
@@ -68,7 +68,7 @@ section[data-testid="stSidebar"] {
   background: linear-gradient(180deg, #0d1117 0%, #161b27 100%) !important;
   border-right: 1px solid #1e2a3a;
 }
-section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important; }
+section[data-testid="stSidebar"] * { font-family: 'DM Sans', sans-serif !important; }
 .stApp { background: linear-gradient(135deg, #0d1117 0%, #111827 50%, #0f172a 100%); }
 .part-card {
   background: linear-gradient(145deg, #1a2236, #1e2640);
@@ -180,7 +180,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   text-transform:uppercase; letter-spacing:0.07em; margin-bottom:6px;
 }
 .stButton > button {
-  font-family:'Inter',sans-serif !important; font-weight:600 !important;
+  font-family:'DM Sans',sans-serif !important; font-weight:600 !important;
   border-radius:10px !important; border:1px solid #1e2d45 !important;
   background:linear-gradient(135deg,#161b27,#1a2235) !important;
   color:#94a3b8 !important; transition:all 0.15s ease !important; font-size:0.78rem !important;
@@ -198,7 +198,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   box-shadow:0 4px 15px rgba(109,40,217,0.4) !important;
 }
 .stTextInput > div > div > input {
-  font-family:'Inter',sans-serif !important; background:#161b27 !important;
+  font-family:'DM Sans',sans-serif !important; background:#161b27 !important;
   border:1px solid #1e2d45 !important; border-radius:10px !important; color:#e2e8f0 !important;
 }
 .stTextInput > div > div > input:focus { border-color:#6d28d9 !important; }
@@ -210,9 +210,9 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 .stProgress > div > div > div { background:linear-gradient(90deg,#5b21b6,#7c3aed) !important; border-radius:10px !important; }
 div[data-testid="stExpander"] { background:#161b27 !important; border:1px solid #1e2d45 !important; border-radius:10px !important; }
 .stDataFrame { border-radius:12px !important; overflow:hidden; border:1px solid #1e2d45 !important; }
-h1 { font-family:'Inter',sans-serif !important; font-weight:800 !important; color:#e2e8f0 !important; }
-h2, h3 { font-family:'Inter',sans-serif !important; color:#cbd5e1 !important; }
-.stCaption, .stMarkdown p { color:#475569 !important; font-family:'Inter',sans-serif !important; }
+h1 { font-family:'DM Sans',sans-serif !important; font-weight:800 !important; color:#e2e8f0 !important; }
+h2, h3 { font-family:'DM Sans',sans-serif !important; color:#cbd5e1 !important; }
+.stCaption, .stMarkdown p { color:#475569 !important; font-family:'DM Sans',sans-serif !important; }
 div[data-testid="stSuccess"] { background:rgba(13,40,24,0.8) !important; border:1px solid #2d6a4f !important; border-radius:10px !important; }
 div[data-testid="stWarning"] { background:rgba(45,26,8,0.8) !important; border:1px solid #7c3d0e !important; border-radius:10px !important; }
 div[data-testid="stError"]   { background:rgba(45,13,26,0.8) !important; border:1px solid #7f1d35 !important; border-radius:10px !important; }
