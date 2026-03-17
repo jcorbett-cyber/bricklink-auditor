@@ -56,8 +56,8 @@ def ic(name, size=14, color="#6d7a8f"):
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap');
+html, body, [class*="css"] { font-family: 'DM Sans', sans-serif !important; }
 .block-container { padding-top: 0rem !important; background: transparent; }
 header[data-testid="stHeader"] { background: transparent !important; height: 0rem !important; }
 #MainMenu { visibility: hidden; }
@@ -68,7 +68,7 @@ section[data-testid="stSidebar"] {
   background: linear-gradient(180deg, #0d1117 0%, #161b27 100%) !important;
   border-right: 1px solid #1e2a3a;
 }
-section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important; }
+section[data-testid="stSidebar"] * { font-family: 'DM Sans', sans-serif !important; }
 .stApp { background: linear-gradient(135deg, #0d1117 0%, #111827 50%, #0f172a 100%); }
 .part-card {
   background: linear-gradient(145deg, #1a2236, #1e2640);
@@ -180,7 +180,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   text-transform:uppercase; letter-spacing:0.07em; margin-bottom:6px;
 }
 .stButton > button {
-  font-family:'Inter',sans-serif !important; font-weight:600 !important;
+  font-family:'DM Sans',sans-serif !important; font-weight:600 !important;
   border-radius:10px !important; border:1px solid #1e2d45 !important;
   background:linear-gradient(135deg,#161b27,#1a2235) !important;
   color:#94a3b8 !important; transition:all 0.15s ease !important; font-size:0.78rem !important;
@@ -198,7 +198,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
   box-shadow:0 4px 15px rgba(109,40,217,0.4) !important;
 }
 .stTextInput > div > div > input {
-  font-family:'Inter',sans-serif !important; background:#161b27 !important;
+  font-family:'DM Sans',sans-serif !important; background:#161b27 !important;
   border:1px solid #1e2d45 !important; border-radius:10px !important; color:#e2e8f0 !important;
 }
 .stTextInput > div > div > input:focus { border-color:#6d28d9 !important; }
@@ -210,9 +210,9 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 .stProgress > div > div > div { background:linear-gradient(90deg,#5b21b6,#7c3aed) !important; border-radius:10px !important; }
 div[data-testid="stExpander"] { background:#161b27 !important; border:1px solid #1e2d45 !important; border-radius:10px !important; }
 .stDataFrame { border-radius:12px !important; overflow:hidden; border:1px solid #1e2d45 !important; }
-h1 { font-family:'Inter',sans-serif !important; font-weight:800 !important; color:#e2e8f0 !important; }
-h2, h3 { font-family:'Inter',sans-serif !important; color:#cbd5e1 !important; }
-.stCaption, .stMarkdown p { color:#475569 !important; font-family:'Inter',sans-serif !important; }
+h1 { font-family:'DM Sans',sans-serif !important; font-weight:800 !important; color:#e2e8f0 !important; }
+h2, h3 { font-family:'DM Sans',sans-serif !important; color:#cbd5e1 !important; }
+.stCaption, .stMarkdown p { color:#475569 !important; font-family:'DM Sans',sans-serif !important; }
 div[data-testid="stSuccess"] { background:rgba(13,40,24,0.8) !important; border:1px solid #2d6a4f !important; border-radius:10px !important; }
 div[data-testid="stWarning"] { background:rgba(45,26,8,0.8) !important; border:1px solid #7c3d0e !important; border-radius:10px !important; }
 div[data-testid="stError"]   { background:rgba(45,13,26,0.8) !important; border:1px solid #7f1d35 !important; border-radius:10px !important; }
@@ -307,6 +307,10 @@ for key, default in [
     if key not in st.session_state:
         st.session_state[key] = default
 
+if "page" in st.query_params:
+    st.session_state.page = st.query_params["page"]
+    st.query_params.clear()
+    
 BASE = "https://api.bricklink.com/api/store/v1"
 
 def make_auth(ck, cs, tv, ts):
@@ -640,15 +644,6 @@ def render_location_history(col, lid):
                     f'<span style="float:right;color:#475569;">{move.get("moved_at","")[:10]}</span>'
                     f'</div>', unsafe_allow_html=True)
 
-def render_legal_footer():
-    st.markdown(
-        f'<div style="margin-top:40px;padding-top:16px;border-top:1px solid #1e2d45;'
-        f'text-align:center;font-size:0.68rem;color:#2d3748;">'
-        f'Brick Audit is an independent tool. Not affiliated with BrickLink LLC. '
-        f'<a href="?page=legal" target="_self" style="color:#475569;text-decoration:none;">'
-        f'Legal</a>'
-        f'</div>', unsafe_allow_html=True)
-
 def render_card_grid(lots, cols_count, show_skip_button=False):
     for row_start in range(0, len(lots), cols_count):
         row_items = lots[row_start:row_start+cols_count]
@@ -887,7 +882,6 @@ with st.sidebar:
             ("orders",    "box",         "#f472b6", "Pull Orders"),
             ("skipped",   "eye-off",     "#818cf8", "Skipped Items"),
             ("history",   "calendar",    "#94a3b8", "Audit History"),
-            ("legal",      "file-text",   "#475569", "Legal"),
         ]
         for page_key, ico, color, label in nav_items:
             is_active = st.session_state.page == page_key
@@ -1183,40 +1177,41 @@ if st.session_state.page == "dashboard":
     st.progress(min(max(pct / 100, 0.0), 1.0))
     st.write("")
 
+    
+
+    zone_map = {"All zones":"all","Bins only":"bin","Tubs only":"tub","Trays only":"tray","White Drawers only":"wd"}
     st.markdown(
         f'<div style="background:linear-gradient(135deg,#1a0a2e,#2d1060);border:1px solid #6d28d9;'
         f'border-radius:20px;padding:24px 28px;margin-bottom:20px;'
         f'box-shadow:0 4px 24px rgba(109,40,217,0.35);">'
         f'<div style="font-size:0.7rem;font-weight:700;color:#6d28d9;text-transform:uppercase;'
         f'letter-spacing:0.1em;margin-bottom:8px;">{icon("zap",14,"#6d28d9")} Start Auditing</div>'
-        f'<div style="font-size:1.3rem;font-weight:800;color:#f5f3ff;margin-bottom:4px;">Audit Mode</div>'
-        f'<div style="font-size:0.8rem;color:#a78bfa;margin-bottom:16px;">'
-        f'Walk bin-by-bin through your stockroom. Skip button moves parts to Stockroom A on BrickLink.</div>'
+        f'<div style="font-size:1.6rem;font-weight:800;color:#f5f3ff;margin-bottom:4px;">Audit Mode</div>'
+        f'<div style="font-size:0.85rem;color:#a78bfa;margin-bottom:20px;line-height:1.5;">'
+        f'Walk bin-by-bin through your stockroom. Skip moves parts to Stockroom A. Mark all found skips the whole bin.</div>'
         f'</div>', unsafe_allow_html=True)
-
-    am_col1, am_col2, am_col3 = st.columns([2,2,1])
-    with am_col1:
-        zone_choice = st.selectbox("Zone", ["All zones","Bins only","Tubs only","Trays only","White Drawers only"], key="dash_zone")
-        zone_map    = {"All zones":"all","Bins only":"bin","Tubs only":"tub","Trays only":"tray","White Drawers only":"wd"}
-    with am_col2:
-        zone_key = zone_map[zone_choice]
-        all_remarks_sorted = sorted(set(i.get("remarks","") or "(no remarks)" for i in inv))
-        filtered_remarks   = [r for r in all_remarks_sorted if zone_key=="all" or detect_zone(r)==zone_key]
-        with st.form("audit_start_form"):
+    with st.form("audit_start_form"):
+        ac1, ac2, ac3 = st.columns([2,2,1])
+        with ac1:
+            zone_choice = st.selectbox("Zone", ["All zones","Bins only","Tubs only","Trays only","White Drawers only"], key="dash_zone")
+        with ac2:
+            zone_key = zone_map[zone_choice]
+            all_remarks_sorted = sorted(set(i.get("remarks","") or "(no remarks)" for i in inv))
+            filtered_remarks   = [r for r in all_remarks_sorted if zone_key=="all" or detect_zone(r)==zone_key]
             start_from = st.selectbox("Start from bin", filtered_remarks, key="dash_start") if filtered_remarks else None
+        with ac3:
+            st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
             submitted = st.form_submit_button("Start Audit", use_container_width=True, type="primary")
-            if submitted and start_from:
-                start_idx = filtered_remarks.index(start_from)
-                st.session_state.audit_mode        = True
-                st.session_state.audit_mode_queue  = filtered_remarks
-                st.session_state.audit_mode_index  = start_idx
-                st.session_state.audit_start_time  = time.time()
-                st.session_state.audit_session_bins = 0
-                st.session_state.audit_session_lots = 0
-                st.rerun()
-    with am_col3:
-        st.write("")
-
+        if submitted and start_from:
+            start_idx = filtered_remarks.index(start_from)
+            st.session_state.audit_mode        = True
+            st.session_state.audit_mode_queue  = filtered_remarks
+            st.session_state.audit_mode_index  = start_idx
+            st.session_state.audit_start_time  = time.time()
+            st.session_state.audit_session_bins = 0
+            st.session_state.audit_session_lots = 0
+            st.rerun()
+            
     st.divider()
     st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Quick Access</div>', unsafe_allow_html=True)
 
@@ -1247,8 +1242,6 @@ if st.session_state.page == "dashboard":
         last = history[0]
         last_pct = int(last["total_checked"]/last["total_lots"]*100) if last["total_lots"] else 0
         st.markdown(
-            f'<div style="background:linear-gradient(135deg,#161b27,#1a2235);border:1px solid #1e2d45;'
-            f'border-radius:14px;padding:14px 20px;">'
             f'<div style="font-size:0.65rem;font-weight:700;color:#475569;text-transform:uppercase;'
             f'letter-spacing:0.08em;margin-bottom:6px;">{icon("calendar",12,"#475569")} Last Audit Snapshot</div>'
             f'<div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">'
@@ -2004,56 +1997,6 @@ if st.session_state.page == "skipped":
                 "Resolved":    s.get("resolved_at","")[:10] if s.get("resolved_at") else "",
             } for s in resolved_items]), use_container_width=True, hide_index=True)
 
-    st.stop()
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE: LEGAL
-# ══════════════════════════════════════════════════════════════════════════════
-if st.session_state.page == "legal":
-    h1,h2=st.columns([8,1])
-    with h1: st.markdown(f'{icon("file-text",22,"#475569")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Legal</span>', unsafe_allow_html=True)
-    with h2:
-        if st.button("⌂", key="home_legal", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
-    st.write("")
-    st.markdown(
-        '<div style="background:linear-gradient(145deg,#161b27,#1a2235);border:1px solid #1e2d45;'
-        'border-radius:16px;padding:32px 36px;max-width:800px;">',
-        unsafe_allow_html=True)
-    st.markdown("### Terms of Use")
-    st.markdown("""
-Brick Audit is an independent tool designed to help BrickLink store owners manage and audit their inventory.
-By using this app, you agree to the following terms.
-""")
-    st.markdown("**No Affiliation with BrickLink**")
-    st.markdown("""
-Brick Audit is not affiliated with, endorsed by, or officially connected to BrickLink LLC in any way.
-BrickLink® is a registered trademark of BrickLink LLC. This app uses the BrickLink API in accordance
-with BrickLink's API Terms of Service.
-""")
-    st.markdown("**Use at Your Own Risk**")
-    st.markdown("""
-Brick Audit is provided "as is" without warranty of any kind. The developer is not responsible for
-any inventory discrepancies, data loss, incorrect BrickLink updates, or any other damages arising
-from use of this app. Always verify critical changes directly in your BrickLink store.
-""")
-    st.markdown("**Data Storage**")
-    st.markdown("""
-This app stores audit progress, notes, skipped items, and storage history in a Supabase database.
-Your BrickLink API credentials are used only to communicate with the BrickLink API and are never
-stored by this app. By using this app, you consent to this data being stored.
-""")
-    st.markdown("**BrickLink API**")
-    st.markdown("""
-Your use of this app is also subject to BrickLink's own API Terms of Service. You are responsible
-for ensuring your use of the BrickLink API complies with their terms.
-""")
-    st.markdown("**Changes**")
-    st.markdown("""
-These terms may be updated at any time. Continued use of the app constitutes acceptance of any changes.
-""")
-    st.markdown('</div>', unsafe_allow_html=True)
-    render_legal_footer()
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
