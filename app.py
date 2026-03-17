@@ -661,7 +661,6 @@ def render_card_grid(lots, cols_count):
                                 f'<span style="float:right;color:#475569;">{move.get("moved_at","")[:10]}</span>'
                                 f'</div>', unsafe_allow_html=True)
                 if not is_found and not is_flagged:
-                    if not is_found and not is_flagged:
                     with col.expander("Flag issue"):
                         reason = st.radio("Issue type",
                                           ["Wrong quantity","Wrong part in bin","Wrong bin"],
