@@ -2207,7 +2207,7 @@ if st.session_state.page == "browse":
                                     save_progress(lid,"flagged","Wrong part",None,None,st.session_state.notes.get(lid)); st.rerun()
         st.divider()
         
-        if st.session_state.page == "legal":
+    if st.session_state.page == "legal":
     h1,h2=st.columns([8,1])
     with h1: st.markdown(f'{icon("file-text",22,"#475569")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Legal</span>', unsafe_allow_html=True)
     with h2:
