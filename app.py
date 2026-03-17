@@ -870,8 +870,7 @@ with st.sidebar:
                 f'{icon(ico,14,color)}'
                 f'<span style="font-size:0.78rem;font-weight:600;color:#94a3b8;vertical-align:middle;">{label}</span>'
                 f'</div>', unsafe_allow_html=True)
-            if st.button(label, key=f"nav_{page_key}", use_container_width=True,
-                         label_visibility="collapsed"):
+            if st.button(label, key=f"nav_{page_key}", use_container_width=True):
                 st.session_state.page = page_key; st.rerun()
 
         st.divider()
