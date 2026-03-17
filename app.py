@@ -868,15 +868,28 @@ with st.sidebar:
 
         st.divider()
         st.markdown(f'<div class="section-label">{ic("package")} Pages</div>', unsafe_allow_html=True)
-        if st.button("Dashboard",        use_container_width=True): st.session_state.page = "dashboard"; st.rerun()
-        if st.button("Browse Inventory", use_container_width=True): st.session_state.page = "browse";    st.rerun()
-        if st.button("Summary",          use_container_width=True): st.session_state.page = "summary";   st.rerun()
-        if st.button("Stockroom",        use_container_width=True): st.session_state.page = "stockroom"; st.rerun()
-        if st.button("Duplicates",       use_container_width=True): st.session_state.page = "dupes";     st.rerun()
-        if st.button("Audit History",    use_container_width=True): st.session_state.page = "history";   st.rerun()
-        if st.button("Price Checker",    use_container_width=True): st.session_state.page = "prices";    st.rerun()
-        if st.button("Pull Orders",      use_container_width=True): st.session_state.page = "orders";    st.rerun()
-        if st.button("Skipped Items",    use_container_width=True): st.session_state.page = "skipped";   st.rerun()
+        nav_items = [
+            ("dashboard", "home",        "#a78bfa", "Dashboard"),
+            ("browse",    "package",     "#a78bfa", "Browse Inventory"),
+            ("summary",   "bar-chart-2", "#a78bfa", "Summary"),
+            ("stockroom", "grid",        "#60a5fa", "Stockroom"),
+            ("dupes",     "copy",        "#fb923c", "Duplicates"),
+            ("prices",    "tag",         "#4ade80", "Price Checker"),
+            ("orders",    "box",         "#f472b6", "Pull Orders"),
+            ("skipped",   "eye-off",     "#818cf8", "Skipped Items"),
+            ("history",   "calendar",    "#94a3b8", "Audit History"),
+        ]
+        for page_key, ico, color, label in nav_items:
+            is_active = st.session_state.page == page_key
+            bg     = "rgba(109,40,217,0.15)" if is_active else "transparent"
+            border = "1px solid #6d28d9"     if is_active else "1px solid transparent"
+            st.markdown(
+                f'<a href="?page={page_key}" target="_self" style="text-decoration:none;">'
+                f'<div style="background:{bg};border:{border};border-radius:10px;'
+                f'padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px;">'
+                f'{icon(ico,14,color)}'
+                f'<span style="font-size:0.78rem;font-weight:600;color:#94a3b8;">{label}</span>'
+                f'</div></a>', unsafe_allow_html=True)
 
         st.divider()
         if st.session_state.page == "browse":
