@@ -643,7 +643,16 @@ def render_location_history(col, lid):
                     f'<span style="color:#e2e8f0;">{move.get("from_bin","?")} -> {move.get("to_bin","?")}</span>'
                     f'<span style="float:right;color:#475569;">{move.get("moved_at","")[:10]}</span>'
                     f'</div>', unsafe_allow_html=True)
-
+                
+def render_legal_footer():
+    st.markdown(
+        '<div style="margin-top:40px;padding-top:16px;border-top:1px solid #1e2d45;'
+        'text-align:center;font-size:0.68rem;color:#2d3748;">'
+        'Brick Audit is an independent tool. Not affiliated with BrickLink LLC. '
+        '<a href="?page=legal" target="_self" style="color:#475569;text-decoration:none;">'
+        'Legal</a>'
+        '</div>', unsafe_allow_html=True)
+    
 def render_card_grid(lots, cols_count, show_skip_button=False):
     for row_start in range(0, len(lots), cols_count):
         row_items = lots[row_start:row_start+cols_count]
@@ -882,6 +891,7 @@ with st.sidebar:
             ("orders",    "box",         "#f472b6", "Pull Orders"),
             ("skipped",   "eye-off",     "#818cf8", "Skipped Items"),
             ("history",   "calendar",    "#94a3b8", "Audit History"),
+            ("legal", "file-text", "#475569", "Legal"),
         ]
         for page_key, ico, color, label in nav_items:
             is_active = st.session_state.page == page_key
@@ -1247,6 +1257,7 @@ if st.session_state.page == "dashboard":
             f'<div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">'
             f'{last["audit_date"][:10]} · {last_pct}% complete · {last["total_flagged"]} flagged</div>'
             f'</div>', unsafe_allow_html=True)
+    render_legal_footer()
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2195,3 +2206,18 @@ if st.session_state.page == "browse":
                                     st.session_state.flagged[lid]={"reason":"Wrong part"}
                                     save_progress(lid,"flagged","Wrong part",None,None,st.session_state.notes.get(lid)); st.rerun()
         st.divider()
+        
+        if st.session_state.page == "legal":
+    h1,h2=st.columns([8,1])
+    with h1: st.markdown(f'{icon("file-text",22,"#475569")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Legal</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_legal"): st.session_state.page="dashboard"; st.rerun()
+    st.write("")
+    st.markdown("### Terms of Use")
+    st.markdown("**No Affiliation with BrickLink** — Brick Audit is not affiliated with, endorsed by, or officially connected to BrickLink LLC. BrickLink® is a registered trademark of BrickLink LLC.")
+    st.markdown("**Use at Your Own Risk** — Brick Audit is provided as-is without warranty. The developer is not responsible for inventory discrepancies, data loss, or incorrect BrickLink updates. Always verify changes in your BrickLink store.")
+    st.markdown("**Data Storage** — This app stores audit progress, notes, skipped items, and storage history in Supabase. Your BrickLink API credentials are never stored by this app.")
+    st.markdown("**BrickLink API** — Your use is also subject to BrickLink's API Terms of Service.")
+    st.markdown("**Changes** — These terms may be updated at any time. Continued use constitutes acceptance.")
+    render_legal_footer()
+    st.stop()
