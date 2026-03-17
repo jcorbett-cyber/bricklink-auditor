@@ -650,8 +650,26 @@ def render_card_grid(lots, cols_count):
                         save_progress(lid, status, flag.get("reason"), flag.get("actual_qty"),
                                       flag.get("correct_bin"), new_note)
                         st.rerun()
+                history = load_storage_history(lid)
+                if history:
+                    with col.expander("📍 Location History"):
+                        for move in history:
+                            st.markdown(
+                                f'<div style="font-size:0.72rem;color:#94a3b8;padding:4px 0;'
+                                f'border-bottom:1px solid #1e2d45;">'
+                                f'<span style="color:#e2e8f0;">{move.get("from_bin","?")} → {move.get("to_bin","?")}</span>'
+                                f'<span style="float:right;color:#475569;">{move.get("moved_at","")[:10]}</span>'
+                                f'</div>', unsafe_allow_html=True)
+
                 if not is_found and not is_flagged:
                     with col.expander("Flag issue"):
+```
+
+This appears **twice** in the file — once in `render_card_grid` and once in the Browse Inventory page. You'll need to make the same insertion in both places.
+
+To find the right spots, search for:
+```
+if not is_found and not is_flagged:
                         reason = st.radio("Issue type",
                                           ["Wrong quantity","Wrong part in bin","Wrong bin"],
                                           key=f"reason_{lid}")
