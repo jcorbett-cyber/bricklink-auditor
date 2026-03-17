@@ -1177,16 +1177,7 @@ if st.session_state.page == "dashboard":
     st.progress(min(max(pct / 100, 0.0), 1.0))
     st.write("")
 
-    st.markdown(
-        f'<div style="background:linear-gradient(135deg,#1a0a2e,#2d1060);border:1px solid #6d28d9;'
-        f'border-radius:20px;padding:24px 28px;margin-bottom:20px;'
-        f'box-shadow:0 4px 24px rgba(109,40,217,0.35);">'
-        f'<div style="font-size:0.7rem;font-weight:700;color:#6d28d9;text-transform:uppercase;'
-        f'letter-spacing:0.1em;margin-bottom:8px;">{icon("zap",14,"#6d28d9")} Start Auditing</div>'
-        f'<div style="font-size:1.3rem;font-weight:800;color:#f5f3ff;margin-bottom:4px;">Audit Mode</div>'
-        f'<div style="font-size:0.8rem;color:#a78bfa;margin-bottom:16px;">'
-        f'Walk bin-by-bin through your stockroom. Skip button moves parts to Stockroom A on BrickLink.</div>'
-        f'</div>', unsafe_allow_html=True)
+    
 
     zone_map = {"All zones":"all","Bins only":"bin","Tubs only":"tub","Trays only":"tray","White Drawers only":"wd"}
     am_left, am_right = st.columns([3,2])
