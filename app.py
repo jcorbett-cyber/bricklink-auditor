@@ -306,11 +306,7 @@ for key, default in [
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
-
-if "page" in st.query_params:
-    st.session_state.page = st.query_params["page"]
-    st.query_params.clear()
-    
+   
 BASE = "https://api.bricklink.com/api/store/v1"
 
 def make_auth(ck, cs, tv, ts):
@@ -898,12 +894,13 @@ with st.sidebar:
             bg     = "rgba(109,40,217,0.15)" if is_active else "transparent"
             border = "1px solid #6d28d9"     if is_active else "1px solid transparent"
             st.markdown(
-                f'<a href="?page={page_key}" target="_self" style="text-decoration:none;">'
                 f'<div style="background:{bg};border:{border};border-radius:10px;'
                 f'padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px;">'
                 f'{icon(ico,14,color)}'
                 f'<span style="font-size:0.78rem;font-weight:600;color:#94a3b8;">{label}</span>'
-                f'</div></a>', unsafe_allow_html=True)
+                f'</div>', unsafe_allow_html=True)
+            if st.button(label, key=f"nav_{page_key}", use_container_width=True):
+                st.session_state.page = page_key; st.rerun()
 
         st.divider()
         if st.session_state.page == "browse":
