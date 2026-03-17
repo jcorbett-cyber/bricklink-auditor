@@ -1188,17 +1188,29 @@ if st.session_state.page == "dashboard":
         f'Walk bin-by-bin through your stockroom. Skip button moves parts to Stockroom A on BrickLink.</div>'
         f'</div>', unsafe_allow_html=True)
 
-    am_col1, am_col2, am_col3 = st.columns([2,2,1])
-    with am_col1:
-        zone_choice = st.selectbox("Zone", ["All zones","Bins only","Tubs only","Trays only","White Drawers only"], key="dash_zone")
-        zone_map    = {"All zones":"all","Bins only":"bin","Tubs only":"tub","Trays only":"tray","White Drawers only":"wd"}
-    with am_col2:
-        zone_key = zone_map[zone_choice]
-        all_remarks_sorted = sorted(set(i.get("remarks","") or "(no remarks)" for i in inv))
-        filtered_remarks   = [r for r in all_remarks_sorted if zone_key=="all" or detect_zone(r)==zone_key]
+    zone_map = {"All zones":"all","Bins only":"bin","Tubs only":"tub","Trays only":"tray","White Drawers only":"wd"}
+    am_left, am_right = st.columns([3,2])
+    with am_left:
+        st.markdown(
+            f'<div style="background:linear-gradient(135deg,#1a0a2e,#2d1060);border:1px solid #6d28d9;'
+            f'border-radius:20px;padding:24px 28px;height:100%;'
+            f'box-shadow:0 4px 24px rgba(109,40,217,0.35);">'
+            f'<div style="font-size:0.7rem;font-weight:700;color:#6d28d9;text-transform:uppercase;'
+            f'letter-spacing:0.1em;margin-bottom:8px;">{icon("zap",14,"#6d28d9")} Start Auditing</div>'
+            f'<div style="font-size:1.6rem;font-weight:800;color:#f5f3ff;margin-bottom:8px;">Audit Mode</div>'
+            f'<div style="font-size:0.85rem;color:#a78bfa;line-height:1.5;">'
+            f'Walk bin-by-bin through your stockroom.<br>'
+            f'Skip moves parts to Stockroom A.<br>'
+            f'Mark all found skips the whole bin.</div>'
+            f'</div>', unsafe_allow_html=True)
+    with am_right:
         with st.form("audit_start_form"):
-            start_from = st.selectbox("Start from bin", filtered_remarks, key="dash_start") if filtered_remarks else None
-            submitted = st.form_submit_button("Start Audit", use_container_width=True, type="primary")
+            zone_choice    = st.selectbox("Zone", ["All zones","Bins only","Tubs only","Trays only","White Drawers only"], key="dash_zone")
+            zone_key       = zone_map[zone_choice]
+            all_remarks_sorted = sorted(set(i.get("remarks","") or "(no remarks)" for i in inv))
+            filtered_remarks   = [r for r in all_remarks_sorted if zone_key=="all" or detect_zone(r)==zone_key]
+            start_from     = st.selectbox("Start from bin", filtered_remarks, key="dash_start") if filtered_remarks else None
+            submitted      = st.form_submit_button("Start Audit", use_container_width=True, type="primary")
             if submitted and start_from:
                 start_idx = filtered_remarks.index(start_from)
                 st.session_state.audit_mode        = True
@@ -1208,8 +1220,6 @@ if st.session_state.page == "dashboard":
                 st.session_state.audit_session_bins = 0
                 st.session_state.audit_session_lots = 0
                 st.rerun()
-    with am_col3:
-        st.write("")
 
     st.divider()
     st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Quick Access</div>', unsafe_allow_html=True)
@@ -1241,8 +1251,6 @@ if st.session_state.page == "dashboard":
         last = history[0]
         last_pct = int(last["total_checked"]/last["total_lots"]*100) if last["total_lots"] else 0
         st.markdown(
-            f'<div style="background:linear-gradient(135deg,#161b27,#1a2235);border:1px solid #1e2d45;'
-            f'border-radius:14px;padding:14px 20px;">'
             f'<div style="font-size:0.65rem;font-weight:700;color:#475569;text-transform:uppercase;'
             f'letter-spacing:0.08em;margin-bottom:6px;">{icon("calendar",12,"#475569")} Last Audit Snapshot</div>'
             f'<div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">'
