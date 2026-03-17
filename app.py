@@ -663,12 +663,7 @@ def render_card_grid(lots, cols_count):
 
                 if not is_found and not is_flagged:
                     with col.expander("Flag issue"):
-```
 
-This appears **twice** in the file — once in `render_card_grid` and once in the Browse Inventory page. You'll need to make the same insertion in both places.
-
-To find the right spots, search for:
-```
 if not is_found and not is_flagged:
                         reason = st.radio("Issue type",
                                           ["Wrong quantity","Wrong part in bin","Wrong bin"],
