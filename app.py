@@ -41,6 +41,7 @@ def icon(name, size=16, color="currentColor"):
         "log-out":        '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
         "copy":           '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
         "home":           '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+        "clock":          '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
         "eye-off":        '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
     }
     paths = icons.get(name, "")
@@ -299,12 +300,12 @@ for key, default in [
     ("orders_data", []), ("pick_mode", False), ("pick_queue", []),
     ("pick_index", 0), ("picked_items", set()), ("fulfilled_orders", set()),
     ("skipped", set()),
+    ("audit_start_time", None),
+    ("audit_session_bins", 0),
+    ("audit_session_lots", 0),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
-
-if "page" in st.query_params:
-    st.session_state.page = st.query_params["page"]
 
 BASE = "https://api.bricklink.com/api/store/v1"
 
@@ -678,7 +679,7 @@ def render_card_grid(lots, cols_count, show_skip_button=False):
             elif is_low:     b_cls,b_svg,b_lbl = "badge-low",icon("alert-triangle",10,"#fb923c"),f"Low ({qty})"
             else:            b_cls = "badge-n" if cond == "New" else "badge-u"; b_svg,b_lbl = "",cond
             note_html = (f'<div class="part-meta" style="margin-top:4px;color:#f59e0b;">'
-                         f'{icon("file-text",10,"#f59e0b")} {note_val[:20]}</div>' if note_val else "")
+                         f'{icon("file-text",10,"#f59e0b")} Note</div>' if note_val else "")
             with col:
                 st.markdown(
                     f'<div class="{card_cls}">{img_with_qty(pno,color_id,qty)}'
@@ -829,6 +830,21 @@ with st.sidebar:
             pct = int(done_count / total_count * 100) if total_count else 0
             st.progress(min(max(pct / 100, 0.0), 1.0))
             st.caption(f"{done_count}/{total_count} lots done · {pct}%")
+            # Audit session stats
+            if st.session_state.get("audit_start_time"):
+                elapsed = int(time.time() - st.session_state.audit_start_time)
+                mins, secs = divmod(elapsed, 60)
+                bins_done = st.session_state.get("audit_session_bins", 0)
+                lots_done = st.session_state.get("audit_session_lots", 0)
+                avg_per_bin = int(elapsed / bins_done) if bins_done > 0 else 0
+                avg_mins, avg_secs = divmod(avg_per_bin, 60)
+                st.markdown(
+                    f'<div style="background:rgba(109,40,217,0.08);border:1px solid #2d1f4a;'
+                    f'border-radius:8px;padding:8px 10px;margin-top:8px;font-size:0.68rem;color:#6d7a8f;">'
+                    f'<div>{icon("activity",10,"#6d28d9")} <b style="color:#a78bfa">{bins_done}</b> bins · <b style="color:#a78bfa">{lots_done}</b> lots this session</div>'
+                    f'<div style="margin-top:3px;">{icon("clock",10,"#6d28d9")} {mins}m {secs:02d}s elapsed'
+                    f'{"  ·  ~"+str(avg_mins)+"m "+str(avg_secs).zfill(2)+"s/bin" if bins_done > 0 else ""}</div>'
+                    f'</div>', unsafe_allow_html=True)
         if st.button("Skip to Next Bin", use_container_width=True):
             st.session_state.audit_mode_index += 1; st.rerun()
         if st.button("Exit Audit Mode", use_container_width=True, type="primary"):
@@ -852,53 +868,15 @@ with st.sidebar:
 
         st.divider()
         st.markdown(f'<div class="section-label">{ic("package")} Pages</div>', unsafe_allow_html=True)
-        nav_items = [
-            ("dashboard", "home",        "#a78bfa", "Dashboard"),
-            ("browse",    "package",     "#a78bfa", "Browse Inventory"),
-            ("summary",   "bar-chart-2", "#a78bfa", "Summary"),
-            ("stockroom", "grid",        "#60a5fa", "Stockroom"),
-            ("dupes",     "copy",        "#fb923c", "Duplicates"),
-            ("prices",    "tag",         "#4ade80", "Price Checker"),
-            ("orders",    "box",         "#f472b6", "Pull Orders"),
-            ("skipped",   "eye-off",     "#818cf8", "Skipped Items"),
-            ("history",   "calendar",    "#94a3b8", "Audit History"),
-        ]
-        for page_key, ico, color, label in nav_items:
-            is_active = st.session_state.page == page_key
-            bg     = "rgba(109,40,217,0.15)" if is_active else "transparent"
-            border = "1px solid #6d28d9"     if is_active else "1px solid transparent"
-            st.markdown(
-                f'<a href="?page={page_key}" target="_self" style="text-decoration:none;">'
-                f'<div style="background:{bg};border:{border};border-radius:10px;'
-                f'padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px;">'
-                f'{icon(ico,14,color)}'
-                f'<span style="font-size:0.78rem;font-weight:600;color:#94a3b8;">{label}</span>'
-                f'</div></a>', unsafe_allow_html=True)
-        st.markdown(f'<div class="section-label">{ic("package")} Pages</div>', unsafe_allow_html=True)
-        nav_items = [
-            ("dashboard", "home",        "#a78bfa", "Dashboard"),
-            ("browse",    "package",     "#a78bfa", "Browse Inventory"),
-            ("summary",   "bar-chart-2", "#a78bfa", "Summary"),
-            ("stockroom", "grid",        "#60a5fa", "Stockroom"),
-            ("dupes",     "copy",        "#fb923c", "Duplicates"),
-            ("prices",    "tag",         "#4ade80", "Price Checker"),
-            ("orders",    "box",         "#f472b6", "Pull Orders"),
-            ("skipped",   "eye-off",     "#818cf8", "Skipped Items"),
-            ("history",   "calendar",    "#94a3b8", "Audit History"),
-        ]
-        for page_key, ico, color, label in nav_items:
-            is_active = st.session_state.page == page_key
-            bg     = "rgba(109,40,217,0.15)" if is_active else "transparent"
-            border = "1px solid #6d28d9"     if is_active else "1px solid transparent"
-            st.markdown(
-                f'<a href="?page={page_key}" target="_self" style="text-decoration:none;">'
-                f'<div style="background:{bg};border:{border};border-radius:10px;'
-                f'padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px;">'
-                f'{icon(ico,14,color)}'
-                f'<span style="font-size:0.78rem;font-weight:600;color:#94a3b8;">{label}</span>'
-                f'</div></a>', unsafe_allow_html=True)
-            if st.button(label, key=f"nav_{page_key}", use_container_width=True):
-                st.session_state.page = page_key; st.rerun()
+        if st.button("Dashboard",        use_container_width=True): st.session_state.page = "dashboard"; st.rerun()
+        if st.button("Browse Inventory", use_container_width=True): st.session_state.page = "browse";    st.rerun()
+        if st.button("Summary",          use_container_width=True): st.session_state.page = "summary";   st.rerun()
+        if st.button("Stockroom",        use_container_width=True): st.session_state.page = "stockroom"; st.rerun()
+        if st.button("Duplicates",       use_container_width=True): st.session_state.page = "dupes";     st.rerun()
+        if st.button("Audit History",    use_container_width=True): st.session_state.page = "history";   st.rerun()
+        if st.button("Price Checker",    use_container_width=True): st.session_state.page = "prices";    st.rerun()
+        if st.button("Pull Orders",      use_container_width=True): st.session_state.page = "orders";    st.rerun()
+        if st.button("Skipped Items",    use_container_width=True): st.session_state.page = "skipped";   st.rerun()
 
         st.divider()
         if st.session_state.page == "browse":
@@ -1063,16 +1041,43 @@ if st.session_state.audit_mode:
     pct           = int(done_count / total_count * 100) if total_count else 0
     if total_count > 0 and done_count == total_count:
         skip_note = f" · {skipped_count} skipped to Stockroom" if skipped_count else ""
-        st.markdown(
-            f'<div style="background:linear-gradient(135deg,#0d2818,#112d1c);border:2px solid #2d6a4f;'
-            f'border-radius:16px;padding:24px;text-align:center;margin-bottom:20px;">'
-            f'<div style="font-size:1.8rem;margin-bottom:8px;">✅</div>'
-            f'<div style="font-size:1.2rem;font-weight:800;color:#4ade80;">{current_remarks} complete!</div>'
-            f'<div style="font-size:0.8rem;color:#475569;margin-top:6px;">'
-            f'{total_count} lots · {flagged_count} flagged{skip_note}</div></div>', unsafe_allow_html=True)
-        time.sleep(1.2)
-        st.session_state.audit_mode_index += 1
-        st.rerun()
+        if flagged_count > 0:
+            # Show flag summary before advancing
+            flagged_in_bin = [i for i in current_lots if i.get("inventory_id") in st.session_state.flagged]
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#2d0d1a,#331220);border:2px solid #7f1d35;'
+                f'border-radius:16px;padding:24px;margin-bottom:16px;">'
+                f'<div style="font-size:1.1rem;font-weight:800;color:#fb7185;margin-bottom:12px;">'
+                f'{icon("alert-circle",16,"#fb7185")} {flagged_count} flag(s) in {current_remarks}</div>',
+                unsafe_allow_html=True)
+            for fi in flagged_in_bin:
+                fid = fi.get("inventory_id")
+                finfo = st.session_state.flagged.get(fid, {})
+                st.markdown(
+                    f'<div style="font-size:0.78rem;color:#e2e8f0;padding:4px 0;border-bottom:1px solid #4a1a2a;">'
+                    f'<span style="color:#fb7185;font-weight:700;">{fi.get("item",{}).get("no","")}</span>'
+                    f' {fi.get("color_name","")} — {finfo.get("reason","flagged")}'
+                    f'</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            if st.button("Continue to next bin", type="primary", key=f"advance_{current_remarks}"):
+                st.session_state.scan_query = ""
+                st.session_state.audit_mode_index += 1
+                st.rerun()
+            st.stop()
+        else:
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#0d2818,#112d1c);border:2px solid #2d6a4f;'
+                f'border-radius:16px;padding:24px;text-align:center;margin-bottom:20px;">'
+                f'<div style="font-size:1.8rem;margin-bottom:8px;">✅</div>'
+                f'<div style="font-size:1.2rem;font-weight:800;color:#4ade80;">{current_remarks} complete!</div>'
+                f'<div style="font-size:0.8rem;color:#475569;margin-top:6px;">'
+                f'{total_count} lots{skip_note}</div></div>', unsafe_allow_html=True)
+            time.sleep(1.2)
+            st.session_state.scan_query = ""
+            st.session_state.audit_mode_index += 1
+            st.session_state.audit_session_bins = st.session_state.get("audit_session_bins", 0) + 1
+            st.session_state.audit_session_lots = st.session_state.get("audit_session_lots", 0) + total_count
+            st.rerun()
     st.markdown(
         f'<div class="audit-mode-header">'
         f'<div class="audit-mode-sub">{icon("zap",14,"#6d28d9")} Audit Mode · Bin {idx+1} of {len(queue)}</div>'
@@ -1085,8 +1090,27 @@ if st.session_state.audit_mode:
         f'{" · "+str(flagged_count)+" flagged" if flagged_count else ""}'
         f'{" · "+str(skipped_count)+" skipped" if skipped_count else ""}'
         f'</div></div></div>', unsafe_allow_html=True)
+    # Scan bar in audit mode
+    st.markdown('<div class="scan-bar">', unsafe_allow_html=True)
+    a_sc1, a_sc2 = st.columns([5,1])
+    with a_sc1:
+        audit_scan = st.text_input("Scan / quick find", value=st.session_state.scan_query,
+                                    placeholder="Type or scan a part number...",
+                                    label_visibility="collapsed", key="audit_scan_input")
+    with a_sc2:
+        if st.button("Clear", key="audit_scan_clear", use_container_width=True):
+            st.session_state.scan_query = ""; st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    if audit_scan != st.session_state.scan_query:
+        st.session_state.scan_query = audit_scan; st.rerun()
+
     visible_lots = [i for i in current_lots
                     if i.get("inventory_id") not in st.session_state.checked]
+    if st.session_state.scan_query:
+        sq = st.session_state.scan_query.lower()
+        scan_matches = [l for l in visible_lots if sq in l.get("item",{}).get("no","").lower()]
+        non_matches  = [l for l in visible_lots if sq not in l.get("item",{}).get("no","").lower()]
+        visible_lots = scan_matches + non_matches
     render_card_grid(visible_lots, COLS, show_skip_button=True)
     st.stop()
 
@@ -1160,9 +1184,12 @@ if st.session_state.page == "dashboard":
             submitted = st.form_submit_button("Start Audit", use_container_width=True, type="primary")
             if submitted and start_from:
                 start_idx = filtered_remarks.index(start_from)
-                st.session_state.audit_mode       = True
-                st.session_state.audit_mode_queue = filtered_remarks
-                st.session_state.audit_mode_index = start_idx
+                st.session_state.audit_mode        = True
+                st.session_state.audit_mode_queue  = filtered_remarks
+                st.session_state.audit_mode_index  = start_idx
+                st.session_state.audit_start_time  = time.time()
+                st.session_state.audit_session_bins = 0
+                st.session_state.audit_session_lots = 0
                 st.rerun()
     with am_col3:
         st.write("")
