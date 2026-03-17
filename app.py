@@ -509,7 +509,7 @@ def load_storage_history(inventory_id):
     try:
         r = supabase.table("storage_history")\
             .select("*")\
-            .eq("inventory_id", inventory_id)\
+            .eq("inventory_id", int(inventory_id))\
             .order("moved_at", desc=True)\
             .execute()
         return r.data or []
