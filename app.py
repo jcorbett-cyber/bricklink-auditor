@@ -668,12 +668,13 @@ def render_card_grid(lots, cols_count):
                                     try:
                                         update_quantity_on_bricklink(
                                             make_auth(*st.session_state.auth), lid, actual_qty, qty)
-                                        st.session_state.flagged[lid] = {"reason":"Qty updated","actual_qty":actual_qty}
+                                        if lid in st.session_state.flagged:
+                                            del st.session_state.flagged[lid]
+                                        st.session_state.checked.add(lid)
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id")==lid: x["quantity"]=actual_qty
-                                        save_progress(lid,"flagged","Qty updated",actual_qty,None,
-                                                      st.session_state.notes.get(lid))
-                                        st.success("Updated"); st.rerun()
+                                        save_progress(lid,"checked",notes=st.session_state.notes.get(lid))
+                                        st.success("Updated & marked as found!"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
                         elif reason == "Wrong bin":
                             correct_bin = st.text_input(
@@ -1940,12 +1941,14 @@ for group_name,group_items in groupby(inv,key=lambda x:x.get("remarks","") or "(
                                 if st.button("Update on BrickLink",key=f"update_{lid}",use_container_width=True,type="primary"):
                                     try:
                                         update_quantity_on_bricklink(make_auth(*st.session_state.auth),lid,actual_qty)
-                                        st.session_state.flagged[lid]={"reason":"Qty updated","actual_qty":actual_qty}
+                                        if lid in st.session_state.flagged:
+                                            del st.session_state.flagged[lid]
+                                        st.session_state.checked.add(lid)
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id")==lid:
                                                 x["quantity"]=actual_qty
-                                        save_progress(lid,"flagged","Qty updated",actual_qty,None,st.session_state.notes.get(lid))
-                                        st.success("Updated"); st.rerun()
+                                        save_progress(lid,"checked",notes=st.session_state.notes.get(lid))
+                                        st.success("Updated & marked as found!"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
                         elif reason=="Wrong bin":
                             correct_bin=st.text_input(f"Correct bin (current: {remarks or 'none'})",key=f"bin_{lid}")
