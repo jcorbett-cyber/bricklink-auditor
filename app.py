@@ -699,32 +699,22 @@ def render_card_grid(lots, cols_count):
                                     try:
                                         update_remarks_on_bricklink(
                                             make_auth(*st.session_state.auth), lid, correct_bin)
-                                        st.session_state.flagged[lid] = {"reason":"Bin updated","correct_bin":correct_bin}
                                         for x in st.session_state.inventory:
                                             if x.get("inventory_id")==lid:
                                                 save_storage_history(lid, pno, color, x.get("remarks",""), correct_bin)
                                                 x["remarks"]=correct_bin
-                                        save_progress(lid,"flagged","Bin updated",None,correct_bin,
-                                                      st.session_state.notes.get(lid))
-                                        st.success("Bin updated"); st.rerun()
+                                        if lid in st.session_state.flagged:
+                                            del st.session_state.flagged[lid]
+                                        st.session_state.checked.add(lid)
+                                        save_progress(lid,"checked",notes=st.session_state.notes.get(lid))
+                                        st.success("Bin updated & marked as found!"); st.rerun()
                                     except Exception as e: st.error(f"Failed: {e}")
                         else:
                             if st.button("Save flag", key=f"saveflag_{lid}", use_container_width=True):
                                 st.session_state.flagged[lid] = {"reason":"Wrong part"}
                                 save_progress(lid,"flagged","Wrong part",None,None,
                                               st.session_state.notes.get(lid)); st.rerun()
-                            with col.expander("Location History"):
-                                history = load_storage_history(lid)
-                                if not history:
-                                    st.caption("No moves recorded yet.")
-                                else:
-                                    for move in history:
-                                        st.markdown(
-                                            f'<div style="font-size:0.72rem;color:#94a3b8;padding:4px 0;'
-                                            f'border-bottom:1px solid #1e2d45;">'
-                                            f'<span style="color:#e2e8f0;">{move.get("from_bin","?")} → {move.get("to_bin","?")}</span>'
-                                            f'<span style="float:right;color:#475569;">{move.get("moved_at","")[:10]}</span>'
-                                            f'</div>', unsafe_allow_html=True)
+                                
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
