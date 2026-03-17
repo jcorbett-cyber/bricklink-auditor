@@ -41,6 +41,7 @@ def icon(name, size=16, color="currentColor"):
         "log-out":        '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
         "copy":           '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
         "home":           '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+        "eye-off":        '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
     }
     paths = icons.get(name, "")
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
@@ -80,6 +81,8 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 .part-card.found:hover { border-color: #40916c; box-shadow: 0 8px 25px rgba(45,106,79,0.3); }
 .part-card.flagged { background: linear-gradient(145deg, #2d0d1a, #331220); border-color: #7f1d35; }
 .part-card.flagged:hover { border-color: #be2d52; }
+.part-card.skipped { background: linear-gradient(145deg, #1a1a2e, #1e1e3a); border-color: #4a4a8a; }
+.part-card.skipped:hover { border-color: #6a6aaa; }
 .part-card.lowstock { background: linear-gradient(145deg, #2d1a08, #331f0c); border-color: #7c3d0e; }
 .part-card.highlight { background: linear-gradient(145deg, #2a2208, #32290d); border-color: #b5860d; box-shadow: 0 4px 20px rgba(181,134,13,0.25); }
 .part-card.overpriced { background: linear-gradient(145deg, #1e0d2d, #241035); border-color: #5b21b6; }
@@ -101,6 +104,7 @@ section[data-testid="stSidebar"] * { font-family: 'Inter', sans-serif !important
 .badge-u       { background:rgba(45,35,10,0.8);  color:#f59e0b; border:1px solid #78450a; }
 .badge-found   { background:rgba(13,40,24,0.9);  color:#4ade80; border:1px solid #2d6a4f; }
 .badge-flagged { background:rgba(45,13,26,0.9);  color:#fb7185; border:1px solid #7f1d35; }
+.badge-skipped { background:rgba(26,26,46,0.9);  color:#818cf8; border:1px solid #4a4a8a; }
 .badge-low     { background:rgba(45,26,8,0.9);   color:#fb923c; border:1px solid #7c3d0e; }
 .badge-over    { background:rgba(30,13,45,0.9);  color:#a78bfa; border:1px solid #5b21b6; }
 .bin-header {
@@ -294,6 +298,7 @@ for key, default in [
     ("bin_audit_dates", {}),
     ("orders_data", []), ("pick_mode", False), ("pick_queue", []),
     ("pick_index", 0), ("picked_items", set()), ("fulfilled_orders", set()),
+    ("skipped", set()),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -349,6 +354,15 @@ def move_to_stockroom_a(auth, inventory_id):
         raise ValueError(data.get("meta", {}).get("description", "Stockroom move failed"))
     return True
 
+def move_out_of_stockroom(auth, inventory_id):
+    r = requests.put(f"{BASE}/inventories/{inventory_id}", auth=auth,
+                     json={"is_stock_room": False}, timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    if data.get("meta", {}).get("code") != 200:
+        raise ValueError(data.get("meta", {}).get("description", "Stockroom restore failed"))
+    return True
+
 def fetch_price_guide(auth, part_no, color_id, condition="N"):
     r = requests.get(f"{BASE}/items/part/{part_no}/price", auth=auth,
                      params={"color_id": color_id, "guide_type": "sold",
@@ -381,23 +395,25 @@ def delete_progress(inventory_id):
 
 @st.cache_data(ttl=300)
 def load_progress():
-    if not DB_LOADED: return set(), {}, {}
+    if not DB_LOADED: return set(), {}, {}, set()
     try:
         result = supabase.table("audit_progress").select("*").execute()
-        checked, flagged, notes = set(), {}, {}
+        checked, flagged, notes, skipped = set(), {}, {}, set()
         for row in result.data:
             lid = row["inventory_id"]
             if row.get("notes"): notes[lid] = row["notes"]
             if row["status"] == "checked":
                 checked.add(lid)
+            elif row["status"] == "skipped":
+                skipped.add(lid)
             elif row["status"] == "flagged":
                 flagged[lid] = {"reason": row.get("flag_reason", ""),
                                 "actual_qty": row.get("actual_qty"),
                                 "correct_bin": row.get("correct_bin", "")}
-        return checked, flagged, notes
+        return checked, flagged, notes, skipped
     except Exception as e:
         st.warning(f"Could not load progress: {e}")
-        return set(), {}, {}
+        return set(), {}, {}, set()
 
 def clear_all_progress():
     if not DB_LOADED: return
@@ -406,6 +422,40 @@ def clear_all_progress():
             "id", "00000000-0000-0000-0000-000000000000").execute()
     except Exception as e:
         st.warning(f"Could not clear progress: {e}")
+
+def save_skipped_item(inventory_id, part_no, color_name, quantity, bin_name):
+    if not DB_LOADED: return
+    try:
+        supabase.table("skipped_items").insert({
+            "inventory_id": int(inventory_id),
+            "part_no":      part_no,
+            "color_name":   color_name,
+            "quantity":     quantity,
+            "bin":          bin_name,
+            "skipped_at":   datetime.now().isoformat(),
+            "resolved":     False,
+        }).execute()
+    except Exception as e:
+        st.warning(f"Could not save skipped item: {e}")
+
+def load_skipped_items():
+    if not DB_LOADED: return []
+    try:
+        r = supabase.table("skipped_items").select("*").order("skipped_at", desc=True).execute()
+        return r.data or []
+    except Exception as e:
+        st.warning(f"Could not load skipped items: {e}")
+        return []
+
+def resolve_skipped_item(row_id, inventory_id):
+    if not DB_LOADED: return
+    try:
+        supabase.table("skipped_items").update({
+            "resolved": True,
+            "resolved_at": datetime.now().isoformat(),
+        }).eq("id", row_id).execute()
+    except Exception as e:
+        st.warning(f"Could not resolve skipped item: {e}")
 
 def save_audit_snapshot():
     if not DB_LOADED or not st.session_state.inventory: return
@@ -575,7 +625,6 @@ def img_with_qty(pno, color_id, qty):
             f'<span class="qty-badge">{qty}</span></div>')
 
 def render_location_history(col, lid):
-    """Render the location history expander for a card. Only shows if history exists."""
     history = load_storage_history(lid)
     if history:
         with col.expander("📍 Location History"):
@@ -587,7 +636,7 @@ def render_location_history(col, lid):
                     f'<span style="float:right;color:#475569;">{move.get("moved_at","")[:10]}</span>'
                     f'</div>', unsafe_allow_html=True)
 
-def render_card_grid(lots, cols_count):
+def render_card_grid(lots, cols_count, show_skip_button=False):
     for row_start in range(0, len(lots), cols_count):
         row_items = lots[row_start:row_start+cols_count]
         cols      = st.columns(cols_count)
@@ -604,6 +653,7 @@ def render_card_grid(lots, cols_count):
             cond      = "New" if lot.get("new_or_used") == "N" else "Used"
             is_found  = lid in st.session_state.checked
             is_flagged= lid in st.session_state.flagged
+            is_skipped= lid in st.session_state.skipped
             is_low    = 0 < qty <= LOW_STOCK_THRESHOLD
             flag_info = st.session_state.flagged.get(lid, {})
             note_val  = st.session_state.notes.get(lid, "")
@@ -614,11 +664,13 @@ def render_card_grid(lots, cols_count):
                 if mkt > 0: is_over = ((float(price)-mkt)/mkt*100) > PRICE_FLAG_PCT
             if is_flagged:   card_cls = "part-card flagged"
             elif is_found:   card_cls = "part-card found"
+            elif is_skipped: card_cls = "part-card skipped"
             elif is_over:    card_cls = "part-card overpriced"
             elif is_low:     card_cls = "part-card lowstock"
             else:            card_cls = "part-card"
             if is_flagged:   b_cls,b_svg,b_lbl = "badge-flagged",icon("alert-circle",10,"#fb7185"),flag_info.get("reason","Flagged")
             elif is_found:   b_cls,b_svg,b_lbl = "badge-found",icon("check-circle",10,"#4ade80"),"Found"
+            elif is_skipped: b_cls,b_svg,b_lbl = "badge-skipped",icon("eye-off",10,"#818cf8"),"Skipped"
             elif is_over:    b_cls,b_svg,b_lbl = "badge-over",icon("trending-up",10,"#a78bfa"),"Overpriced"
             elif is_low:     b_cls,b_svg,b_lbl = "badge-low",icon("alert-triangle",10,"#fb923c"),f"Low ({qty})"
             else:            b_cls = "badge-n" if cond == "New" else "badge-u"; b_svg,b_lbl = "",cond
@@ -639,6 +691,9 @@ def render_card_grid(lots, cols_count):
                 elif is_found:
                     if col.button("Unmark", key=f"unmark_{lid}", use_container_width=True):
                         st.session_state.checked.discard(lid); delete_progress(lid); st.rerun()
+                elif is_skipped:
+                    if col.button("Unskip", key=f"unskip_{lid}", use_container_width=True):
+                        st.session_state.skipped.discard(lid); delete_progress(lid); st.rerun()
                 else:
                     if col.button("Found", key=f"found_{lid}_{row_start}", use_container_width=True):
                         st.session_state.checked.add(lid)
@@ -647,10 +702,30 @@ def render_card_grid(lots, cols_count):
                         bin_lots = [i for i in st.session_state.inventory
                                     if (i.get("remarks","") or "(no remarks)") == bin_name]
                         if all(i.get("inventory_id") in st.session_state.checked or
-                               i.get("inventory_id") in st.session_state.flagged for i in bin_lots):
+                               i.get("inventory_id") in st.session_state.flagged or
+                               i.get("inventory_id") in st.session_state.skipped for i in bin_lots):
                             save_bin_audit_date(bin_name)
                             st.session_state.bin_audit_dates[bin_name] = datetime.now().strftime("%Y-%m-%d")
                         st.rerun()
+                    if show_skip_button and st.session_state.auth:
+                        if col.button("Skip", key=f"skip_{lid}_{row_start}", use_container_width=True):
+                            try:
+                                auth = make_auth(*st.session_state.auth)
+                                move_to_stockroom_a(auth, lid)
+                                st.session_state.skipped.add(lid)
+                                save_progress(lid, "skipped")
+                                save_skipped_item(lid, pno, color, qty, remarks or "(no remarks)")
+                                bin_name = remarks or "(no remarks)"
+                                bin_lots = [i for i in st.session_state.inventory
+                                            if (i.get("remarks","") or "(no remarks)") == bin_name]
+                                if all(i.get("inventory_id") in st.session_state.checked or
+                                       i.get("inventory_id") in st.session_state.flagged or
+                                       i.get("inventory_id") in st.session_state.skipped for i in bin_lots):
+                                    save_bin_audit_date(bin_name)
+                                    st.session_state.bin_audit_dates[bin_name] = datetime.now().strftime("%Y-%m-%d")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Skip failed: {e}")
                 with col.expander("Note"):
                     new_note = st.text_area("Note", value=note_val, key=f"note_{lid}_{row_start}",
                                             height=80, label_visibility="collapsed",
@@ -658,12 +733,12 @@ def render_card_grid(lots, cols_count):
                     if st.button("Save note", key=f"savenote_{lid}", use_container_width=True):
                         st.session_state.notes[lid] = new_note
                         flag   = st.session_state.flagged.get(lid, {})
-                        status = "checked" if is_found else "flagged" if is_flagged else "unchecked"
+                        status = "checked" if is_found else "skipped" if is_skipped else "flagged" if is_flagged else "unchecked"
                         save_progress(lid, status, flag.get("reason"), flag.get("actual_qty"),
                                       flag.get("correct_bin"), new_note)
                         st.rerun()
                 render_location_history(col, lid)
-                if not is_found and not is_flagged:
+                if not is_found and not is_flagged and not is_skipped:
                     with col.expander("Flag issue"):
                         reason = st.radio("Issue type",
                                           ["Wrong quantity","Wrong part in bin","Wrong bin"],
@@ -745,7 +820,8 @@ with st.sidebar:
             )
             done_count  = sum(1 for i in current_lots
                               if i.get("inventory_id") in st.session_state.checked
-                              or i.get("inventory_id") in st.session_state.flagged)
+                              or i.get("inventory_id") in st.session_state.flagged
+                              or i.get("inventory_id") in st.session_state.skipped)
             total_count = len(current_lots)
             pct = int(done_count / total_count * 100) if total_count else 0
             st.progress(min(max(pct / 100, 0.0), 1.0))
@@ -781,13 +857,14 @@ with st.sidebar:
         if st.button("Audit History",    use_container_width=True): st.session_state.page = "history";   st.rerun()
         if st.button("Price Checker",    use_container_width=True): st.session_state.page = "prices";    st.rerun()
         if st.button("Pull Orders",      use_container_width=True): st.session_state.page = "orders";    st.rerun()
+        if st.button("Skipped Items",    use_container_width=True): st.session_state.page = "skipped";   st.rerun()
 
         st.divider()
         if st.session_state.page == "browse":
             st.markdown(f'<div class="section-label">{ic("sliders")} Filters</div>', unsafe_allow_html=True)
             search_term    = st.text_input("Search part # or name")
             cond_filter    = st.multiselect("Condition", ["New", "Used"], default=["New", "Used"])
-            show_filter    = st.radio("Show", ["All", "Found", "Flagged", "Not yet found", "Low stock"])
+            show_filter    = st.radio("Show", ["All", "Found", "Flagged", "Skipped", "Not yet found", "Low stock"])
             all_remarks    = sorted(set(i.get("remarks","") or "(no remarks)" for i in st.session_state.inventory))
             remarks_filter = "All"
             if len(all_remarks) > 1:
@@ -800,6 +877,7 @@ with st.sidebar:
             total     = len(st.session_state.inventory)
             found_n   = len(st.session_state.checked)
             flagged_n = len(st.session_state.flagged)
+            skipped_n = len(st.session_state.skipped)
             low_n     = sum(1 for i in st.session_state.inventory if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
             pct       = min(int(found_n / total * 100) if total else 0, 100)
             st.markdown(f'<div class="section-label">{ic("activity")} Progress</div>', unsafe_allow_html=True)
@@ -807,6 +885,8 @@ with st.sidebar:
             st.markdown(f"**{found_n}/{total}** found · {pct}%")
             if flagged_n:
                 st.markdown(f'<span style="color:#fb7185;font-size:0.82rem;">{ic("alert-circle",13,"#fb7185")} {flagged_n} flagged</span>', unsafe_allow_html=True)
+            if skipped_n:
+                st.markdown(f'<span style="color:#818cf8;font-size:0.82rem;">{ic("eye-off",13,"#818cf8")} {skipped_n} skipped</span>', unsafe_allow_html=True)
             if low_n:
                 st.markdown(f'<span style="color:#fb923c;font-size:0.82rem;">{ic("alert-triangle",13,"#fb923c")} {low_n} low stock</span>', unsafe_allow_html=True)
             st.divider()
@@ -818,7 +898,8 @@ with st.sidebar:
                 if save_audit_snapshot(): st.success("Snapshot saved")
             if st.button("Reset All Checkmarks", use_container_width=True):
                 st.session_state.checked = set(); st.session_state.flagged = {}
-                st.session_state.notes = {}; st.session_state.show_bulk_confirm = False
+                st.session_state.notes = {}; st.session_state.skipped = set()
+                st.session_state.show_bulk_confirm = False
                 clear_all_progress(); st.rerun()
             remaining = [i for i in st.session_state.inventory if i.get("inventory_id") not in st.session_state.checked]
             if remaining:
@@ -864,14 +945,15 @@ if not st.session_state.audit_mode:
                     st.error(f"Error: {e}")
             if DB_LOADED and st.session_state.loaded:
                 with st.spinner("Restoring saved progress..."):
-                    checked, flagged, notes = load_progress()
+                    checked, flagged, notes, skipped = load_progress()
                     st.session_state.checked         = checked
                     st.session_state.flagged         = flagged
                     st.session_state.notes           = notes
+                    st.session_state.skipped         = skipped
                     st.session_state.price_cache     = load_price_cache()
                     st.session_state.bin_audit_dates = load_bin_audit_dates()
                     if checked or flagged:
-                        st.success(f"Restored {len(checked)} checked, {len(flagged)} flagged")
+                        st.success(f"Restored {len(checked)} checked, {len(flagged)} flagged, {len(skipped)} skipped")
                     else:
                         st.info("Starting fresh.")
             st.session_state.page = "dashboard"
@@ -895,10 +977,11 @@ if not st.session_state.loaded:
                     st.session_state.loaded    = True
                     st.session_state.auth      = (CK, CS, TV, TS)
                     if DB_LOADED:
-                        checked, flagged, notes = load_progress()
+                        checked, flagged, notes, skipped = load_progress()
                         st.session_state.checked         = checked
                         st.session_state.flagged         = flagged
                         st.session_state.notes           = notes
+                        st.session_state.skipped         = skipped
                         st.session_state.price_cache     = load_price_cache()
                         st.session_state.bin_audit_dates = load_bin_audit_dates()
                     st.session_state.page = "dashboard"
@@ -931,18 +1014,21 @@ if st.session_state.audit_mode:
     )
     done_count    = sum(1 for i in current_lots
                         if i.get("inventory_id") in st.session_state.checked
-                        or i.get("inventory_id") in st.session_state.flagged)
+                        or i.get("inventory_id") in st.session_state.flagged
+                        or i.get("inventory_id") in st.session_state.skipped)
     total_count   = len(current_lots)
     flagged_count = sum(1 for i in current_lots if i.get("inventory_id") in st.session_state.flagged)
+    skipped_count = sum(1 for i in current_lots if i.get("inventory_id") in st.session_state.skipped)
     pct           = int(done_count / total_count * 100) if total_count else 0
     if total_count > 0 and done_count == total_count:
+        skip_note = f" · {skipped_count} skipped to Stockroom" if skipped_count else ""
         st.markdown(
             f'<div style="background:linear-gradient(135deg,#0d2818,#112d1c);border:2px solid #2d6a4f;'
             f'border-radius:16px;padding:24px;text-align:center;margin-bottom:20px;">'
             f'<div style="font-size:1.8rem;margin-bottom:8px;">✅</div>'
             f'<div style="font-size:1.2rem;font-weight:800;color:#4ade80;">{current_remarks} complete!</div>'
             f'<div style="font-size:0.8rem;color:#475569;margin-top:6px;">'
-            f'{total_count} lots · {flagged_count} flagged</div></div>', unsafe_allow_html=True)
+            f'{total_count} lots · {flagged_count} flagged{skip_note}</div></div>', unsafe_allow_html=True)
         time.sleep(1.2)
         st.session_state.audit_mode_index += 1
         st.rerun()
@@ -956,9 +1042,11 @@ if st.session_state.audit_mode:
         f'<div style="font-size:0.75rem;color:#6d7a8f;margin-top:6px;">'
         f'{done_count}/{total_count} lots done · {pct}%'
         f'{" · "+str(flagged_count)+" flagged" if flagged_count else ""}'
+        f'{" · "+str(skipped_count)+" skipped" if skipped_count else ""}'
         f'</div></div></div>', unsafe_allow_html=True)
-    visible_lots = [i for i in current_lots if i.get("inventory_id") not in st.session_state.checked]
-    render_card_grid(visible_lots, COLS)
+    visible_lots = [i for i in current_lots
+                    if i.get("inventory_id") not in st.session_state.checked]
+    render_card_grid(visible_lots, COLS, show_skip_button=True)
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -969,6 +1057,7 @@ if st.session_state.page == "dashboard":
     total     = len(inv)
     found_n   = len(st.session_state.checked)
     flagged_n = len(st.session_state.flagged)
+    skipped_n = len(st.session_state.skipped)
     low_n     = sum(1 for i in inv if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
     pct       = min(int(found_n / total * 100) if total else 0, 100)
     n_bins    = len(set(i.get("remarks","") or "(no remarks)" for i in inv))
@@ -988,13 +1077,14 @@ if st.session_state.page == "dashboard":
         st.session_state.inventory = fetch_inventory(make_auth(*st.session_state.auth))
         st.rerun()
 
-    s1,s2,s3,s4,s5 = st.columns(5)
+    s1,s2,s3,s4,s5,s6 = st.columns(6)
     for col, val, label, color in [
-        (s1, f"{pct}%",      "Audited",    "#a78bfa"),
-        (s2, f"{found_n}",   "Found",      "#4ade80"),
-        (s3, f"{flagged_n}", "Flagged",    "#fb7185"),
-        (s4, f"{low_n}",     "Low Stock",  "#fb923c"),
-        (s5, f"{len(dupes)}","Duplicates", "#60a5fa"),
+        (s1, f"{pct}%",       "Audited",    "#a78bfa"),
+        (s2, f"{found_n}",    "Found",      "#4ade80"),
+        (s3, f"{flagged_n}",  "Flagged",    "#fb7185"),
+        (s4, f"{skipped_n}",  "Skipped",    "#818cf8"),
+        (s5, f"{low_n}",      "Low Stock",  "#fb923c"),
+        (s6, f"{len(dupes)}", "Duplicates", "#60a5fa"),
     ]:
         with col:
             st.markdown(
@@ -1013,7 +1103,7 @@ if st.session_state.page == "dashboard":
         f'letter-spacing:0.1em;margin-bottom:8px;">{icon("zap",14,"#6d28d9")} Start Auditing</div>'
         f'<div style="font-size:1.3rem;font-weight:800;color:#f5f3ff;margin-bottom:4px;">Audit Mode</div>'
         f'<div style="font-size:0.8rem;color:#a78bfa;margin-bottom:16px;">'
-        f'Walk bin-by-bin through your stockroom. Auto-advances when each bin is complete.</div>'
+        f'Walk bin-by-bin through your stockroom. Skip button moves parts to Stockroom A on BrickLink.</div>'
         f'</div>', unsafe_allow_html=True)
 
     am_col1, am_col2, am_col3 = st.columns([2,2,1])
@@ -1039,14 +1129,15 @@ if st.session_state.page == "dashboard":
     st.divider()
     st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Quick Access</div>', unsafe_allow_html=True)
 
-    c1,c2,c3,c4,c5,c6 = st.columns(6)
+    c1,c2,c3,c4,c5,c6,c7 = st.columns(7)
     actions = [
-        (c1, "browse",    "package",  "#a78bfa", "Browse Inventory", f"{total:,} lots"),
-        (c2, "stockroom", "grid",     "#60a5fa", "Stockroom",        f"{n_bins} bins"),
-        (c3, "dupes",     "copy",     "#fb923c", "Duplicates",       f"{len(dupes)} groups"),
-        (c4, "prices",    "tag",      "#4ade80", "Price Checker",    "Check market rates"),
-        (c5, "orders",    "box",      "#f472b6", "Pull Orders",      "Pick open orders"),
-        (c6, "history",   "calendar", "#94a3b8", "Audit History",    "View past audits"),
+        (c1, "browse",    "package",      "#a78bfa", "Browse",        f"{total:,} lots"),
+        (c2, "stockroom", "grid",         "#60a5fa", "Stockroom",     f"{n_bins} bins"),
+        (c3, "dupes",     "copy",         "#fb923c", "Duplicates",    f"{len(dupes)} groups"),
+        (c4, "prices",    "tag",          "#4ade80", "Prices",        "Market rates"),
+        (c5, "orders",    "box",          "#f472b6", "Orders",        "Pick open orders"),
+        (c6, "skipped",   "eye-off",      "#818cf8", "Skipped",       f"{skipped_n} items"),
+        (c7, "history",   "calendar",     "#94a3b8", "History",       "Past audits"),
     ]
     for col, page, ico, color, title, sub in actions:
         with col:
@@ -1074,8 +1165,6 @@ if st.session_state.page == "dashboard":
             f'</div>', unsafe_allow_html=True)
     st.stop()
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE: SUMMARY
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "summary":
     st.markdown(f'{icon("bar-chart-2",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit Summary</span>', unsafe_allow_html=True)
@@ -1749,6 +1838,84 @@ if st.session_state.page == "orders":
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: SKIPPED ITEMS
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.page == "skipped":
+    h1,h2=st.columns([8,1])
+    with h1: st.markdown(f'{icon("eye-off",22,"#818cf8")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Skipped Items</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_skipped", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
+    st.caption("Parts skipped during audit — moved to Stockroom A on BrickLink until you locate them.")
+    st.write("")
+
+    skipped_items = load_skipped_items()
+    if not skipped_items:
+        st.info("No skipped items yet. Use the Skip button during Audit Mode to add items here.")
+        st.stop()
+
+    open_items     = [s for s in skipped_items if not s.get("resolved")]
+    resolved_items = [s for s in skipped_items if s.get("resolved")]
+
+    o1,o2,o3 = st.columns(3)
+    with o1: st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:#818cf8">{len(open_items)}</div><div class="metric-label">Still Missing</div></div>', unsafe_allow_html=True)
+    with o2: st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:#4ade80">{len(resolved_items)}</div><div class="metric-label">Resolved</div></div>', unsafe_allow_html=True)
+    with o3: st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:#94a3b8">{len(skipped_items)}</div><div class="metric-label">Total Logged</div></div>', unsafe_allow_html=True)
+
+    st.write("")
+
+    if open_items:
+        st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">{icon("eye-off",12,"#818cf8")} Still Missing — {len(open_items)} items</div>', unsafe_allow_html=True)
+        for s in open_items:
+            row_id = s.get("id")
+            lid    = s.get("inventory_id")
+            pno    = s.get("part_no","")
+            color  = s.get("color_name","")
+            qty    = s.get("quantity",0)
+            bin_n  = s.get("bin","")
+            skipped_at = s.get("skipped_at","")[:10]
+            col_img, col_info, col_action = st.columns([1,4,2])
+            with col_img:
+                inv_lot = next((i for i in st.session_state.inventory if i.get("inventory_id")==lid), None)
+                color_id = inv_lot.get("color_id",0) if inv_lot else 0
+                st.markdown(f'<img src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" style="width:64px;height:64px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid #2d1f4a;" onerror="this.style.opacity=\'0.15\'"/>', unsafe_allow_html=True)
+            with col_info:
+                st.markdown(f'<div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">{pno}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:0.75rem;color:#94a3b8;">{color} · x{qty} · Bin: {bin_n}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:0.68rem;color:#475569;">Skipped {skipped_at} · In Stockroom A</div>', unsafe_allow_html=True)
+            with col_action:
+                st.write("")
+                if st.session_state.auth:
+                    if st.button("Found it — Restore", key=f"resolve_{row_id}", use_container_width=True, type="primary"):
+                        try:
+                            auth = make_auth(*st.session_state.auth)
+                            move_out_of_stockroom(auth, lid)
+                            resolve_skipped_item(row_id, lid)
+                            st.session_state.skipped.discard(lid)
+                            st.session_state.checked.add(lid)
+                            save_progress(lid, "checked")
+                            st.success(f"Restored {pno} to active inventory!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Failed: {e}")
+                else:
+                    st.caption("Load inventory to resolve")
+            st.divider()
+
+    if resolved_items:
+        with st.expander(f"✅ Resolved Items ({len(resolved_items)})"):
+            st.dataframe(pd.DataFrame([{
+                "Part #":      s.get("part_no",""),
+                "Color":       s.get("color_name",""),
+                "Qty":         s.get("quantity",0),
+                "Bin":         s.get("bin",""),
+                "Skipped":     s.get("skipped_at","")[:10],
+                "Resolved":    s.get("resolved_at","")[:10] if s.get("resolved_at") else "",
+            } for s in resolved_items]), use_container_width=True, hide_index=True)
+
+    st.stop()
+
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE: BROWSE INVENTORY
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "browse":
@@ -1807,7 +1974,8 @@ if st.session_state.page == "browse":
         inv=[i for i in inv if q in i.get("item",{}).get("no","").lower() or q in i.get("item",{}).get("name","").lower()]
     if show_filter=="Found":           inv=[i for i in inv if i.get("inventory_id") in st.session_state.checked]
     elif show_filter=="Flagged":       inv=[i for i in inv if i.get("inventory_id") in st.session_state.flagged]
-    elif show_filter=="Not yet found": inv=[i for i in inv if i.get("inventory_id") not in st.session_state.checked and i.get("inventory_id") not in st.session_state.flagged]
+    elif show_filter=="Skipped":       inv=[i for i in inv if i.get("inventory_id") in st.session_state.skipped]
+    elif show_filter=="Not yet found": inv=[i for i in inv if i.get("inventory_id") not in st.session_state.checked and i.get("inventory_id") not in st.session_state.flagged and i.get("inventory_id") not in st.session_state.skipped]
     elif show_filter=="Low stock":     inv=[i for i in inv if 0<i.get("quantity",0)<=LOW_STOCK_THRESHOLD]
     if remarks_filter!="All":          inv=[i for i in inv if (i.get("remarks","") or "(no remarks)")==remarks_filter]
     scan_ids=set()
@@ -1887,7 +2055,7 @@ if st.session_state.page == "browse":
                             save_progress(lid,"checked",notes=st.session_state.notes.get(lid))
                             bin_name=lot.get("remarks","") or "(no remarks)"
                             bin_lots=[i for i in st.session_state.inventory if (i.get("remarks","") or "(no remarks)")==bin_name]
-                            if all(i.get("inventory_id") in st.session_state.checked or i.get("inventory_id") in st.session_state.flagged for i in bin_lots):
+                            if all(i.get("inventory_id") in st.session_state.checked or i.get("inventory_id") in st.session_state.flagged or i.get("inventory_id") in st.session_state.skipped for i in bin_lots):
                                 save_bin_audit_date(bin_name)
                                 st.session_state.bin_audit_dates[bin_name]=datetime.now().strftime("%Y-%m-%d")
                             st.rerun()
