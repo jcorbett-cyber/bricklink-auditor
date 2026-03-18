@@ -2559,6 +2559,28 @@ if st.session_state.page == "legal":
     render_legal_footer()
     st.stop()
 
+def make_inventory_payload(pno, item_type, color_id, qty, price, condition, remarks):
+    """Build a BrickLink inventory POST payload, omitting color_id for non-colored types."""
+    itype = item_type if item_type in ("P","S","M","G","B","C","I","O") else "P"
+    try:
+        price_fmt = f"{float(price):.3f}"
+    except Exception:
+        price_fmt = "0.001"
+    payload = {
+        "item":        {"no": pno, "type": itype},
+        "quantity":    int(qty),
+        "unit_price":  price_fmt,
+        "new_or_used": condition,
+        "remarks":     remarks,
+        "is_retain":   True,
+    }
+    # Only include color_id for types that use colors (Parts, Sets, Books, Gear, Catalogues, Instructions, Original Boxes)
+    # Minifigures (M) with color 0 = Not Applicable — omit color_id entirely
+    if not (itype == "M" and str(color_id) == "0"):
+        cid = int(color_id) if str(color_id).isdigit() else 0
+        payload["color_id"] = cid
+    return payload
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE: XML IMPORT
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2775,15 +2797,9 @@ if st.session_state.page == "xmlimport":
                     final_bin  = chosen_bin if approved else "-INCOMING"
                     txt.text(f"Creating {row['pno']} ({row['color_name']}) → {final_bin}…")
                     try:
-                        payload = {
-                            "item": {"no": row["pno"], "type": row["item_type"] if row["item_type"] in ("P","S","M","G","B","C","I","O") else "P"},
-                            "color_id":    int(row["color_id"]) if str(row["color_id"]).isdigit() else 0,
-                            "quantity":    row["qty"],
-                            "unit_price":  str(row["price"]),
-                            "new_or_used": row["condition"],
-                            "remarks":     final_bin,
-                            "is_retain":   True,
-                        }
+                        payload = make_inventory_payload(
+                            row["pno"], row["item_type"], row["color_id"],
+                            row["qty"], row["price"], row["condition"], final_bin)
                         r = requests.post(f"{BASE}/inventories", auth=auth, json=payload, timeout=30)
                         r.raise_for_status()
                         data = r.json()
@@ -2800,15 +2816,9 @@ if st.session_state.page == "xmlimport":
                 for row in new_rows:
                     txt.text(f"Creating {row['pno']} ({row['color_name']})…")
                     try:
-                        payload = {
-                            "item": {"no": row["pno"], "type": row["item_type"] if row["item_type"] in ("P","S","M","G","B","C","I","O") else "P"},
-                            "color_id":    int(row["color_id"]) if str(row["color_id"]).isdigit() else 0,
-                            "quantity":    row["qty"],
-                            "unit_price":  str(row["price"]),
-                            "new_or_used": row["condition"],
-                            "remarks":     "-INCOMING",
-                            "is_retain":   True,
-                        }
+                        payload = make_inventory_payload(
+                            row["pno"], row["item_type"], row["color_id"],
+                            row["qty"], row["price"], row["condition"], "-INCOMING")
                         r = requests.post(f"{BASE}/inventories", auth=auth, json=payload, timeout=30)
                         r.raise_for_status()
                         data = r.json()
