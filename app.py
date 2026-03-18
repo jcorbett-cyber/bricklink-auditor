@@ -988,6 +988,7 @@ with st.sidebar:
             ("dupes",     "copy",        "#fb923c", "Duplicates"),
             ("prices",    "tag",         "#4ade80", "Price Checker"),
             ("orders",    "box",         "#f472b6", "Pull Orders"),
+            ("xmlimport", "upload",      "#34d399", "XML Import"),
             ("skipped",   "eye-off",     "#818cf8", "Skipped Items"),
             ("history",   "calendar",    "#94a3b8", "Audit History"),
             ("legal",     "file-text",   "#475569", "Legal"),
@@ -2554,4 +2555,238 @@ if st.session_state.page == "legal":
     st.markdown("**BrickLink API** — Your use is also subject to BrickLink's API Terms of Service.")
     st.markdown("**Changes** — These terms may be updated at any time. Continued use constitutes acceptance.")
     render_legal_footer()
+    st.stop()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: XML IMPORT
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.page == "xmlimport":
+    import xml.etree.ElementTree as ET
+
+    h1, h2 = st.columns([8,1])
+    with h1:
+        st.markdown(f'{icon("upload",22,"#34d399")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">XML Import</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_xmlimport", help="Back to Dashboard"):
+            st.session_state.page = "dashboard"; st.rerun()
+
+    st.markdown('<div style="font-size:0.82rem;color:#94a3b8;margin-bottom:20px;">Upload a BrickStore XML file to add parts to your BrickLink store. Existing lots will have their quantities merged. New parts will be created with bin <strong style="color:#34d399;">-INCOMING</strong>.</div>', unsafe_allow_html=True)
+
+    if not st.session_state.get("loaded"):
+        st.warning("Load your inventory first before importing.")
+        st.stop()
+
+    uploaded = st.file_uploader("Choose a BrickStore XML file", type=["xml", "bsx"], key="xml_upload")
+
+    if uploaded:
+        try:
+            tree = ET.parse(uploaded)
+            root = tree.getroot()
+            # BrickStore XML uses <Inventory><Item>...</Item></Inventory>
+            items = root.findall(".//Item")
+            if not items:
+                st.error("No items found in this XML file. Make sure it's a valid BrickStore/BrickLink XML.")
+                st.stop()
+
+            inv = st.session_state.inventory
+
+            # Build a lookup: (part_no, color_id, condition) -> lot
+            inv_lookup = {}
+            for lot in inv:
+                pno   = lot.get("item", {}).get("no", "")
+                cid   = str(lot.get("color_id", 0))
+                cond  = lot.get("new_or_used", "N")
+                key   = (pno.upper(), cid, cond)
+                inv_lookup[key] = lot
+
+            merge_rows = []  # will update qty on existing lot
+            new_rows   = []  # will create new lot
+
+            for item in items:
+                pno      = (item.findtext("ItemID") or item.findtext("ItemNo") or "").strip()
+                pname    = (item.findtext("ItemName") or item.findtext("Descr") or "").strip()
+                color_id = (item.findtext("ColorID") or item.findtext("Color") or "0").strip()
+                color_nm = (item.findtext("ColorName") or item.findtext("ColorDesc") or "").strip()
+                qty      = int(item.findtext("Qty") or item.findtext("MinQty") or "1")
+                price    = (item.findtext("Price") or item.findtext("OrigPrice") or "0.000").strip()
+                cond     = (item.findtext("Condition") or item.findtext("ItemCondition") or "N").strip().upper()
+                cond     = "N" if cond not in ("N","U") else cond
+                remarks  = (item.findtext("Remarks") or "").strip()
+                itype    = (item.findtext("ItemTypeID") or item.findtext("ItemType") or "P").strip().upper()
+
+                if not pno:
+                    continue
+
+                key = (pno.upper(), color_id, cond)
+                if key in inv_lookup:
+                    existing = inv_lookup[key]
+                    merge_rows.append({
+                        "inventory_id": existing.get("inventory_id"),
+                        "pno": pno,
+                        "pname": pname or existing.get("item",{}).get("name",""),
+                        "color_id": color_id,
+                        "color_name": color_nm or existing.get("color_name",""),
+                        "condition": cond,
+                        "add_qty": qty,
+                        "existing_qty": existing.get("quantity", 0),
+                        "new_qty": existing.get("quantity", 0) + qty,
+                        "price": existing.get("unit_price", price),
+                        "bin": existing.get("remarks", ""),
+                        "item_type": itype,
+                    })
+                else:
+                    new_rows.append({
+                        "pno": pno,
+                        "pname": pname,
+                        "color_id": color_id,
+                        "color_name": color_nm,
+                        "condition": cond,
+                        "qty": qty,
+                        "price": price,
+                        "bin": "-INCOMING",
+                        "item_type": itype,
+                        "remarks_from_xml": remarks,
+                    })
+
+            total = len(merge_rows) + len(new_rows)
+            st.markdown(
+                f'<div style="display:flex;gap:16px;margin-bottom:20px;">'
+                f'<div style="background:#0d2818;border:1px solid #2d6a4f;border-radius:12px;padding:14px 20px;flex:1;text-align:center;">'
+                f'<div style="font-size:1.6rem;font-weight:800;color:#4ade80;">{len(merge_rows)}</div>'
+                f'<div style="font-size:0.7rem;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Will Merge</div></div>'
+                f'<div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:14px 20px;flex:1;text-align:center;">'
+                f'<div style="font-size:1.6rem;font-weight:800;color:#60a5fa;">{len(new_rows)}</div>'
+                f'<div style="font-size:0.7rem;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Will Create New</div></div>'
+                f'<div style="background:#161b27;border:1px solid #1e2d45;border-radius:12px;padding:14px 20px;flex:1;text-align:center;">'
+                f'<div style="font-size:1.6rem;font-weight:800;color:#e2e8f0;">{total}</div>'
+                f'<div style="font-size:0.7rem;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Total Lots</div></div>'
+                f'</div>', unsafe_allow_html=True)
+
+            tab_merge, tab_new = st.tabs([f"🔀 Merge into existing ({len(merge_rows)})", f"✨ Create new lots ({len(new_rows)})"])
+
+            with tab_merge:
+                if not merge_rows:
+                    st.info("No parts in this file match your existing inventory.")
+                else:
+                    st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:12px;">These parts already exist in your store. Their quantities will be increased.</div>', unsafe_allow_html=True)
+                    merge_df_data = [{
+                        "Part #": r["pno"],
+                        "Name": r["pname"][:30],
+                        "Color": r["color_name"],
+                        "Cond": r["condition"],
+                        "Current Qty": r["existing_qty"],
+                        "+ Adding": r["add_qty"],
+                        "New Qty": r["new_qty"],
+                        "Price": f"${r['price']}",
+                        "Bin": r["bin"],
+                    } for r in merge_rows]
+                    st.dataframe(merge_df_data, use_container_width=True, hide_index=True)
+
+            with tab_new:
+                if not new_rows:
+                    st.info("All parts in this file already exist in your inventory.")
+                else:
+                    st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:12px;">These parts are not in your store yet. They will be created with bin <strong style="color:#34d399;">-INCOMING</strong>.</div>', unsafe_allow_html=True)
+                    new_df_data = [{
+                        "Part #": r["pno"],
+                        "Name": r["pname"][:30],
+                        "Color": r["color_name"],
+                        "Cond": r["condition"],
+                        "Qty": r["qty"],
+                        "Price": f"${r['price']}",
+                        "Bin": r["bin"],
+                    } for r in new_rows]
+                    st.dataframe(new_df_data, use_container_width=True, hide_index=True)
+
+            st.write("")
+            st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:12px;">Review the preview above, then confirm to push everything to BrickLink.</div>', unsafe_allow_html=True)
+
+            if st.button(f"✅ Confirm & Push {total} lots to BrickLink", type="primary", key="xml_confirm"):
+                if not st.session_state.auth:
+                    st.error("No credentials loaded.")
+                    st.stop()
+
+                auth = make_auth(*st.session_state.auth)
+                errors = []
+                success_merge = 0
+                success_new   = 0
+                pb  = st.progress(0)
+                txt = st.empty()
+                total_ops = len(merge_rows) + len(new_rows)
+                done = 0
+
+                # --- MERGE: update quantity on existing lots ---
+                for row in merge_rows:
+                    txt.text(f"Merging {row['pno']} ({row['color_name']})…")
+                    try:
+                        r = requests.put(
+                            f"{BASE}/inventories/{row['inventory_id']}",
+                            auth=auth,
+                            json={"quantity": row["new_qty"]},
+                            timeout=30
+                        )
+                        r.raise_for_status()
+                        data = r.json()
+                        if data.get("meta",{}).get("code") != 200:
+                            raise ValueError(data.get("meta",{}).get("description","Update failed"))
+                        # Update local inventory too
+                        for lot in st.session_state.inventory:
+                            if lot.get("inventory_id") == row["inventory_id"]:
+                                lot["quantity"] = row["new_qty"]
+                        success_merge += 1
+                    except Exception as e:
+                        errors.append(f"Merge {row['pno']}: {e}")
+                    done += 1
+                    pb.progress(done / total_ops)
+                    time.sleep(0.1)
+
+                # --- NEW: create new inventory lots ---
+                for row in new_rows:
+                    txt.text(f"Creating {row['pno']} ({row['color_name']})…")
+                    try:
+                        payload = {
+                            "item": {
+                                "no":   row["pno"],
+                                "type": row["item_type"] if row["item_type"] in ("P","S","M","G","B","C","I","O") else "P"
+                            },
+                            "color_id":    int(row["color_id"]) if str(row["color_id"]).isdigit() else 0,
+                            "quantity":    row["qty"],
+                            "unit_price":  str(row["price"]),
+                            "new_or_used": row["condition"],
+                            "remarks":     "-INCOMING",
+                            "is_retain":   True,
+                        }
+                        r = requests.post(
+                            f"{BASE}/inventories",
+                            auth=auth,
+                            json=payload,
+                            timeout=30
+                        )
+                        r.raise_for_status()
+                        data = r.json()
+                        if data.get("meta",{}).get("code") not in (200, 201):
+                            raise ValueError(data.get("meta",{}).get("description","Create failed"))
+                        success_new += 1
+                    except Exception as e:
+                        errors.append(f"New {row['pno']}: {e}")
+                    done += 1
+                    pb.progress(done / total_ops)
+                    time.sleep(0.1)
+
+                pb.empty(); txt.empty()
+
+                if success_merge:
+                    st.success(f"✅ Merged quantities on {success_merge} existing lot(s)")
+                if success_new:
+                    st.success(f"✅ Created {success_new} new lot(s) in -INCOMING")
+                for err in errors:
+                    st.error(f"⚠️ {err}")
+                if not errors:
+                    st.balloons()
+                    st.info("Refresh your inventory to see the updated lots.")
+
+        except ET.ParseError as e:
+            st.error(f"Could not parse XML file: {e}")
+        except Exception as e:
+            st.error(f"Unexpected error: {e}")
     st.stop()
