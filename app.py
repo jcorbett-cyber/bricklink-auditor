@@ -94,6 +94,11 @@ section[data-testid="stSidebar"] * { font-family: 'DM Sans', sans-serif !importa
   font-size:1.3rem; font-weight:800; color:#e2e8f0;
   text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8); line-height:1;
 }
+.order-letter-badge {
+  position:absolute; top:4px; right:6px;
+  font-size:1.3rem; font-weight:900; line-height:1;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
+}
 .part-name { font-size:0.78rem; color:#f1f5f9; font-weight:800; margin-bottom:4px; letter-spacing:0.01em; }
 .part-meta { font-size:0.68rem; color:#94a3b8; line-height:1.5; }
 .badge {
@@ -694,11 +699,13 @@ def push_all_flags(auth):
             results["failed"].append({**item, "error": str(e)})
     return results
 
-def img_with_qty(pno, color_id, qty):
+def img_with_qty(pno, color_id, qty, order_letter=None, order_color=None):
+    letter_badge = (f'<span class="order-letter-badge" style="color:{order_color};">{order_letter}</span>'
+                    if order_letter else "")
     return (f'<div class="part-img-wrap">'
             f'<img class="part-img" src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" '
             f'onerror="this.style.opacity=\'0.15\'"/>'
-            f'<span class="qty-badge">{qty}</span></div>')
+            f'<span class="qty-badge">{qty}</span>{letter_badge}</div>')
 
 def render_location_history(col, lid):
     history = load_storage_history(lid)
@@ -1913,7 +1920,7 @@ if st.session_state.page == "orders":
                     pick_key = f"{oid}_{pno}_{color_id}"
                     single_items.append({
                         "order_id": oid, "order_letter": letter, "order_color": color,
-                        "buyer": order.get("buyer_name",""), "pno": pno,
+                        "buyer": buyer, "pno": pno,
                         "pname": item.get("item",{}).get("name",""), "color_id": color_id,
                         "color_name": item.get("color_name",""), "quantity": item.get("quantity",1),
                         "bin": item.get("bin_location","(no bin)"), "pick_key": pick_key,
@@ -1923,6 +1930,10 @@ if st.session_state.page == "orders":
                 single_bins = []
                 for bin_name, bin_items in igrp(single_items, key=lambda x: x["bin"]):
                     single_bins.append({"bin": bin_name, "items": list(bin_items)})
+                st.session_state.pick_mode  = True
+                st.session_state.pick_queue = single_bins
+                st.session_state.pick_index = 0
+                st.rerun()
 
         st.write("")
 
@@ -1972,12 +1983,10 @@ if st.session_state.page == "orders":
                 with col:
                     st.markdown(
                         f'<div class="{card_cls}">'
-                        f'{img_with_qty(item["pno"],item["color_id"],item["quantity"])}'
+                        f'{img_with_qty(item["pno"],item["color_id"],item["quantity"],item["order_letter"],order_color)}'
                         f'<div class="part-name">{item["pno"]}</div>'
                         f'<div class="part-meta">{item["pname"][:24]}</div>'
                         f'<div class="part-meta">{item["color_name"]}</div>'
-                        f'<span class="badge" style="background:{order_color}22;color:{order_color};border:1px solid {order_color}55;">'
-                        f'Order {item["order_letter"]} · {item["buyer"][:12]}</span>'
                         f'</div>', unsafe_allow_html=True)
 
     else:
@@ -2155,14 +2164,10 @@ if st.session_state.page == "orders":
                 with col:
                     st.markdown(
                         f'<div class="{card_cls}">'
-                        f'{img_with_qty(item["pno"],item["color_id"],item["quantity"])}'
+                        f'{img_with_qty(item["pno"],item["color_id"],item["quantity"],item["order_letter"],order_color)}'
                         f'<div class="part-name">{item["pno"]}</div>'
                         f'<div class="part-meta">{item["pname"][:24]}</div>'
                         f'<div class="part-meta">{item["color_name"]}</div>'
-                        f'<div style="position:absolute;top:6px;right:6px;background:{order_color};'
-                        f'color:#0d1117;font-size:0.75rem;font-weight:900;width:22px;height:22px;'
-                        f'border-radius:50%;display:flex;align-items:center;justify-content:center;'
-                        f'z-index:10;">{item["order_letter"]}</div>'
                         f'</div>', unsafe_allow_html=True)
                     if is_picked:
                         if col.button("Unpick", key=f"unpick_{pick_key}", use_container_width=True):
