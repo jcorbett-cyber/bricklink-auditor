@@ -9,6 +9,30 @@ import time
 
 st.set_page_config(page_title="Brick Audit", page_icon="🧱", layout="wide")
 
+# ── PWA support ───────────────────────────────────────────────────────────────
+_ICON_BASE = "https://raw.githubusercontent.com/jcorbett-cyber/bricklink-auditor/main/static"
+st.markdown(f"""
+<link rel="manifest" href="data:application/json,{{
+  %22name%22:%22Brick Audit%22,
+  %22short_name%22:%22BrickAudit%22,
+  %22start_url%22:%22.%22,
+  %22display%22:%22standalone%22,
+  %22background_color%22:%22%230d1117%22,
+  %22theme_color%22:%22%236d28d9%22,
+  %22icons%22:[
+    {{%22src%22:%22{_ICON_BASE}/icon-192.png%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22}},
+    {{%22src%22:%22{_ICON_BASE}/icon-512.png%22,%22sizes%22:%22512x512%22,%22type%22:%22image/png%22}}
+  ]
+}}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Brick Audit">
+<link rel="apple-touch-icon" href="{_ICON_BASE}/icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#6d28d9">
+""", unsafe_allow_html=True)
+# ─────────────────────────────────────────────────────────────────────────────
+
 def icon(name, size=16, color="currentColor"):
     icons = {
         "package":        '<path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
