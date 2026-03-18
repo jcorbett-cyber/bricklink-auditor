@@ -2096,6 +2096,25 @@ if st.session_state.page == "orders":
                     f'<div>{status_html}</div>'
                     f'</div>', unsafe_allow_html=True)
             st.write("")
+            # Per-order tracking number inputs
+            st.markdown('<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">📬 Tracking Numbers</div>', unsafe_allow_html=True)
+            CARRIERS = ["USPS", "UPS", "FedEx", "DHL", "Other"]
+            for order in orders:
+                oid    = order.get("order_id")
+                letter = letter_map[oid]
+                color  = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
+                buyer  = order.get("buyer_name","Unknown")
+                if str(oid).startswith("BO-"):
+                    continue
+                st.markdown(f'<div style="font-size:0.78rem;font-weight:700;color:{color};margin-bottom:4px;">{letter} — {buyer} #{oid}</div>', unsafe_allow_html=True)
+                tc1, tc2 = st.columns([3,1])
+                with tc1:
+                    st.text_input("Tracking number", placeholder="e.g. 9400111899223397110891",
+                                  key=f"tracking_{oid}", label_visibility="collapsed")
+                with tc2:
+                    st.selectbox("Carrier", CARRIERS, key=f"carrier_{oid}",
+                                 index=0, label_visibility="collapsed")
+            st.write("")
             # Per-order message previews
             with st.expander("👁️ Preview messages before sending", expanded=False):
                 msg_template = st.session_state.get("pack_message", DEFAULT_DRIVE_THRU)
@@ -2145,6 +2164,16 @@ if st.session_state.page == "orders":
                         r1 = requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
                                           json={"field": "status", "value": "PACKED"}, timeout=30)
                         r1.raise_for_status()
+                        # Submit tracking number if provided
+                        tracking_no = st.session_state.get(f"tracking_{oid}", "").strip()
+                        carrier     = st.session_state.get(f"carrier_{oid}", "USPS")
+                        if tracking_no:
+                            requests.put(f"{BASE}/orders/{oid}", auth=auth,
+                                         json={"shipping": {
+                                             "tracking_no": tracking_no,
+                                             "tracking_link": "",
+                                             "method_id": 0
+                                         }}, timeout=30)
                         # Post drive-thru message
                         requests.post(f"{BASE}/orders/{oid}/messages", auth=auth,
                                       json={"subject": "Order Packed",
