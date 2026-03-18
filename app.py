@@ -2572,12 +2572,13 @@ def make_inventory_payload(pno, item_type, color_id, qty, price, condition, rema
     except Exception:
         price_fmt = "0.001"
     payload = {
-        "item":        {"no": pno, "type": itype},
-        "quantity":    int(qty),
-        "unit_price":  price_fmt,
-        "new_or_used": condition,
-        "remarks":     remarks,
-        "is_retain":   True,
+        "item":         {"no": pno, "type": itype},
+        "quantity":     int(qty),
+        "unit_price":   price_fmt,
+        "new_or_used":  condition,
+        "remarks":      remarks,
+        "is_retain":    True,
+        "is_stock_room": False,
     }
     # BrickLink always requires color_id — use 0 for Not Applicable (minifigs etc.)
     payload["color_id"] = int(color_id) if str(color_id).isdigit() else 0
