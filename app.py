@@ -1197,27 +1197,26 @@ if st.session_state.page == "dashboard":
         f'<div style="font-size:0.85rem;color:#a78bfa;margin-bottom:20px;line-height:1.5;">'
         f'Walk bin-by-bin through your stockroom. Skip moves parts to Stockroom A. Mark all found skips the whole bin.</div>'
         f'</div>', unsafe_allow_html=True)
-    with st.form("audit_start_form"):
-        ac1, ac2, ac3 = st.columns([2,2,1])
-        with ac1:
-            zone_choice = st.selectbox("Zone", ["All zones","Bins only","Tubs only","Trays only","White Drawers only"], key="dash_zone")
-        with ac2:
-            zone_key = zone_map[zone_choice]
-            all_remarks_sorted = sorted(set(i.get("remarks","") or "(no remarks)" for i in inv))
-            filtered_remarks   = [r for r in all_remarks_sorted if zone_key=="all" or detect_zone(r)==zone_key]
-            start_from = st.selectbox("Start from bin", filtered_remarks, key="dash_start") if filtered_remarks else None
-        with ac3:
-            st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
-            submitted = st.form_submit_button("Start Audit", use_container_width=True, type="primary")
-        if submitted and start_from:
-            start_idx = filtered_remarks.index(start_from)
-            st.session_state.audit_mode        = True
-            st.session_state.audit_mode_queue  = filtered_remarks
-            st.session_state.audit_mode_index  = start_idx
-            st.session_state.audit_start_time  = time.time()
-            st.session_state.audit_session_bins = 0
-            st.session_state.audit_session_lots = 0
-            st.rerun()
+    ac1, ac2, ac3 = st.columns([2,2,1])
+    with ac1:
+        zone_choice = st.selectbox("Zone", ["All zones","Bins only","Tubs only","Trays only","White Drawers only"], key="dash_zone")
+    zone_key = zone_map[zone_choice]
+    all_remarks_sorted = sorted(set(i.get("remarks","") or "(no remarks)" for i in inv))
+    filtered_remarks   = [r for r in all_remarks_sorted if zone_key=="all" or detect_zone(r)==zone_key]
+    with ac2:
+        start_from = st.selectbox("Start from bin", filtered_remarks, key="dash_start") if filtered_remarks else None
+    with ac3:
+        st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
+        submitted = st.button("Start Audit", use_container_width=True, type="primary", key="start_audit_btn")
+    if submitted and start_from:
+        start_idx = filtered_remarks.index(start_from)
+        st.session_state.audit_mode        = True
+        st.session_state.audit_mode_queue  = filtered_remarks
+        st.session_state.audit_mode_index  = start_idx
+        st.session_state.audit_start_time  = time.time()
+        st.session_state.audit_session_bins = 0
+        st.session_state.audit_session_lots = 0
+        st.rerun()
             
     st.divider()
     st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Quick Access</div>', unsafe_allow_html=True)
@@ -1324,6 +1323,62 @@ if st.session_state.page == "stockroom":
             low=zone_low(lots); pct=zone_pct(lots)
             st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:{color}">{len(lots)}</div><div class="metric-label">{label}</div><div style="font-size:0.7rem;color:#475569;margin-top:6px;">{pct}% audited{" · "+str(low)+" low stock" if low else ""}</div></div>', unsafe_allow_html=True)
     st.divider()
+    st.divider()
+    with st.expander(f"{icon('move',16,'#fb923c')} Move Entire Bin to a New Location", expanded=False):
+        st.markdown('<div style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;">Use this when a bin is too full and you need to relocate all its parts to a larger bin. This updates every lot in the source bin on BrickLink and logs the move in storage history.</div>', unsafe_allow_html=True)
+        all_bin_remarks = sorted(set(i.get("remarks","") for i in inv if i.get("remarks","")))
+        mb1, mb2 = st.columns(2)
+        with mb1:
+            from_bin = st.selectbox("Move FROM bin", ["— select —"] + all_bin_remarks, key="movebin_from")
+        with mb2:
+            to_bin = st.text_input("Move TO bin (type new location)", placeholder="e.g. AS024", key="movebin_to")
+        if from_bin != "— select —" and from_bin:
+            lots_to_move = [i for i in inv if i.get("remarks","") == from_bin]
+            st.markdown(f'<div style="font-size:0.8rem;color:#a78bfa;margin-bottom:8px;">📦 {len(lots_to_move)} lot(s) found in <strong>{from_bin}</strong></div>', unsafe_allow_html=True)
+        if st.button("Move All Parts to New Bin", type="primary", key="do_movebin"):
+            if from_bin == "— select —" or not from_bin:
+                st.error("Please select a source bin.")
+            elif not to_bin.strip():
+                st.error("Please type a destination bin.")
+            elif from_bin.strip().upper() == to_bin.strip().upper():
+                st.error("Source and destination bins are the same.")
+            else:
+                lots_to_move = [i for i in inv if i.get("remarks","") == from_bin]
+                if not lots_to_move:
+                    st.error(f"No lots found in {from_bin}.")
+                else:
+                    auth = make_auth(*st.session_state.auth)
+                    pb = st.progress(0); txt = st.empty()
+                    success = []; failed = []
+                    for idx_m, lot in enumerate(lots_to_move):
+                        lid = lot.get("inventory_id")
+                        pno = lot.get("item",{}).get("no","")
+                        color_name = lot.get("color_name","")
+                        txt.text(f"Moving {idx_m+1}/{len(lots_to_move)}: {pno} {color_name}…")
+                        try:
+                            update_remarks_on_bricklink(auth, lid, to_bin.strip())
+                            lot["remarks"] = to_bin.strip()
+                            # Log to storage history
+                            if DB_LOADED:
+                                supabase.table("storage_history").insert({
+                                    "inventory_id": lid,
+                                    "part_no": pno,
+                                    "color_name": color_name,
+                                    "from_bin": from_bin,
+                                    "to_bin": to_bin.strip(),
+                                }).execute()
+                            success.append(lid)
+                        except Exception as e:
+                            failed.append(f"{pno}: {e}")
+                        pb.progress((idx_m+1)/len(lots_to_move))
+                        time.sleep(0.15)
+                    pb.empty(); txt.empty()
+                    if success:
+                        st.success(f"✅ Moved {len(success)} lot(s) from {from_bin} → {to_bin.strip()}")
+                    for f in failed:
+                        st.error(f"Failed: {f}")
+                    if success:
+                        st.rerun()
     tab_bins,tab_tubs,tab_trays,tab_wd=st.tabs(["Bins","Tubs","Trays","White Drawers"])
     def render_zone_tab(zone_lots,zone_key,zone_label_singular,select_label,all_options,header_color,header_icon):
         selected=st.selectbox(select_label,["All "+zone_label_singular+"s"]+all_options,key=f"stockroom_{zone_key}_select")
@@ -1601,6 +1656,19 @@ if st.session_state.page == "orders":
         if st.button("⌂", key="home_orders", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.write("")
 
+    # Post-pack message & feedback settings
+    with st.expander(f"{icon('message-square',14,'#94a3b8')} Pack Message & Feedback Settings", expanded=False):
+        st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:10px;">These texts are sent automatically to buyers when you mark orders packed.</div>', unsafe_allow_html=True)
+        default_msg = "Your order has been packed and will ship soon! Thank you for your purchase."
+        default_fb  = "Great buyer — smooth transaction. Thank you!"
+        pack_msg = st.text_area("Drive-thru message to buyer", value=st.session_state.get("pack_message", default_msg), key="pack_message_input", height=80)
+        pack_fb  = st.text_area("Positive feedback text", value=st.session_state.get("pack_feedback", default_fb), key="pack_feedback_input", height=60)
+        if st.button("Save Settings", key="save_pack_settings"):
+            st.session_state["pack_message"] = pack_msg
+            st.session_state["pack_feedback"] = pack_fb
+            st.success("Saved!")
+    st.write("")
+
     ORDER_COLORS = ["#f472b6","#60a5fa","#4ade80","#fb923c","#a78bfa","#f87171","#34d399","#fbbf24"]
 
     @st.cache_data(ttl=60)
@@ -1846,16 +1914,69 @@ if st.session_state.page == "orders":
                 color  = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
                 o_items= [i for b in queue for i in b["items"] if i["order_id"]==oid]
                 o_picked=sum(1 for i in o_items if i.get("pick_key","") in st.session_state.picked_items)
-                status = "✓ Complete" if o_picked==len(o_items) else f"{o_picked}/{len(o_items)} picked"
+                status_html = '<span style="color:#4ade80;font-weight:700;">✓ All items picked</span>' if o_picked==len(o_items) else f'<span style="color:#fb923c;font-weight:700;">{o_picked}/{len(o_items)} items picked</span>'
+                total_pieces = sum(i.get("quantity",1) for i in o_items)
+                grand_total  = order.get("cost",{}).get("grand_total","?")
+                buyer        = order.get("buyer_name","Unknown")
+                n_lots       = len(o_items)
                 st.markdown(
-                    f'<div style="background:#161b27;border:1px solid #1e2d45;border-left:4px solid {color};'
-                    f'border-radius:12px;padding:12px 16px;margin-bottom:8px;">'
-                    f'<span style="color:{color};font-weight:800;margin-right:10px;">{letter}</span>'
-                    f'<span style="color:#e2e8f0;font-weight:600;">{order.get("buyer_name","")} #{oid}</span>'
-                    f'<span style="float:right;color:#4ade80;">{status}</span></div>', unsafe_allow_html=True)
-            if st.button("Mark All Orders Fulfilled", type="primary"):
+                    f'<div style="background:linear-gradient(145deg,#161b27,#1a2235);border:1px solid #1e2d45;'
+                    f'border-left:4px solid {color};border-radius:14px;padding:16px 20px;margin-bottom:12px;">'
+                    f'<div style="display:flex;align-items:center;margin-bottom:10px;">'
+                    f'<span style="background:{color}22;color:{color};font-size:1rem;font-weight:900;'
+                    f'border-radius:8px;padding:4px 12px;margin-right:12px;border:1px solid {color}44;">{letter}</span>'
+                    f'<span style="color:#e2e8f0;font-weight:700;font-size:1rem;">{buyer}</span>'
+                    f'<span style="color:#475569;font-size:0.8rem;margin-left:8px;">#{oid}</span>'
+                    f'</div>'
+                    f'<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:8px;">'
+                    f'<div style="text-align:center;">'
+                    f'<div style="font-size:1.3rem;font-weight:800;color:#a78bfa;">{n_lots}</div>'
+                    f'<div style="font-size:0.65rem;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Lots</div></div>'
+                    f'<div style="text-align:center;">'
+                    f'<div style="font-size:1.3rem;font-weight:800;color:#60a5fa;">{total_pieces}</div>'
+                    f'<div style="font-size:0.65rem;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Pieces</div></div>'
+                    f'<div style="text-align:center;">'
+                    f'<div style="font-size:1.3rem;font-weight:800;color:#4ade80;">${grand_total}</div>'
+                    f'<div style="font-size:0.65rem;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Order Total</div></div>'
+                    f'</div>'
+                    f'<div>{status_html}</div>'
+                    f'</div>', unsafe_allow_html=True)
+            st.write("")
+            if st.button("📦 Mark All Orders Packed & Send Feedback", type="primary"):
+                auth = make_auth(*st.session_state.auth)
+                pack_errors = []
                 for order in orders:
-                    st.session_state.fulfilled_orders.add(order.get("order_id"))
+                    oid = order.get("order_id","")
+                    if str(oid).startswith("BO-"):
+                        st.session_state.fulfilled_orders.add(oid)
+                        continue
+                    try:
+                        # Set order status to PACKED
+                        r1 = requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
+                                          json={"field": "status", "value": "PACKED"}, timeout=30)
+                        r1.raise_for_status()
+                        # Set shipping status to Packed
+                        r2 = requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
+                                          json={"field": "payment_status", "value": "Received"}, timeout=30)
+                        # Post drive-thru message
+                        r3 = requests.post(f"{BASE}/orders/{oid}/messages", auth=auth,
+                                           json={"subject": "Order Packed",
+                                                 "body": st.session_state.get("pack_message", "Your order has been packed and will ship soon! Thank you for your purchase."),
+                                                 "to": "buyer"}, timeout=30)
+                        # Post positive feedback
+                        r4 = requests.post(f"{BASE}/feedback", auth=auth,
+                                           json={"order_id": oid,
+                                                 "rating": "Praise",
+                                                 "comment": st.session_state.get("pack_feedback", "Great buyer — smooth transaction. Thank you!")},
+                                           timeout=30)
+                        st.session_state.fulfilled_orders.add(oid)
+                    except Exception as e:
+                        pack_errors.append(f"Order {oid}: {e}")
+                if pack_errors:
+                    for err in pack_errors:
+                        st.error(f"⚠️ {err}")
+                else:
+                    st.success("✅ All orders marked packed, messages sent, and feedback posted!")
                 st.session_state.pick_mode = False
                 st.rerun()
             if st.button("Back to Orders", use_container_width=False):
