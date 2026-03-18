@@ -1445,7 +1445,7 @@ if st.session_state.page == "stockroom":
             st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:{color}">{len(lots)}</div><div class="metric-label">{label}</div><div style="font-size:0.7rem;color:#475569;margin-top:6px;">{pct}% audited{" · "+str(low)+" low stock" if low else ""}</div></div>', unsafe_allow_html=True)
     st.divider()
     st.divider()
-    with st.expander(f"{icon('move',16,'#fb923c')} Move Entire Bin to a New Location", expanded=False):
+    with st.expander("📦 Move Entire Bin to a New Location", expanded=False):
         st.markdown('<div style="font-size:0.8rem;color:#94a3b8;margin-bottom:12px;">Use this when a bin is too full and you need to relocate all its parts to a larger bin. This updates every lot in the source bin on BrickLink and logs the move in storage history.</div>', unsafe_allow_html=True)
         all_bin_remarks = sorted(set(i.get("remarks","") for i in inv if i.get("remarks","")))
         mb1, mb2 = st.columns(2)
