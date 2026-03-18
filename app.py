@@ -309,10 +309,12 @@ try:
     TV = st.secrets["BL_TOKEN_VALUE"]
     TS = st.secrets["BL_TOKEN_SECRET"]
     BO_KEY = st.secrets.get("BRICKOWL_API_KEY", "")
+    APP_PASSWORD = st.secrets.get("APP_PASSWORD", "")
     SECRETS_LOADED = True
 except Exception:
     SECRETS_LOADED = False
     BO_KEY = ""
+    APP_PASSWORD = ""
 
 try:
     supabase  = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -959,6 +961,35 @@ def render_card_grid(lots, cols_count, show_skip_button=False):
                                 st.session_state.flagged[lid] = {"reason":"Wrong part"}
                                 save_progress(lid,"flagged","Wrong part",None,None,
                                               st.session_state.notes.get(lid)); st.rerun()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PASSWORD GATE
+# ══════════════════════════════════════════════════════════════════════════════
+if APP_PASSWORD:
+    # Check if already authenticated this session
+    if not st.session_state.get("authenticated"):
+        st.markdown('<div style="display:flex;justify-content:center;margin-top:80px;"></div>', unsafe_allow_html=True)
+        pc1, pc2, pc3 = st.columns([1,2,1])
+        with pc2:
+            st.image(LOGO, width=140)
+            st.markdown(
+                '<div style="text-align:center;margin-bottom:24px;">'
+                '<div style="font-size:1.8rem;font-weight:800;color:#e2e8f0;margin-bottom:6px;">Brick Audit</div>'
+                '<div style="font-size:0.85rem;color:#475569;">Enter your password to continue</div>'
+                '</div>', unsafe_allow_html=True)
+            pw_input = st.text_input("Password", type="password", key="pw_input",
+                                      label_visibility="collapsed", placeholder="Password")
+            if st.button("Unlock", type="primary", use_container_width=True, key="pw_submit"):
+                if pw_input == APP_PASSWORD:
+                    st.session_state["authenticated"] = True
+                    st.rerun()
+                else:
+                    st.error("Incorrect password.")
+            st.markdown(
+                '<div style="text-align:center;margin-top:12px;font-size:0.72rem;color:#2d3748;">'
+                'Your session stays unlocked until you close the browser tab.</div>',
+                unsafe_allow_html=True)
+        st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
