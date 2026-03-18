@@ -323,7 +323,7 @@ except Exception:
 for key, default in [
     ("inventory", []), ("checked", set()), ("flagged", {}), ("notes", {}),
     ("loaded", False), ("auth", None), ("show_bulk_confirm", False),
-    ("scan_query", ""), ("page", "dashboard"), ("price_cache", {}),
+    ("scan_query", ""), ("page", "dashboard"), ("sidebar_open", False), ("price_cache", {}),
     ("price_results", []), ("screen_width", 1200),
     ("audit_mode", False), ("audit_mode_queue", []), ("audit_mode_index", 0),
     ("bin_audit_dates", {}),
@@ -770,6 +770,30 @@ def render_location_history(col, lid):
                     f'<span style="float:right;color:#475569;">{move.get("moved_at","")[:10]}</span>'
                     f'</div>', unsafe_allow_html=True)
                 
+def render_persistent_header():
+    """Render the persistent header bar shown on all non-dashboard pages."""
+    inv    = st.session_state.inventory
+    total  = len(inv)
+    pct    = min(int(len(st.session_state.checked) / total * 100) if total else 0, 100)
+    n_bins = len(set(i.get("remarks","") or "(no remarks)" for i in inv))
+    hc1, hc2, hc3 = st.columns([1, 5, 2])
+    with hc1:
+        st.image(LOGO, width=56)
+    with hc2:
+        st.markdown(
+            f'<div style="padding-top:6px;">'
+            f'<div style="font-size:1.1rem;font-weight:800;color:#e2e8f0;line-height:1.1;">Brick Audit</div>'
+            f'<div style="font-size:0.72rem;color:#475569;">{total:,} lots · {n_bins} bins · {pct}% audited</div>'
+            f'</div>', unsafe_allow_html=True)
+    with hc3:
+        st.markdown('<div style="padding-top:8px;"></div>', unsafe_allow_html=True)
+        if st.session_state.get("loaded") and st.session_state.get("auth"):
+            if st.button("🔄 Refresh", key="refresh_inv_header"):
+                fetch_inventory.clear()
+                st.session_state.inventory = fetch_inventory(make_auth(*st.session_state.auth))
+                st.rerun()
+    st.divider()
+
 def render_legal_footer():
     st.markdown(
         '<div style="margin-top:40px;padding-top:16px;border-top:1px solid #1e2d45;'
@@ -940,249 +964,163 @@ def render_card_grid(lots, cols_count, show_skip_button=False):
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.image(LOGO, width=200)
-
-    if st.session_state.audit_mode:
-        queue = st.session_state.audit_mode_queue
-        idx   = st.session_state.audit_mode_index
-        st.markdown(
-            f'<div style="background:linear-gradient(135deg,#1a0a2e,#2d1060);border:1px solid #6d28d9;'
-            f'border-radius:12px;padding:14px 16px;margin-bottom:12px;">'
-            f'<div style="font-size:0.65rem;font-weight:700;color:#6d28d9;text-transform:uppercase;'
-            f'letter-spacing:0.08em;margin-bottom:6px;">{icon("zap",12,"#6d28d9")} Audit Mode</div>'
-            f'<div style="font-size:1.1rem;font-weight:800;color:#a78bfa;">'
-            f'{queue[idx] if idx < len(queue) else "Done"}</div>'
-            f'<div style="font-size:0.7rem;color:#475569;margin-top:4px;">Bin {idx+1} of {len(queue)}</div>'
-            f'</div>', unsafe_allow_html=True)
-        if idx < len(queue):
-            current_remarks = queue[idx]
-            current_lots    = sorted(
-                [i for i in st.session_state.inventory
-                 if (i.get("remarks","") or "(no remarks)") == current_remarks],
-                key=lambda x: (x.get("item",{}).get("no",""), x.get("color_name",""))
-            )
-            done_count  = sum(1 for i in current_lots
-                              if i.get("inventory_id") in st.session_state.checked
-                              or i.get("inventory_id") in st.session_state.flagged
-                              or i.get("inventory_id") in st.session_state.skipped)
-            total_count = len(current_lots)
-            pct = int(done_count / total_count * 100) if total_count else 0
-            st.progress(min(max(pct / 100, 0.0), 1.0))
-            st.caption(f"{done_count}/{total_count} lots done · {pct}%")
-            # Audit session stats
-            if st.session_state.get("audit_start_time"):
-                elapsed = int(time.time() - st.session_state.audit_start_time)
-                mins, secs = divmod(elapsed, 60)
-                bins_done = st.session_state.get("audit_session_bins", 0)
-                lots_done = st.session_state.get("audit_session_lots", 0)
-                avg_per_bin = int(elapsed / bins_done) if bins_done > 0 else 0
-                avg_mins, avg_secs = divmod(avg_per_bin, 60)
-                st.markdown(
-                    f'<div style="background:rgba(109,40,217,0.08);border:1px solid #2d1f4a;'
-                    f'border-radius:8px;padding:8px 10px;margin-top:8px;font-size:0.68rem;color:#6d7a8f;">'
-                    f'<div>{icon("activity",10,"#6d28d9")} <b style="color:#a78bfa">{bins_done}</b> bins · <b style="color:#a78bfa">{lots_done}</b> lots this session</div>'
-                    f'<div style="margin-top:3px;">{icon("clock",10,"#6d28d9")} {mins}m {secs:02d}s elapsed'
-                    f'{"  ·  ~"+str(avg_mins)+"m "+str(avg_secs).zfill(2)+"s/bin" if bins_done > 0 else ""}</div>'
-                    f'</div>', unsafe_allow_html=True)
-        if st.button("Skip to Next Bin", use_container_width=True):
-            st.session_state.audit_mode_index += 1; st.rerun()
-        if st.button("Exit Audit Mode", use_container_width=True, type="primary"):
-            st.session_state.audit_mode       = False
-            st.session_state.audit_mode_queue = []
-            st.session_state.audit_mode_index = 0
-            st.session_state.page             = "dashboard"
-            st.rerun()
-    else:
-        if not SECRETS_LOADED:
-            st.warning("No saved credentials found.")
-            ck = st.text_input("Consumer Key",    type="password")
-            cs = st.text_input("Consumer Secret", type="password")
-            tv = st.text_input("Token Value",     type="password")
-            ts = st.text_input("Token Secret",    type="password")
-        else:
-            ck, cs, tv, ts = CK, CS, TV, TS
-            st.success("Credentials loaded")
-
-        load_btn = st.button("Load Inventory", use_container_width=True, type="primary")
-
-        st.divider()
-        st.markdown(f'<div class="section-label">{ic("package")} Pages</div>', unsafe_allow_html=True)
-        nav_items = [
-            ("dashboard", "home",        "#a78bfa", "Dashboard"),
-            ("browse",    "package",     "#a78bfa", "Browse Inventory"),
-            ("summary",   "bar-chart-2", "#a78bfa", "Summary"),
-            ("stockroom", "grid",        "#60a5fa", "Stockroom"),
-            ("dupes",     "copy",        "#fb923c", "Duplicates"),
-            ("prices",    "tag",         "#4ade80", "Price Checker"),
-            ("orders",    "box",         "#f472b6", "Pull Orders"),
-            ("xmlimport", "arrow-up-circle", "#34d399", "Upload"),
-            ("skipped",   "eye-off",     "#818cf8", "Skipped Items"),
-            ("history",   "calendar",    "#94a3b8", "Audit History"),
-            ("legal",     "file-text",   "#475569", "Legal"),
-        ]
+    # Hide sidebar completely on dashboard
+    if st.session_state.page == "dashboard":
         st.markdown("""
         <style>
-        div[data-testid="stSidebarContent"] .stButton button {
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-            height: 0 !important;
-            min-height: 0 !important;
-            margin: 0 !important;
-            opacity: 0 !important;
-            position: absolute !important;
-            width: 100% !important;
-            cursor: pointer !important;
-        }
-        div[data-testid="stSidebarContent"] .nav-row-wrap {
-            position: relative;
-        }
+        [data-testid="stSidebar"] { display: none !important; }
+        [data-testid="stSidebarCollapsedControl"] { display: none !important; }
         </style>""", unsafe_allow_html=True)
-        for page_key, ico, color, label in nav_items:
-            is_active = st.session_state.page == page_key
-            bg     = "rgba(109,40,217,0.15)" if is_active else "transparent"
-            border = "1px solid #6d28d9"     if is_active else "1px solid transparent"
-            st.markdown(
-                f'<div class="nav-row-wrap"><div style="background:{bg};border:{border};border-radius:10px;'
-                f'padding:4px 10px;margin-bottom:1px;display:flex;align-items:center;gap:10px;">'
-                f'{icon(ico,18,color)}'
-                f'<span style="font-size:1rem;font-weight:600;color:#94a3b8;">{label}</span>'
-                f'</div></div>', unsafe_allow_html=True)
-            if st.button(label, key=f"nav_{page_key}", use_container_width=True):
-                st.session_state.page = page_key; st.rerun()
-
-        st.divider()
-        if st.session_state.page == "browse":
-            st.markdown(f'<div class="section-label">{ic("sliders")} Filters</div>', unsafe_allow_html=True)
-            search_term    = st.text_input("Search part # or name")
-            cond_filter    = st.multiselect("Condition", ["New", "Used"], default=["New", "Used"])
-            show_filter    = st.radio("Show", ["All", "Found", "Flagged", "Skipped", "Not yet found", "Low stock"])
-            all_remarks    = sorted(set(i.get("remarks","") or "(no remarks)" for i in st.session_state.inventory))
-            remarks_filter = "All"
-            if len(all_remarks) > 1:
-                remarks_filter = st.selectbox("Jump to bin", ["All"] + all_remarks)
-        else:
-            search_term = ""; cond_filter = ["New","Used"]; show_filter = "All"; remarks_filter = "All"
-
-        st.divider()
-        if st.session_state.inventory:
-            total     = len(st.session_state.inventory)
-            found_n   = len(st.session_state.checked)
-            flagged_n = len(st.session_state.flagged)
-            skipped_n = len(st.session_state.skipped)
-            low_n     = sum(1 for i in st.session_state.inventory if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
-            pct       = min(int(found_n / total * 100) if total else 0, 100)
-            st.markdown(f'<div class="section-label">{ic("activity")} Progress</div>', unsafe_allow_html=True)
-            st.progress(min(max(pct / 100, 0.0), 1.0))
-            st.markdown(f"**{found_n}/{total}** found · {pct}%")
-            if flagged_n:
-                st.markdown(f'<span style="color:#fb7185;font-size:0.82rem;">{ic("alert-circle",13,"#fb7185")} {flagged_n} flagged</span>', unsafe_allow_html=True)
-            if skipped_n:
-                st.markdown(f'<span style="color:#818cf8;font-size:0.82rem;">{ic("eye-off",13,"#818cf8")} {skipped_n} skipped</span>', unsafe_allow_html=True)
-            if low_n:
-                st.markdown(f'<span style="color:#fb923c;font-size:0.82rem;">{ic("alert-triangle",13,"#fb923c")} {low_n} low stock</span>', unsafe_allow_html=True)
-            st.divider()
-            pushable = get_pushable_flags()
-            if pushable:
-                if st.button(f"Push {len(pushable)} fixes to BrickLink", use_container_width=True, type="primary"):
-                    st.session_state.show_bulk_confirm = True
-            if st.button("Save Audit Snapshot", use_container_width=True):
-                if save_audit_snapshot(): st.success("Snapshot saved")
-            if st.button("Reset All Checkmarks", use_container_width=True):
-                st.session_state.checked = set(); st.session_state.flagged = {}
-                st.session_state.notes = {}; st.session_state.skipped = set()
-                st.session_state.show_bulk_confirm = False
-                clear_all_progress(); st.rerun()
-            remaining = [i for i in st.session_state.inventory if i.get("inventory_id") not in st.session_state.checked]
-            if remaining:
-                st.download_button("Export Remaining CSV",
-                    pd.DataFrame([{"Inventory ID": r.get("inventory_id",""),
-                        "Part #": r.get("item",{}).get("no",""), "Name": r.get("item",{}).get("name",""),
-                        "Color": r.get("color_name",""),
-                        "Condition": "New" if r.get("new_or_used")=="N" else "Used",
-                        "Quantity": r.get("quantity",0), "Price": r.get("unit_price",""),
-                        "Bin": r.get("remarks",""),
-                        "Notes": st.session_state.notes.get(r.get("inventory_id"),""),
-                    } for r in remaining]).to_csv(index=False),
-                    "remaining_lots.csv", "text/csv", use_container_width=True)
-            flagged_lots = [{**i, **st.session_state.flagged.get(i.get("inventory_id"),{})}
-                            for i in st.session_state.inventory if i.get("inventory_id") in st.session_state.flagged]
-            if flagged_lots:
-                st.download_button("Export Flagged CSV",
-                    pd.DataFrame([{"Inventory ID": f.get("inventory_id",""),
-                        "Part #": f.get("item",{}).get("no",""), "Name": f.get("item",{}).get("name",""),
-                        "Color": f.get("color_name",""),
-                        "Listed Qty": f.get("quantity",0), "Actual Qty": f.get("actual_qty",""),
-                        "Current Bin": f.get("remarks",""), "Correct Bin": f.get("correct_bin",""),
-                        "Flag Reason": f.get("reason",""),
-                        "Notes": st.session_state.notes.get(f.get("inventory_id"),""),
-                    } for f in flagged_lots]).to_csv(index=False),
-                    "flagged_lots.csv", "text/csv", use_container_width=True)
-
-# ── Load inventory ────────────────────────────────────────────────────────────
-if not st.session_state.audit_mode:
-    if 'load_btn' in dir() and load_btn:
-        if not all([ck, cs, tv, ts]):
-            st.error("Please fill in all four credential fields.")
-        else:
-            with st.spinner("Loading inventory from BrickLink..."):
-                try:
-                    auth = make_auth(ck, cs, tv, ts)
-                    inv  = fetch_inventory(auth)
-                    st.session_state.inventory = inv
-                    st.session_state.loaded    = True
-                    st.session_state.auth      = (ck, cs, tv, ts)
-                    st.success(f"Loaded {len(inv)} lots")
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            if DB_LOADED and st.session_state.loaded:
-                with st.spinner("Restoring saved progress..."):
-                    checked, flagged, notes, skipped = load_progress()
-                    st.session_state.checked         = checked
-                    st.session_state.flagged         = flagged
-                    st.session_state.notes           = notes
-                    st.session_state.skipped         = skipped
-                    st.session_state.price_cache     = load_price_cache()
-                    st.session_state.bin_audit_dates = load_bin_audit_dates()
-                    if checked or flagged:
-                        st.success(f"Restored {len(checked)} checked, {len(flagged)} flagged, {len(skipped)} skipped")
-                    else:
-                        st.info("Starting fresh.")
-            st.session_state.page = "dashboard"
-            st.rerun()
-
-if not st.session_state.loaded:
-    st.markdown(
-        '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
-        'padding:60px 20px;text-align:center;">'
-        '<div style="font-size:3rem;margin-bottom:16px;">🧱</div>'
-        '<div style="font-size:1.4rem;font-weight:800;color:#e2e8f0;margin-bottom:8px;">Welcome to Brick Audit</div>'
-        '<div style="font-size:0.9rem;color:#475569;margin-bottom:32px;">Load your BrickLink inventory to get started.</div>'
-        '</div>', unsafe_allow_html=True)
-    if SECRETS_LOADED:
-        if st.button("Load Inventory", type="primary", use_container_width=False):
-            with st.spinner("Loading inventory from BrickLink..."):
-                try:
-                    auth = make_auth(CK, CS, TV, TS)
-                    inv  = fetch_inventory(auth)
-                    st.session_state.inventory = inv
-                    st.session_state.loaded    = True
-                    st.session_state.auth      = (CK, CS, TV, TS)
-                    if DB_LOADED:
-                        checked, flagged, notes, skipped = load_progress()
-                        st.session_state.checked         = checked
-                        st.session_state.flagged         = flagged
-                        st.session_state.notes           = notes
-                        st.session_state.skipped         = skipped
-                        st.session_state.price_cache     = load_price_cache()
-                        st.session_state.bin_audit_dates = load_bin_audit_dates()
-                    st.session_state.page = "dashboard"
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
     else:
-        st.info("Enter your BrickLink credentials in the sidebar to get started.")
-    st.stop()
+        st.image(LOGO, width=200)
+
+        if st.session_state.audit_mode:
+            queue = st.session_state.audit_mode_queue
+            idx   = st.session_state.audit_mode_index
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#1a0a2e,#2d1060);border:1px solid #6d28d9;'
+                f'border-radius:12px;padding:14px 16px;margin-bottom:12px;">'
+                f'<div style="font-size:0.65rem;font-weight:700;color:#6d28d9;text-transform:uppercase;'
+                f'letter-spacing:0.08em;margin-bottom:6px;">{icon("zap",12,"#6d28d9")} Audit Mode</div>'
+                f'<div style="font-size:1.1rem;font-weight:800;color:#a78bfa;">'
+                f'{queue[idx] if idx < len(queue) else "Done"}</div>'
+                f'<div style="font-size:0.7rem;color:#475569;margin-top:4px;">Bin {idx+1} of {len(queue)}</div>'
+                f'</div>', unsafe_allow_html=True)
+            if idx < len(queue):
+                current_remarks = queue[idx]
+                current_lots    = sorted(
+                    [i for i in st.session_state.inventory
+                     if (i.get("remarks","") or "(no remarks)") == current_remarks],
+                    key=lambda x: (x.get("item",{}).get("no",""), x.get("color_name",""))
+                )
+                done_count  = sum(1 for i in current_lots
+                                  if i.get("inventory_id") in st.session_state.checked
+                                  or i.get("inventory_id") in st.session_state.flagged
+                                  or i.get("inventory_id") in st.session_state.skipped)
+                total_count = len(current_lots)
+                pct = int(done_count / total_count * 100) if total_count else 0
+                st.progress(min(max(pct / 100, 0.0), 1.0))
+                st.caption(f"{done_count}/{total_count} lots done · {pct}%")
+                if st.session_state.get("audit_start_time"):
+                    elapsed = int(time.time() - st.session_state.audit_start_time)
+                    mins, secs = divmod(elapsed, 60)
+                    bins_done = st.session_state.get("audit_session_bins", 0)
+                    lots_done = st.session_state.get("audit_session_lots", 0)
+                    avg_per_bin = int(elapsed / bins_done) if bins_done > 0 else 0
+                    avg_mins, avg_secs = divmod(avg_per_bin, 60)
+                    st.markdown(
+                        f'<div style="background:rgba(109,40,217,0.08);border:1px solid #2d1f4a;'
+                        f'border-radius:8px;padding:8px 10px;margin-top:8px;font-size:0.68rem;color:#6d7a8f;">'
+                        f'<div>{icon("activity",10,"#6d28d9")} <b style="color:#a78bfa">{bins_done}</b> bins · <b style="color:#a78bfa">{lots_done}</b> lots this session</div>'
+                        f'<div style="margin-top:3px;">{icon("clock",10,"#6d28d9")} {mins}m {secs:02d}s elapsed'
+                        f'{" · ~"+str(avg_mins)+"m "+str(avg_secs).zfill(2)+"s/bin" if bins_done > 0 else ""}</div>'
+                        f'</div>', unsafe_allow_html=True)
+            if st.button("Skip to Next Bin", use_container_width=True):
+                st.session_state.audit_mode_index += 1; st.rerun()
+            if st.button("Exit Audit Mode", use_container_width=True, type="primary"):
+                st.session_state.audit_mode       = False
+                st.session_state.audit_mode_queue = []
+                st.session_state.audit_mode_index = 0
+                st.session_state.page             = "dashboard"
+                st.rerun()
+        else:
+            st.markdown(f'<div class="section-label">{ic("package")} Pages</div>', unsafe_allow_html=True)
+            nav_items = [
+                ("dashboard", "home",             "#a78bfa", "Dashboard"),
+                ("audit",     "zap",              "#6d28d9", "Audit Mode"),
+                ("browse",    "package",           "#a78bfa", "Browse Inventory"),
+                ("summary",   "bar-chart-2",       "#a78bfa", "Summary"),
+                ("stockroom", "grid",              "#60a5fa", "Stockroom"),
+                ("dupes",     "copy",              "#fb923c", "Duplicates"),
+                ("prices",    "tag",               "#4ade80", "Price Checker"),
+                ("orders",    "box",               "#f472b6", "Pull Orders"),
+                ("xmlimport", "arrow-up-circle",   "#34d399", "Upload"),
+                ("skipped",   "eye-off",           "#818cf8", "Skipped Items"),
+                ("history",   "calendar",          "#94a3b8", "Audit History"),
+                ("legal",     "file-text",         "#475569", "Legal"),
+            ]
+            st.markdown("""
+            <style>
+            div[data-testid="stSidebarContent"] .stButton button {
+                background: transparent !important;
+                border: none !important;
+                padding: 0 !important;
+                height: 0 !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                opacity: 0 !important;
+                position: absolute !important;
+                width: 100% !important;
+                cursor: pointer !important;
+            }
+            div[data-testid="stSidebarContent"] .nav-row-wrap {
+                position: relative;
+            }
+            </style>""", unsafe_allow_html=True)
+            for page_key, ico, color, label in nav_items:
+                is_active = st.session_state.page == page_key
+                bg     = "rgba(109,40,217,0.15)" if is_active else "transparent"
+                border = "1px solid #6d28d9"     if is_active else "1px solid transparent"
+                st.markdown(
+                    f'<div class="nav-row-wrap"><div style="background:{bg};border:{border};border-radius:10px;'
+                    f'padding:4px 10px;margin-bottom:1px;display:flex;align-items:center;gap:10px;">'
+                    f'{icon(ico,18,color)}'
+                    f'<span style="font-size:1rem;font-weight:600;color:#94a3b8;">{label}</span>'
+                    f'</div></div>', unsafe_allow_html=True)
+                if st.button(label, key=f"nav_{page_key}", use_container_width=True):
+                    st.session_state.page = page_key; st.rerun()
+
+            st.divider()
+            if st.session_state.page == "browse":
+                st.markdown(f'<div class="section-label">{ic("sliders")} Filters</div>', unsafe_allow_html=True)
+                search_term    = st.text_input("Search part # or name")
+                cond_filter    = st.multiselect("Condition", ["New", "Used"], default=["New", "Used"])
+                show_filter    = st.radio("Show", ["All", "Found", "Flagged", "Skipped", "Not yet found", "Low stock"])
+                all_remarks    = sorted(set(i.get("remarks","") or "(no remarks)" for i in st.session_state.inventory))
+                remarks_filter = "All"
+                if len(all_remarks) > 1:
+                    remarks_filter = st.selectbox("Jump to bin", ["All"] + all_remarks)
+            else:
+                search_term = ""; cond_filter = ["New","Used"]; show_filter = "All"; remarks_filter = "All"
+
+            st.divider()
+            if st.session_state.inventory:
+                total     = len(st.session_state.inventory)
+                found_n   = len(st.session_state.checked)
+                flagged_n = len(st.session_state.flagged)
+                skipped_n = len(st.session_state.skipped)
+                low_n     = sum(1 for i in st.session_state.inventory if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
+                pct       = min(int(found_n / total * 100) if total else 0, 100)
+                st.markdown(f'<div class="section-label">{ic("activity")} Progress</div>', unsafe_allow_html=True)
+                st.progress(min(max(pct / 100, 0.0), 1.0))
+                st.markdown(f"**{found_n}/{total}** found · {pct}%")
+                if flagged_n:
+                    st.markdown(f'<span style="color:#fb7185;font-size:0.82rem;">{ic("alert-circle",13,"#fb7185")} {flagged_n} flagged</span>', unsafe_allow_html=True)
+                if skipped_n:
+                    st.markdown(f'<span style="color:#818cf8;font-size:0.82rem;">{ic("eye-off",13,"#818cf8")} {skipped_n} skipped</span>', unsafe_allow_html=True)
+                if low_n:
+                    st.markdown(f'<span style="color:#fb923c;font-size:0.82rem;">{ic("alert-triangle",13,"#fb923c")} {low_n} low stock</span>', unsafe_allow_html=True)
+                st.divider()
+                pushable = get_pushable_flags()
+                if pushable:
+                    if st.button(f"Push {len(pushable)} fixes to BrickLink", use_container_width=True, type="primary"):
+                        st.session_state.show_bulk_confirm = True
+                if st.button("Save Audit Snapshot", use_container_width=True):
+                    if save_audit_snapshot(): st.success("Snapshot saved")
+                if st.button("Reset All Checkmarks", use_container_width=True):
+                    st.session_state.checked = set(); st.session_state.flagged = {}
+                    st.session_state.notes = {}; st.session_state.skipped = set()
+                    st.session_state.show_bulk_confirm = False
+                    clear_all_progress(); st.rerun()
+                remaining = [i for i in st.session_state.inventory if i.get("inventory_id") not in st.session_state.checked]
+                if remaining:
+                    st.download_button("Export Remaining CSV",
+                        pd.DataFrame([{"Inventory ID": r.get("inventory_id",""),
+                            "Part #": r.get("item",{}).get("no",""), "Name": r.get("item",{}).get("name",""),
+                            "Color": r.get("color_name",""), "Bin": r.get("remarks",""),
+                            "Qty": r.get("quantity",0), "Price": r.get("unit_price","")}
+                            for r in remaining]).to_csv(index=False),
+                        "remaining_inventory.csv", "text/csv", use_container_width=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AUDIT MODE
@@ -1291,6 +1229,65 @@ if st.session_state.audit_mode:
 # PAGE: DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "dashboard":
+    # ── Not-loaded landing page ────────────────────────────────────────────
+    if not st.session_state.get("loaded"):
+        st.markdown('<div style="display:flex;justify-content:center;margin-top:60px;"></div>', unsafe_allow_html=True)
+        lc1, lc2, lc3 = st.columns([1,2,1])
+        with lc2:
+            st.image(LOGO, width=160)
+            st.markdown(
+                '<div style="text-align:center;margin-bottom:28px;">'
+                '<div style="font-size:2rem;font-weight:800;color:#e2e8f0;margin-bottom:6px;">Brick Audit</div>'
+                '<div style="font-size:0.88rem;color:#475569;">Your BrickLink inventory auditing tool</div>'
+                '</div>', unsafe_allow_html=True)
+            if not SECRETS_LOADED:
+                st.markdown('<div style="font-size:0.82rem;color:#94a3b8;margin-bottom:12px;">Enter your BrickLink API credentials to get started.</div>', unsafe_allow_html=True)
+                ck = st.text_input("Consumer Key",    type="password", key="ck_dash")
+                cs = st.text_input("Consumer Secret", type="password", key="cs_dash")
+                tv = st.text_input("Token Value",     type="password", key="tv_dash")
+                ts = st.text_input("Token Secret",    type="password", key="ts_dash")
+                if st.button("Load Inventory", type="primary", use_container_width=True, key="load_inv_manual"):
+                    with st.spinner("Loading inventory from BrickLink..."):
+                        try:
+                            auth = make_auth(ck, cs, tv, ts)
+                            inv_data = fetch_inventory(auth)
+                            st.session_state.inventory = inv_data
+                            st.session_state.loaded    = True
+                            st.session_state.auth      = (ck, cs, tv, ts)
+                            if DB_LOADED:
+                                checked, flagged, notes, skipped = load_progress()
+                                st.session_state.checked  = checked
+                                st.session_state.flagged  = flagged
+                                st.session_state.notes    = notes
+                                st.session_state.skipped  = skipped
+                                st.session_state.price_cache     = load_price_cache()
+                                st.session_state.bin_audit_dates = load_bin_audit_dates()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+            else:
+                st.success("✅ Credentials loaded")
+                if st.button("Load Inventory", type="primary", use_container_width=True, key="load_inv_auto"):
+                    with st.spinner("Loading inventory from BrickLink..."):
+                        try:
+                            auth = make_auth(CK, CS, TV, TS)
+                            inv_data = fetch_inventory(auth)
+                            st.session_state.inventory = inv_data
+                            st.session_state.loaded    = True
+                            st.session_state.auth      = (CK, CS, TV, TS)
+                            if DB_LOADED:
+                                checked, flagged, notes, skipped = load_progress()
+                                st.session_state.checked  = checked
+                                st.session_state.flagged  = flagged
+                                st.session_state.notes    = notes
+                                st.session_state.skipped  = skipped
+                                st.session_state.price_cache     = load_price_cache()
+                                st.session_state.bin_audit_dates = load_bin_audit_dates()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+        st.stop()
+
     inv       = st.session_state.inventory
     total     = len(inv)
     found_n   = len(st.session_state.checked)
@@ -1301,20 +1298,96 @@ if st.session_state.page == "dashboard":
     n_bins    = len(set(i.get("remarks","") or "(no remarks)" for i in inv))
     dupes     = find_duplicates(inv)
 
-    st.markdown(
-        f'<div style="padding:24px 0 16px 0;">'
-        f'<div style="font-size:0.7rem;font-weight:700;color:#6d28d9;text-transform:uppercase;'
-        f'letter-spacing:0.1em;margin-bottom:6px;">Welcome back</div>'
-        f'<div style="font-size:2.2rem;font-weight:800;color:#e2e8f0;letter-spacing:-0.03em;'
-        f'line-height:1.1;">Brick Audit</div>'
-        f'<div style="font-size:0.85rem;color:#475569;margin-top:6px;">'
-        f'{total:,} lots across {n_bins} bins · {pct}% audited</div>'
-        f'</div>', unsafe_allow_html=True)
-    if st.button("🔄 Refresh Inventory", key="refresh_inv"):
-        fetch_inventory.clear()
-        st.session_state.inventory = fetch_inventory(make_auth(*st.session_state.auth))
-        st.rerun()
+    # ── Persistent header bar ──────────────────────────────────────────────
+    hc1, hc2, hc3 = st.columns([1, 4, 2])
+    with hc1:
+        st.image(LOGO, width=72)
+    with hc2:
+        st.markdown(
+            f'<div style="padding-top:8px;">'
+            f'<div style="font-size:1.4rem;font-weight:800;color:#e2e8f0;line-height:1.1;">Brick Audit</div>'
+            f'<div style="font-size:0.78rem;color:#475569;">{total:,} lots · {n_bins} bins · {pct}% audited</div>'
+            f'</div>', unsafe_allow_html=True)
+    with hc3:
+        st.markdown('<div style="padding-top:10px;"></div>', unsafe_allow_html=True)
+        if st.session_state.get("loaded"):
+            if st.button("🔄 Refresh Inventory", key="refresh_inv_dash"):
+                fetch_inventory.clear()
+                st.session_state.inventory = fetch_inventory(make_auth(*st.session_state.auth))
+                st.rerun()
+    st.divider()
 
+    # ── Audit Mode banner (full width, clickable) ──────────────────────────
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,#1a0a2e,#2d1060);border:1px solid #6d28d9;'
+        f'border-radius:20px;padding:28px 36px;margin-bottom:24px;'
+        f'box-shadow:0 4px 32px rgba(109,40,217,0.4);cursor:pointer;">'
+        f'<div style="font-size:0.7rem;font-weight:700;color:#6d28d9;text-transform:uppercase;'
+        f'letter-spacing:0.1em;margin-bottom:8px;">{icon("zap",14,"#6d28d9")} Start Auditing</div>'
+        f'<div style="font-size:2rem;font-weight:800;color:#f5f3ff;margin-bottom:6px;">Audit Mode</div>'
+        f'<div style="font-size:0.88rem;color:#a78bfa;line-height:1.6;">'
+        f'Walk bin-by-bin through your stockroom. Skip moves parts to Stockroom A. Mark all found skips the whole bin.</div>'
+        f'</div>', unsafe_allow_html=True)
+    if st.button("▶ Go to Audit Mode", key="dash_audit_btn", type="primary", use_container_width=True):
+        st.session_state.page = "audit"; st.rerun()
+
+    st.write("")
+
+    # ── 4x2 grid of page tiles ─────────────────────────────────────────────
+    TILE_COLORS = {
+        "browse":    "#a78bfa", "stockroom": "#60a5fa", "dupes":    "#fb923c", "prices":   "#4ade80",
+        "orders":    "#f472b6", "xmlimport": "#34d399", "skipped":  "#818cf8", "history":  "#94a3b8",
+    }
+    grid_actions = [
+        ("browse",    "package",         TILE_COLORS["browse"],    "Browse",     f"{total:,} lots"),
+        ("stockroom", "grid",            TILE_COLORS["stockroom"], "Stockroom",  f"{n_bins} bins"),
+        ("dupes",     "copy",            TILE_COLORS["dupes"],     "Duplicates", f"{len(dupes)} groups"),
+        ("prices",    "tag",             TILE_COLORS["prices"],    "Prices",     "Market rates"),
+        ("orders",    "box",             TILE_COLORS["orders"],    "Orders",     "Pick open orders"),
+        ("xmlimport", "arrow-up-circle", TILE_COLORS["xmlimport"], "Upload",     "Add inventory"),
+        ("skipped",   "eye-off",         TILE_COLORS["skipped"],   "Skipped",    f"{skipped_n} items"),
+        ("history",   "calendar",        TILE_COLORS["history"],   "History",    "Past audits"),
+    ]
+    row1 = st.columns(4)
+    row2 = st.columns(4)
+    all_cols = row1 + row2
+    for col, (page, ico, color, title, sub) in zip(all_cols, grid_actions):
+        with col:
+            st.markdown(
+                f'<div class="action-card" style="border-top:3px solid {color}44;min-height:110px;">'
+                f'<div style="margin-bottom:10px;">{icon(ico,32,color)}</div>'
+                f'<div class="action-card-title" style="font-size:1.05rem;">{title}</div>'
+                f'<div class="action-card-sub">{sub}</div>'
+                f'</div>', unsafe_allow_html=True)
+            if st.button(title, key=f"dash_{page}", use_container_width=True):
+                st.session_state.page = page; st.rerun()
+
+    render_legal_footer()
+    st.stop()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: AUDIT
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.page == "audit":
+    if st.session_state.get("loaded"): render_persistent_header()
+    inv    = st.session_state.inventory
+    total  = len(inv)
+    found_n   = len(st.session_state.checked)
+    flagged_n = len(st.session_state.flagged)
+    skipped_n = len(st.session_state.skipped)
+    low_n     = sum(1 for i in inv if 0 < i.get("quantity",0) <= LOW_STOCK_THRESHOLD)
+    pct       = min(int(found_n / total * 100) if total else 0, 100)
+    n_bins    = len(set(i.get("remarks","") or "(no remarks)" for i in inv))
+    dupes     = find_duplicates(inv)
+
+    h1, h2 = st.columns([8,1])
+    with h1:
+        st.markdown(f'{icon("zap",22,"#6d28d9")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit Mode</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_audit", help="Back to Dashboard"):
+            st.session_state.page = "dashboard"; st.rerun()
+
+    # Stats bar
     s1,s2,s3,s4,s5,s6 = st.columns(6)
     for col, val, label, color in [
         (s1, f"{pct}%",       "Audited",    "#a78bfa"),
@@ -1329,12 +1402,10 @@ if st.session_state.page == "dashboard":
                 f'<div class="metric-card" style="padding:14px 10px;">'
                 f'<div class="metric-value" style="font-size:1.6rem;color:{color}">{val}</div>'
                 f'<div class="metric-label">{label}</div></div>', unsafe_allow_html=True)
-
     st.progress(min(max(pct / 100, 0.0), 1.0))
     st.write("")
 
-    
-
+    # Audit zone/bin selectors
     zone_map = {"All zones":"all","Bins only":"bin","Tubs only":"tub","Trays only":"tray","White Drawers only":"wd"}
     st.markdown(
         f'<div style="background:linear-gradient(135deg,#1a0a2e,#2d1060);border:1px solid #6d28d9;'
@@ -1342,7 +1413,7 @@ if st.session_state.page == "dashboard":
         f'box-shadow:0 4px 24px rgba(109,40,217,0.35);">'
         f'<div style="font-size:0.7rem;font-weight:700;color:#6d28d9;text-transform:uppercase;'
         f'letter-spacing:0.1em;margin-bottom:8px;">{icon("zap",14,"#6d28d9")} Start Auditing</div>'
-        f'<div style="font-size:1.6rem;font-weight:800;color:#f5f3ff;margin-bottom:4px;">Audit Mode</div>'
+        f'<div style="font-size:1.6rem;font-weight:800;color:#f5f3ff;margin-bottom:4px;">Ready to audit</div>'
         f'<div style="font-size:0.85rem;color:#a78bfa;margin-bottom:20px;line-height:1.5;">'
         f'Walk bin-by-bin through your stockroom. Skip moves parts to Stockroom A. Mark all found skips the whole bin.</div>'
         f'</div>', unsafe_allow_html=True)
@@ -1366,31 +1437,6 @@ if st.session_state.page == "dashboard":
         st.session_state.audit_session_bins = 0
         st.session_state.audit_session_lots = 0
         st.rerun()
-            
-    st.divider()
-    st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Quick Access</div>', unsafe_allow_html=True)
-
-    c1,c2,c3,c4,c5,c6,c7,c8 = st.columns(8)
-    actions = [
-        (c1, "browse",    "package",         "#a78bfa", "Browse",        f"{total:,} lots"),
-        (c2, "stockroom", "grid",            "#60a5fa", "Stockroom",     f"{n_bins} bins"),
-        (c3, "dupes",     "copy",            "#fb923c", "Duplicates",    f"{len(dupes)} groups"),
-        (c4, "prices",    "tag",             "#4ade80", "Prices",        "Market rates"),
-        (c5, "orders",    "box",             "#f472b6", "Orders",        "Pick open orders"),
-        (c6, "xmlimport", "arrow-up-circle", "#34d399", "Upload",        "Add inventory"),
-        (c7, "skipped",   "eye-off",         "#818cf8", "Skipped",       f"{skipped_n} items"),
-        (c8, "history",   "calendar",        "#94a3b8", "History",       "Past audits"),
-    ]
-    for col, page, ico, color, title, sub in actions:
-        with col:
-            st.markdown(
-                f'<div class="action-card">'
-                f'<div style="margin-bottom:10px;">{icon(ico,28,color)}</div>'
-                f'<div class="action-card-title">{title}</div>'
-                f'<div class="action-card-sub">{sub}</div>'
-                f'</div>', unsafe_allow_html=True)
-            if st.button(title, key=f"dash_{page}", use_container_width=True):
-                st.session_state.page = page; st.rerun()
 
     history = load_audit_history()
     if history:
@@ -1403,11 +1449,11 @@ if st.session_state.page == "dashboard":
             f'<div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">'
             f'{last["audit_date"][:10]} · {last_pct}% complete · {last["total_flagged"]} flagged</div>'
             f'</div>', unsafe_allow_html=True)
-    render_legal_footer()
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "summary":
+    if st.session_state.get("loaded"): render_persistent_header()
     st.markdown(f'{icon("bar-chart-2",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit Summary</span>', unsafe_allow_html=True)
     st.write("")
     inv, checked, flagged = st.session_state.inventory, st.session_state.checked, st.session_state.flagged
@@ -1453,6 +1499,7 @@ if st.session_state.page == "summary":
 # PAGE: STOCKROOM
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "stockroom":
+    if st.session_state.get("loaded"): render_persistent_header()
     h1,h2=st.columns([8,1])
     with h1: st.markdown(f'{icon("grid",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Stockroom</span>', unsafe_allow_html=True)
     with h2:
@@ -1585,6 +1632,7 @@ if st.session_state.page == "stockroom":
 # PAGE: DUPLICATES
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "dupes":
+    if st.session_state.get("loaded"): render_persistent_header()
     h1,h2=st.columns([8,1])
     with h1: st.markdown(f'{icon("copy",22,"#fb923c")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Duplicate Lots</span>', unsafe_allow_html=True)
     with h2:
@@ -1693,6 +1741,7 @@ if st.session_state.page == "dupes":
 # PAGE: AUDIT HISTORY
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "history":
+    if st.session_state.get("loaded"): render_persistent_header()
     h1,h2=st.columns([8,1])
     with h1: st.markdown(f'{icon("calendar",22,"#94a3b8")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Audit History</span>', unsafe_allow_html=True)
     with h2:
@@ -1724,6 +1773,7 @@ if st.session_state.page == "history":
 # PAGE: PRICE CHECKER
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "prices":
+    if st.session_state.get("loaded"): render_persistent_header()
     h1,h2=st.columns([8,1])
     with h1: st.markdown(f'{icon("tag",22,"#4ade80")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Price Checker</span>', unsafe_allow_html=True)
     with h2:
@@ -1800,6 +1850,7 @@ if st.session_state.page == "prices":
 # PAGE: ORDERS
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "orders":
+    if st.session_state.get("loaded"): render_persistent_header()
     h1,h2=st.columns([8,1])
     with h1: st.markdown(f'{icon("box",22,"#f472b6")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Pull Orders</span>', unsafe_allow_html=True)
     with h2:
@@ -2300,6 +2351,7 @@ if st.session_state.page == "orders":
 # PAGE: SKIPPED ITEMS
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "skipped":
+    if st.session_state.get("loaded"): render_persistent_header()
     h1,h2=st.columns([8,1])
     with h1: st.markdown(f'{icon("eye-off",22,"#818cf8")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Skipped Items</span>', unsafe_allow_html=True)
     with h2:
@@ -2377,6 +2429,7 @@ if st.session_state.page == "skipped":
 # PAGE: BROWSE INVENTORY
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "browse":
+    if st.session_state.get("loaded"): render_persistent_header()
     h1, h2 = st.columns([8,1])
     with h1:
         st.markdown(f'{icon("package",22,"#a78bfa")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Browse Inventory</span>', unsafe_allow_html=True)
@@ -2571,6 +2624,7 @@ if st.session_state.page == "browse":
         st.divider()
         
 if st.session_state.page == "legal":
+    if st.session_state.get("loaded"): render_persistent_header()
     h1,h2=st.columns([8,1])
     with h1: st.markdown(f'{icon("file-text",22,"#475569")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Legal</span>', unsafe_allow_html=True)
     with h2:
@@ -2613,6 +2667,7 @@ def make_inventory_payload(pno, item_type, color_id, qty, price, condition, rema
 # PAGE: XML IMPORT
 # ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "xmlimport":
+    if st.session_state.get("loaded"): render_persistent_header()
     import xml.etree.ElementTree as ET
 
     h1, h2 = st.columns([8,1])
