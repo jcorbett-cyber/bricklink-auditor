@@ -2591,17 +2591,28 @@ if st.session_state.page == "xmlimport":
 
             inv = st.session_state.inventory
 
-            # Build a lookup: (part_no, color_id, condition) -> lot
+            # Exact lookup: (part_no_upper, color_id, condition) -> lot
             inv_lookup = {}
             for lot in inv:
-                pno   = lot.get("item", {}).get("no", "")
-                cid   = str(lot.get("color_id", 0))
-                cond  = lot.get("new_or_used", "N")
-                key   = (pno.upper(), cid, cond)
-                inv_lookup[key] = lot
+                pno  = lot.get("item", {}).get("no", "")
+                cid  = str(lot.get("color_id", 0))
+                cond = lot.get("new_or_used", "N")
+                inv_lookup[(pno.upper(), cid, cond)] = lot
 
-            merge_rows = []  # will update qty on existing lot
-            new_rows   = []  # will create new lot
+            # Part-number-only lookup: part_no_upper -> sorted list of bins
+            pno_bins = {}
+            for lot in inv:
+                pno  = lot.get("item", {}).get("no", "").upper()
+                bin_ = lot.get("remarks", "")
+                if pno and bin_:
+                    if pno not in pno_bins:
+                        pno_bins[pno] = []
+                    if bin_ not in pno_bins[pno]:
+                        pno_bins[pno].append(bin_)
+
+            merge_rows = []   # exact match — update qty
+            coloc_rows = []   # same part #, diff color — suggest co-location
+            new_rows   = []   # no match — goes to -INCOMING
 
             for item in items:
                 pno      = (item.findtext("ItemID") or item.findtext("ItemNo") or "").strip()
@@ -2614,90 +2625,104 @@ if st.session_state.page == "xmlimport":
                 cond     = "N" if cond not in ("N","U") else cond
                 remarks  = (item.findtext("Remarks") or "").strip()
                 itype    = (item.findtext("ItemTypeID") or item.findtext("ItemType") or "P").strip().upper()
-
                 if not pno:
                     continue
 
-                key = (pno.upper(), color_id, cond)
-                if key in inv_lookup:
-                    existing = inv_lookup[key]
+                exact_key = (pno.upper(), color_id, cond)
+                if exact_key in inv_lookup:
+                    existing = inv_lookup[exact_key]
                     merge_rows.append({
                         "inventory_id": existing.get("inventory_id"),
-                        "pno": pno,
-                        "pname": pname or existing.get("item",{}).get("name",""),
-                        "color_id": color_id,
-                        "color_name": color_nm or existing.get("color_name",""),
-                        "condition": cond,
-                        "add_qty": qty,
+                        "pno": pno, "pname": pname or existing.get("item",{}).get("name",""),
+                        "color_id": color_id, "color_name": color_nm or existing.get("color_name",""),
+                        "condition": cond, "add_qty": qty,
                         "existing_qty": existing.get("quantity", 0),
                         "new_qty": existing.get("quantity", 0) + qty,
                         "price": existing.get("unit_price", price),
-                        "bin": existing.get("remarks", ""),
-                        "item_type": itype,
+                        "bin": existing.get("remarks", ""), "item_type": itype,
+                    })
+                elif pno.upper() in pno_bins:
+                    coloc_rows.append({
+                        "pno": pno, "pname": pname, "color_id": color_id, "color_name": color_nm,
+                        "condition": cond, "qty": qty, "price": price, "item_type": itype,
+                        "suggested_bins": sorted(pno_bins[pno.upper()]),
+                        "remarks_from_xml": remarks,
                     })
                 else:
                     new_rows.append({
-                        "pno": pno,
-                        "pname": pname,
-                        "color_id": color_id,
-                        "color_name": color_nm,
-                        "condition": cond,
-                        "qty": qty,
-                        "price": price,
-                        "bin": "-INCOMING",
-                        "item_type": itype,
-                        "remarks_from_xml": remarks,
+                        "pno": pno, "pname": pname, "color_id": color_id, "color_name": color_nm,
+                        "condition": cond, "qty": qty, "price": price,
+                        "bin": "-INCOMING", "item_type": itype, "remarks_from_xml": remarks,
                     })
 
-            total = len(merge_rows) + len(new_rows)
+            total = len(merge_rows) + len(coloc_rows) + len(new_rows)
             st.markdown(
-                f'<div style="display:flex;gap:16px;margin-bottom:20px;">'
+                f'<div style="display:flex;gap:12px;margin-bottom:20px;">'
                 f'<div style="background:#0d2818;border:1px solid #2d6a4f;border-radius:12px;padding:14px 20px;flex:1;text-align:center;">'
                 f'<div style="font-size:1.6rem;font-weight:800;color:#4ade80;">{len(merge_rows)}</div>'
                 f'<div style="font-size:0.7rem;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Will Merge</div></div>'
+                f'<div style="background:#1a1a08;border:1px solid #4a4a10;border-radius:12px;padding:14px 20px;flex:1;text-align:center;">'
+                f'<div style="font-size:1.6rem;font-weight:800;color:#fbbf24;">{len(coloc_rows)}</div>'
+                f'<div style="font-size:0.7rem;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Co-locate?</div></div>'
                 f'<div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:12px;padding:14px 20px;flex:1;text-align:center;">'
                 f'<div style="font-size:1.6rem;font-weight:800;color:#60a5fa;">{len(new_rows)}</div>'
-                f'<div style="font-size:0.7rem;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Will Create New</div></div>'
+                f'<div style="font-size:0.7rem;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">New (-INCOMING)</div></div>'
                 f'<div style="background:#161b27;border:1px solid #1e2d45;border-radius:12px;padding:14px 20px;flex:1;text-align:center;">'
                 f'<div style="font-size:1.6rem;font-weight:800;color:#e2e8f0;">{total}</div>'
                 f'<div style="font-size:0.7rem;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Total Lots</div></div>'
                 f'</div>', unsafe_allow_html=True)
 
-            tab_merge, tab_new = st.tabs([f"🔀 Merge into existing ({len(merge_rows)})", f"✨ Create new lots ({len(new_rows)})"])
+            tab_merge, tab_coloc, tab_new = st.tabs([
+                f"🔀 Merge ({len(merge_rows)})",
+                f"📍 Co-locate? ({len(coloc_rows)})",
+                f"✨ New -INCOMING ({len(new_rows)})"
+            ])
 
             with tab_merge:
                 if not merge_rows:
                     st.info("No parts in this file match your existing inventory.")
                 else:
                     st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:12px;">These parts already exist in your store. Their quantities will be increased.</div>', unsafe_allow_html=True)
-                    merge_df_data = [{
-                        "Part #": r["pno"],
-                        "Name": r["pname"][:30],
-                        "Color": r["color_name"],
-                        "Cond": r["condition"],
-                        "Current Qty": r["existing_qty"],
-                        "+ Adding": r["add_qty"],
-                        "New Qty": r["new_qty"],
-                        "Price": f"${r['price']}",
-                        "Bin": r["bin"],
-                    } for r in merge_rows]
-                    st.dataframe(merge_df_data, use_container_width=True, hide_index=True)
+                    st.dataframe([{
+                        "Part #": r["pno"], "Name": r["pname"][:30], "Color": r["color_name"],
+                        "Cond": r["condition"], "Current Qty": r["existing_qty"],
+                        "+ Adding": r["add_qty"], "New Qty": r["new_qty"],
+                        "Price": f"${r['price']}", "Bin": r["bin"],
+                    } for r in merge_rows], use_container_width=True, hide_index=True)
+
+            with tab_coloc:
+                if not coloc_rows:
+                    st.info("No co-location suggestions.")
+                else:
+                    st.markdown('<div style="font-size:0.78rem;color:#fbbf24;margin-bottom:12px;">These parts share a part # with something already in your store but in a different color. Approve to house them together, or they will go to <strong>-INCOMING</strong>.</div>', unsafe_allow_html=True)
+                    for i, row in enumerate(coloc_rows):
+                        bins = row["suggested_bins"]
+                        ca, cb, cc, cd = st.columns([1, 2, 2, 2])
+                        with ca:
+                            st.checkbox("Approve", key=f"coloc_approve_{i}", value=True, label_visibility="collapsed")
+                        with cb:
+                            st.markdown(
+                                f'<div style="padding-top:6px;">'
+                                f'<span style="color:#fbbf24;font-weight:700;">{row["pno"]}</span> '
+                                f'<span style="color:#94a3b8;font-size:0.78rem;">{row["color_name"]} · x{row["qty"]}</span>'
+                                f'</div>', unsafe_allow_html=True)
+                        with cc:
+                            st.selectbox("Bin", bins, key=f"coloc_bin_{i}", label_visibility="collapsed")
+                        with cd:
+                            approved = st.session_state.get(f"coloc_approve_{i}", True)
+                            chosen   = st.session_state.get(f"coloc_bin_{i}", bins[0] if bins else "-INCOMING")
+                            st.markdown(f'<div style="padding-top:6px;font-size:0.75rem;color:#475569;">{"→ " + chosen if approved else "→ -INCOMING"}</div>', unsafe_allow_html=True)
 
             with tab_new:
                 if not new_rows:
-                    st.info("All parts in this file already exist in your inventory.")
+                    st.info("All new parts have been handled via merge or co-location.")
                 else:
-                    st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:12px;">These parts are not in your store yet. They will be created with bin <strong style="color:#34d399;">-INCOMING</strong>.</div>', unsafe_allow_html=True)
-                    new_df_data = [{
-                        "Part #": r["pno"],
-                        "Name": r["pname"][:30],
-                        "Color": r["color_name"],
-                        "Cond": r["condition"],
-                        "Qty": r["qty"],
-                        "Price": f"${r['price']}",
-                        "Bin": r["bin"],
-                    } for r in new_rows]
-                    st.dataframe(new_df_data, use_container_width=True, hide_index=True)
+                    st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:12px;">These parts have no match in your store. They will be created with bin <strong style="color:#34d399;">-INCOMING</strong>.</div>', unsafe_allow_html=True)
+                    st.dataframe([{
+                        "Part #": r["pno"], "Name": r["pname"][:30], "Color": r["color_name"],
+                        "Cond": r["condition"], "Qty": r["qty"],
+                        "Price": f"${r['price']}", "Bin": r["bin"],
+                    } for r in new_rows], use_container_width=True, hide_index=True)
 
             st.write("")
             st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:12px;">Review the preview above, then confirm to push everything to BrickLink.</div>', unsafe_allow_html=True)
@@ -2710,10 +2735,11 @@ if st.session_state.page == "xmlimport":
                 auth = make_auth(*st.session_state.auth)
                 errors = []
                 success_merge = 0
+                success_coloc = 0
                 success_new   = 0
                 pb  = st.progress(0)
                 txt = st.empty()
-                total_ops = len(merge_rows) + len(new_rows)
+                total_ops = len(merge_rows) + len(coloc_rows) + len(new_rows)
                 done = 0
 
                 # --- MERGE: update quantity on existing lots ---
@@ -2730,7 +2756,6 @@ if st.session_state.page == "xmlimport":
                         data = r.json()
                         if data.get("meta",{}).get("code") != 200:
                             raise ValueError(data.get("meta",{}).get("description","Update failed"))
-                        # Update local inventory too
                         for lot in st.session_state.inventory:
                             if lot.get("inventory_id") == row["inventory_id"]:
                                 lot["quantity"] = row["new_qty"]
@@ -2741,15 +2766,41 @@ if st.session_state.page == "xmlimport":
                     pb.progress(done / total_ops)
                     time.sleep(0.1)
 
-                # --- NEW: create new inventory lots ---
+                # --- CO-LOCATE: create new lots in approved bin ---
+                for i, row in enumerate(coloc_rows):
+                    approved  = st.session_state.get(f"coloc_approve_{i}", True)
+                    bins      = row["suggested_bins"]
+                    chosen_bin = st.session_state.get(f"coloc_bin_{i}", bins[0] if bins else "-INCOMING")
+                    final_bin  = chosen_bin if approved else "-INCOMING"
+                    txt.text(f"Creating {row['pno']} ({row['color_name']}) → {final_bin}…")
+                    try:
+                        payload = {
+                            "item": {"no": row["pno"], "type": row["item_type"] if row["item_type"] in ("P","S","M","G","B","C","I","O") else "P"},
+                            "color_id":    int(row["color_id"]) if str(row["color_id"]).isdigit() else 0,
+                            "quantity":    row["qty"],
+                            "unit_price":  str(row["price"]),
+                            "new_or_used": row["condition"],
+                            "remarks":     final_bin,
+                            "is_retain":   True,
+                        }
+                        r = requests.post(f"{BASE}/inventories", auth=auth, json=payload, timeout=30)
+                        r.raise_for_status()
+                        data = r.json()
+                        if data.get("meta",{}).get("code") not in (200, 201):
+                            raise ValueError(data.get("meta",{}).get("description","Create failed"))
+                        success_coloc += 1
+                    except Exception as e:
+                        errors.append(f"Co-locate {row['pno']}: {e}")
+                    done += 1
+                    pb.progress(done / total_ops)
+                    time.sleep(0.1)
+
+                # --- NEW: create new lots in -INCOMING ---
                 for row in new_rows:
                     txt.text(f"Creating {row['pno']} ({row['color_name']})…")
                     try:
                         payload = {
-                            "item": {
-                                "no":   row["pno"],
-                                "type": row["item_type"] if row["item_type"] in ("P","S","M","G","B","C","I","O") else "P"
-                            },
+                            "item": {"no": row["pno"], "type": row["item_type"] if row["item_type"] in ("P","S","M","G","B","C","I","O") else "P"},
                             "color_id":    int(row["color_id"]) if str(row["color_id"]).isdigit() else 0,
                             "quantity":    row["qty"],
                             "unit_price":  str(row["price"]),
@@ -2757,12 +2808,7 @@ if st.session_state.page == "xmlimport":
                             "remarks":     "-INCOMING",
                             "is_retain":   True,
                         }
-                        r = requests.post(
-                            f"{BASE}/inventories",
-                            auth=auth,
-                            json=payload,
-                            timeout=30
-                        )
+                        r = requests.post(f"{BASE}/inventories", auth=auth, json=payload, timeout=30)
                         r.raise_for_status()
                         data = r.json()
                         if data.get("meta",{}).get("code") not in (200, 201):
@@ -2778,6 +2824,8 @@ if st.session_state.page == "xmlimport":
 
                 if success_merge:
                     st.success(f"✅ Merged quantities on {success_merge} existing lot(s)")
+                if success_coloc:
+                    st.success(f"✅ Created {success_coloc} co-located lot(s) in chosen bins")
                 if success_new:
                     st.success(f"✅ Created {success_new} new lot(s) in -INCOMING")
                 for err in errors:
