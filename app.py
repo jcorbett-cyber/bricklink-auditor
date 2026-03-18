@@ -988,7 +988,7 @@ with st.sidebar:
             ("dupes",     "copy",        "#fb923c", "Duplicates"),
             ("prices",    "tag",         "#4ade80", "Price Checker"),
             ("orders",    "box",         "#f472b6", "Pull Orders"),
-            ("xmlimport", "upload",      "#34d399", "XML Import"),
+            ("xmlimport", "arrow-up-circle", "#34d399", "XML Import"),
             ("skipped",   "eye-off",     "#818cf8", "Skipped Items"),
             ("history",   "calendar",    "#94a3b8", "Audit History"),
             ("legal",     "file-text",   "#475569", "Legal"),
@@ -1343,15 +1343,16 @@ if st.session_state.page == "dashboard":
     st.divider()
     st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Quick Access</div>', unsafe_allow_html=True)
 
-    c1,c2,c3,c4,c5,c6,c7 = st.columns(7)
+    c1,c2,c3,c4,c5,c6,c7,c8 = st.columns(8)
     actions = [
-        (c1, "browse",    "package",      "#a78bfa", "Browse",        f"{total:,} lots"),
-        (c2, "stockroom", "grid",         "#60a5fa", "Stockroom",     f"{n_bins} bins"),
-        (c3, "dupes",     "copy",         "#fb923c", "Duplicates",    f"{len(dupes)} groups"),
-        (c4, "prices",    "tag",          "#4ade80", "Prices",        "Market rates"),
-        (c5, "orders",    "box",          "#f472b6", "Orders",        "Pick open orders"),
-        (c6, "skipped",   "eye-off",      "#818cf8", "Skipped",       f"{skipped_n} items"),
-        (c7, "history",   "calendar",     "#94a3b8", "History",       "Past audits"),
+        (c1, "browse",    "package",         "#a78bfa", "Browse",        f"{total:,} lots"),
+        (c2, "stockroom", "grid",            "#60a5fa", "Stockroom",     f"{n_bins} bins"),
+        (c3, "dupes",     "copy",            "#fb923c", "Duplicates",    f"{len(dupes)} groups"),
+        (c4, "prices",    "tag",             "#4ade80", "Prices",        "Market rates"),
+        (c5, "orders",    "box",             "#f472b6", "Orders",        "Pick open orders"),
+        (c6, "xmlimport", "arrow-up-circle", "#34d399", "XML Import",    "Add inventory"),
+        (c7, "skipped",   "eye-off",         "#818cf8", "Skipped",       f"{skipped_n} items"),
+        (c8, "history",   "calendar",        "#94a3b8", "History",       "Past audits"),
     ]
     for col, page, ico, color, title, sub in actions:
         with col:
@@ -2565,7 +2566,7 @@ if st.session_state.page == "xmlimport":
 
     h1, h2 = st.columns([8,1])
     with h1:
-        st.markdown(f'{icon("upload",22,"#34d399")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">XML Import</span>', unsafe_allow_html=True)
+        st.markdown(f'{icon("arrow-up-circle",22,"#34d399")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">XML Import</span>', unsafe_allow_html=True)
     with h2:
         if st.button("⌂", key="home_xmlimport", help="Back to Dashboard"):
             st.session_state.page = "dashboard"; st.rerun()
