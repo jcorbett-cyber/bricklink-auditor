@@ -1736,7 +1736,7 @@ if st.session_state.page == "orders":
         st.session_state["pack_settings_loaded"] = True
 
     # Post-pack message & feedback settings
-    with st.expander(f"{icon('message-square',14,'#94a3b8')} Pack Message & Feedback Settings", expanded=False):
+    with st.expander("⚙️ Pack Message & Feedback Settings", expanded=False):
         st.markdown(
             '<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:4px;">'
             'These are sent automatically to buyers when you mark orders packed. '
@@ -2042,7 +2042,7 @@ if st.session_state.page == "orders":
                     f'</div>', unsafe_allow_html=True)
             st.write("")
             # Per-order message previews
-            with st.expander(f"{icon('eye',14,'#94a3b8')} Preview messages before sending", expanded=False):
+            with st.expander("👁️ Preview messages before sending", expanded=False):
                 msg_template = st.session_state.get("pack_message", DEFAULT_DRIVE_THRU)
                 fb_template  = st.session_state.get("pack_feedback", DEFAULT_FEEDBACK)
                 for order in orders:
