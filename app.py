@@ -966,18 +966,36 @@ with st.sidebar:
             ("orders",    "box",         "#f472b6", "Pull Orders"),
             ("skipped",   "eye-off",     "#818cf8", "Skipped Items"),
             ("history",   "calendar",    "#94a3b8", "Audit History"),
-            ("legal", "file-text", "#475569", "Legal"),
+            ("legal",     "file-text",   "#475569", "Legal"),
         ]
+        st.markdown("""
+        <style>
+        div[data-testid="stSidebarContent"] .stButton button {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            opacity: 0 !important;
+            position: absolute !important;
+            width: 100% !important;
+            cursor: pointer !important;
+        }
+        div[data-testid="stSidebarContent"] .nav-row-wrap {
+            position: relative;
+        }
+        </style>""", unsafe_allow_html=True)
         for page_key, ico, color, label in nav_items:
             is_active = st.session_state.page == page_key
             bg     = "rgba(109,40,217,0.15)" if is_active else "transparent"
             border = "1px solid #6d28d9"     if is_active else "1px solid transparent"
             st.markdown(
-                f'<div style="background:{bg};border:{border};border-radius:10px;'
+                f'<div class="nav-row-wrap"><div style="background:{bg};border:{border};border-radius:10px;'
                 f'padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px;">'
                 f'{icon(ico,14,color)}'
                 f'<span style="font-size:0.78rem;font-weight:600;color:#94a3b8;">{label}</span>'
-                f'</div>', unsafe_allow_html=True)
+                f'</div></div>', unsafe_allow_html=True)
             if st.button(label, key=f"nav_{page_key}", use_container_width=True):
                 st.session_state.page = page_key; st.rerun()
 
