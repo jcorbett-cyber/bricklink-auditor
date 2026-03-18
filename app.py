@@ -2819,7 +2819,10 @@ if st.session_state.page == "xmlimport":
                         payload = make_inventory_payload(
                             row["pno"], row["item_type"], row["color_id"],
                             row["qty"], row["price"], row["condition"], "-INCOMING")
+                        st.write("DEBUG payload:", payload)
                         r = requests.post(f"{BASE}/inventories", auth=auth, json=payload, timeout=30)
+                        st.write("DEBUG response status:", r.status_code)
+                        st.write("DEBUG response body:", r.text[:500])
                         r.raise_for_status()
                         data = r.json()
                         if data.get("meta",{}).get("code") not in (200, 201):
