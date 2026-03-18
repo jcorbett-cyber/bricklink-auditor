@@ -647,6 +647,32 @@ def load_pack_settings():
     except Exception:
         return DEFAULT_DRIVE_THRU, DEFAULT_FEEDBACK
 
+def save_discount_settings(parts_pct, other_pct):
+    if not DB_LOADED: return False
+    try:
+        for key, val in [("discount_parts", str(parts_pct)), ("discount_other", str(other_pct))]:
+            existing = supabase.table("app_settings").select("id").eq("key", key).execute()
+            if existing.data:
+                supabase.table("app_settings").update({"value": val}).eq("key", key).execute()
+            else:
+                supabase.table("app_settings").insert({"key": key, "value": val}).execute()
+        return True
+    except Exception as e:
+        return False
+
+def load_discount_settings():
+    if not DB_LOADED: return 30, 20
+    try:
+        rows = supabase.table("app_settings").select("key,value").in_("key", ["discount_parts","discount_other"]).execute()
+        data = {r["key"]: r["value"] for r in (rows.data or [])}
+        return int(data.get("discount_parts", 30)), int(data.get("discount_other", 20))
+    except Exception:
+        return 30, 20
+
+def get_sale_rate(item_type_bsx, parts_pct, other_pct):
+    """Return the correct sale % based on item type from BSX."""
+    return parts_pct if item_type_bsx.upper() == "P" else other_pct
+
 def resolve_template(template, buyer_name="", order_id="", pieces="", total=""):
     from datetime import date, timedelta
     today = date.today()
@@ -2559,9 +2585,8 @@ if st.session_state.page == "legal":
     render_legal_footer()
     st.stop()
 
-def make_inventory_payload(pno, item_type, color_id, qty, price, condition, remarks):
-    """Build a BrickLink inventory POST payload, omitting color_id for non-colored types."""
-    # BSX uses single-letter codes; BrickLink API needs full type strings
+def make_inventory_payload(pno, item_type, color_id, qty, price, condition, remarks, sale_rate=0):
+    """Build a BrickLink inventory POST payload."""
     type_map = {
         "P": "PART", "S": "SET", "M": "MINIFIG", "G": "GEAR",
         "B": "BOOK", "C": "CATALOG", "I": "INSTRUCTION", "O": "ORIGINAL_BOX",
@@ -2572,15 +2597,15 @@ def make_inventory_payload(pno, item_type, color_id, qty, price, condition, rema
     except Exception:
         price_fmt = "0.001"
     payload = {
-        "item":         {"no": pno, "type": itype},
-        "quantity":     int(qty),
-        "unit_price":   price_fmt,
-        "new_or_used":  condition,
-        "remarks":      remarks,
-        "is_retain":    True,
+        "item":          {"no": pno, "type": itype},
+        "quantity":      int(qty),
+        "unit_price":    price_fmt,
+        "new_or_used":   condition,
+        "remarks":       remarks,
+        "is_retain":     True,
         "is_stock_room": False,
+        "sale_rate":     int(sale_rate),
     }
-    # BrickLink always requires color_id — use 0 for Not Applicable (minifigs etc.)
     payload["color_id"] = int(color_id) if str(color_id).isdigit() else 0
     return payload
 
@@ -2598,6 +2623,33 @@ if st.session_state.page == "xmlimport":
             st.session_state.page = "dashboard"; st.rerun()
 
     st.markdown('<div style="font-size:0.82rem;color:#94a3b8;margin-bottom:20px;">Upload a BrickStore XML file to add parts to your BrickLink store. Existing lots will have their quantities merged. New parts will be created with bin <strong style="color:#34d399;">-INCOMING</strong>.</div>', unsafe_allow_html=True)
+
+    # Load discount settings once per session
+    if "discount_settings_loaded" not in st.session_state:
+        p_pct, o_pct = load_discount_settings()
+        st.session_state["discount_parts"] = p_pct
+        st.session_state["discount_other"] = o_pct
+        st.session_state["discount_settings_loaded"] = True
+
+    with st.expander("🏷️ Sale Rate Settings", expanded=False):
+        st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:10px;">These rates are applied as <code>sale_rate</code> on each lot when pushing to BrickLink. Saved permanently.</div>', unsafe_allow_html=True)
+        dc1, dc2 = st.columns(2)
+        with dc1:
+            parts_pct = st.number_input("Parts discount %", min_value=0, max_value=100,
+                                         value=st.session_state.get("discount_parts", 30),
+                                         key="discount_parts_input")
+        with dc2:
+            other_pct = st.number_input("Sets & Minifigures discount %", min_value=0, max_value=100,
+                                         value=st.session_state.get("discount_other", 20),
+                                         key="discount_other_input")
+        if st.button("💾 Save Discount Settings", key="save_discount_settings"):
+            st.session_state["discount_parts"] = parts_pct
+            st.session_state["discount_other"] = other_pct
+            if save_discount_settings(parts_pct, other_pct):
+                st.success("✅ Saved permanently!")
+            else:
+                st.warning("Saved to session only — database unavailable.")
+    st.write("")
 
     if not st.session_state.get("loaded"):
         st.warning("Load your inventory first before importing.")
@@ -2709,11 +2761,16 @@ if st.session_state.page == "xmlimport":
                     st.info("No parts in this file match your existing inventory.")
                 else:
                     st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:12px;">These parts already exist in your store. Their quantities will be increased.</div>', unsafe_allow_html=True)
+                    p_pct = st.session_state.get("discount_parts", 30)
+                    o_pct = st.session_state.get("discount_other", 20)
                     st.dataframe([{
                         "Part #": r["pno"], "Name": r["pname"][:30], "Color": r["color_name"],
                         "Cond": r["condition"], "Current Qty": r["existing_qty"],
                         "+ Adding": r["add_qty"], "New Qty": r["new_qty"],
-                        "Price": f"${r['price']}", "Bin": r["bin"],
+                        "Listed $": f"${r['price']}",
+                        "Sale %": f"{get_sale_rate(r['item_type'], p_pct, o_pct)}%",
+                        "Sale $": f"${float(r['price']) * (1 - get_sale_rate(r['item_type'], p_pct, o_pct)/100):.3f}",
+                        "Bin": r["bin"],
                     } for r in merge_rows], use_container_width=True, hide_index=True)
 
             with tab_coloc:
@@ -2744,10 +2801,15 @@ if st.session_state.page == "xmlimport":
                     st.info("All new parts have been handled via merge or co-location.")
                 else:
                     st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:12px;">These parts have no match in your store. They will be created with bin <strong style="color:#34d399;">-INCOMING</strong>.</div>', unsafe_allow_html=True)
+                    p_pct = st.session_state.get("discount_parts", 30)
+                    o_pct = st.session_state.get("discount_other", 20)
                     st.dataframe([{
                         "Part #": r["pno"], "Name": r["pname"][:30], "Color": r["color_name"],
                         "Cond": r["condition"], "Qty": r["qty"],
-                        "Price": f"${r['price']}", "Bin": r["bin"],
+                        "Listed $": f"${r['price']}",
+                        "Sale %": f"{get_sale_rate(r['item_type'], p_pct, o_pct)}%",
+                        "Sale $": f"${float(r['price']) * (1 - get_sale_rate(r['item_type'], p_pct, o_pct)/100):.3f}",
+                        "Bin": r["bin"],
                     } for r in new_rows], use_container_width=True, hide_index=True)
 
             st.write("")
@@ -2793,16 +2855,19 @@ if st.session_state.page == "xmlimport":
                     time.sleep(0.1)
 
                 # --- CO-LOCATE: create new lots in approved bin ---
+                p_pct = st.session_state.get("discount_parts", 30)
+                o_pct = st.session_state.get("discount_other", 20)
                 for i, row in enumerate(coloc_rows):
-                    approved  = st.session_state.get(f"coloc_approve_{i}", True)
-                    bins      = row["suggested_bins"]
+                    approved   = st.session_state.get(f"coloc_approve_{i}", True)
+                    bins       = row["suggested_bins"]
                     chosen_bin = st.session_state.get(f"coloc_bin_{i}", bins[0] if bins else "-INCOMING")
                     final_bin  = chosen_bin if approved else "-INCOMING"
                     txt.text(f"Creating {row['pno']} ({row['color_name']}) → {final_bin}…")
                     try:
                         payload = make_inventory_payload(
                             row["pno"], row["item_type"], row["color_id"],
-                            row["qty"], row["price"], row["condition"], final_bin)
+                            row["qty"], row["price"], row["condition"], final_bin,
+                            sale_rate=get_sale_rate(row["item_type"], p_pct, o_pct))
                         r = requests.post(f"{BASE}/inventories", auth=auth, json=payload, timeout=30)
                         r.raise_for_status()
                         data = r.json()
@@ -2821,11 +2886,9 @@ if st.session_state.page == "xmlimport":
                     try:
                         payload = make_inventory_payload(
                             row["pno"], row["item_type"], row["color_id"],
-                            row["qty"], row["price"], row["condition"], "-INCOMING")
-                        st.write("DEBUG payload:", payload)
+                            row["qty"], row["price"], row["condition"], "-INCOMING",
+                            sale_rate=get_sale_rate(row["item_type"], p_pct, o_pct))
                         r = requests.post(f"{BASE}/inventories", auth=auth, json=payload, timeout=30)
-                        st.write("DEBUG response status:", r.status_code)
-                        st.write("DEBUG response body:", r.text[:500])
                         r.raise_for_status()
                         data = r.json()
                         if data.get("meta",{}).get("code") not in (200, 201):
