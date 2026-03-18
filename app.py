@@ -2579,10 +2579,8 @@ def make_inventory_payload(pno, item_type, color_id, qty, price, condition, rema
         "remarks":     remarks,
         "is_retain":   True,
     }
-    # Omit color_id for MINIFIG with color 0 (Not Applicable)
-    if not (itype == "MINIFIG" and str(color_id) == "0"):
-        cid = int(color_id) if str(color_id).isdigit() else 0
-        payload["color_id"] = cid
+    # BrickLink always requires color_id — use 0 for Not Applicable (minifigs etc.)
+    payload["color_id"] = int(color_id) if str(color_id).isdigit() else 0
     return payload
 
 # ══════════════════════════════════════════════════════════════════════════════
