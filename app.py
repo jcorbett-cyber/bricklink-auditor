@@ -992,9 +992,9 @@ with st.sidebar:
             border = "1px solid #6d28d9"     if is_active else "1px solid transparent"
             st.markdown(
                 f'<div class="nav-row-wrap"><div style="background:{bg};border:{border};border-radius:10px;'
-                f'padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px;">'
-                f'{icon(ico,14,color)}'
-                f'<span style="font-size:0.78rem;font-weight:600;color:#94a3b8;">{label}</span>'
+                f'padding:6px 12px;margin-bottom:2px;display:flex;align-items:center;gap:10px;">'
+                f'{icon(ico,16,color)}'
+                f'<span style="font-size:0.88rem;font-weight:600;color:#94a3b8;">{label}</span>'
                 f'</div></div>', unsafe_allow_html=True)
             if st.button(label, key=f"nav_{page_key}", use_container_width=True):
                 st.session_state.page = page_key; st.rerun()
