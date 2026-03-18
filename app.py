@@ -569,6 +569,78 @@ def load_storage_history(inventory_id):
         st.warning(f"Could not load storage history: {e}")
         return []
 
+STORE_NAME = "JayKay Bricks"
+STORE_URL  = "https://store.bricklink.com/JayKayBricks"
+
+DEFAULT_DRIVE_THRU = """Hello <BUYERNAME>!
+
+Your BrickLink order #<ORDERID> was packed today (<CURRENTDATE>) and will be dropped off <TOMORROWDATE>. It should reach you soon!
+
+Thanks so much for choosing JayKay Bricks to serve your LEGO needs! We hope this transaction has been as smooth for you as it has been for us and that we can cross each other's paths in the future. If something is wrong with your order, please contact us ASAP so we can work everything out. If all is well, we would certainly appreciate it if you could take a moment to leave our store positive feedback.
+
+Thanks so much, and happy building!
+
+Sincerely,
+
+Jim and Kaitlyn
+of JayKay Bricks
+https://store.bricklink.com/JayKayBricks"""
+
+DEFAULT_FEEDBACK = "Thanks so much!! Happy building!!"
+
+def save_pack_settings(message, feedback):
+    if not DB_LOADED: return False
+    try:
+        existing = supabase.table("app_settings").select("id").eq("key", "pack_message").execute()
+        if existing.data:
+            supabase.table("app_settings").update({"value": message}).eq("key", "pack_message").execute()
+        else:
+            supabase.table("app_settings").insert({"key": "pack_message", "value": message}).execute()
+        existing2 = supabase.table("app_settings").select("id").eq("key", "pack_feedback").execute()
+        if existing2.data:
+            supabase.table("app_settings").update({"value": feedback}).eq("key", "pack_feedback").execute()
+        else:
+            supabase.table("app_settings").insert({"key": "pack_feedback", "value": feedback}).execute()
+        return True
+    except Exception as e:
+        st.warning(f"Could not save settings: {e}")
+        return False
+
+def load_pack_settings():
+    if not DB_LOADED: return DEFAULT_DRIVE_THRU, DEFAULT_FEEDBACK
+    try:
+        rows = supabase.table("app_settings").select("key,value").in_("key", ["pack_message","pack_feedback"]).execute()
+        data = {r["key"]: r["value"] for r in (rows.data or [])}
+        msg = data.get("pack_message", DEFAULT_DRIVE_THRU)
+        fb  = data.get("pack_feedback", DEFAULT_FEEDBACK)
+        return msg, fb
+    except Exception:
+        return DEFAULT_DRIVE_THRU, DEFAULT_FEEDBACK
+
+def resolve_template(template, buyer_name="", order_id="", pieces="", total=""):
+    from datetime import date, timedelta
+    today = date.today()
+    wd = today.weekday()  # Mon=0 … Sun=6
+    if wd == 4:    # Friday → drop off Saturday
+        ship_date = today + timedelta(days=1)
+    elif wd == 5:  # Saturday → drop off Monday
+        ship_date = today + timedelta(days=2)
+    elif wd == 6:  # Sunday → drop off Monday
+        ship_date = today + timedelta(days=1)
+    else:          # Mon–Thu → drop off tomorrow
+        ship_date = today + timedelta(days=1)
+    fmt = "%B %-d, %Y"
+    result = template
+    result = result.replace("<BUYERNAME>",      str(buyer_name))
+    result = result.replace("<ORDERID>",        str(order_id))
+    result = result.replace("<CURRENTDATE>",    today.strftime(fmt))
+    result = result.replace("<TOMORROWDATE>",   ship_date.strftime(fmt))
+    result = result.replace("<SELLERSTORENAME>",STORE_NAME)
+    result = result.replace("<STOREURL>",       STORE_URL)
+    result = result.replace("<PIECES>",         str(pieces))
+    result = result.replace("<TOTAL>",          str(total))
+    return result
+
 def find_duplicates(inventory):
     from collections import defaultdict
     groups = defaultdict(list)
@@ -1656,17 +1728,44 @@ if st.session_state.page == "orders":
         if st.button("⌂", key="home_orders", help="Back to Dashboard"): st.session_state.page="dashboard"; st.rerun()
     st.write("")
 
+    # Load saved settings into session state on first load
+    if "pack_settings_loaded" not in st.session_state:
+        saved_msg, saved_fb = load_pack_settings()
+        st.session_state["pack_message"] = saved_msg
+        st.session_state["pack_feedback"] = saved_fb
+        st.session_state["pack_settings_loaded"] = True
+
     # Post-pack message & feedback settings
     with st.expander(f"{icon('message-square',14,'#94a3b8')} Pack Message & Feedback Settings", expanded=False):
-        st.markdown('<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:10px;">These texts are sent automatically to buyers when you mark orders packed.</div>', unsafe_allow_html=True)
-        default_msg = "Your order has been packed and will ship soon! Thank you for your purchase."
-        default_fb  = "Great buyer — smooth transaction. Thank you!"
-        pack_msg = st.text_area("Drive-thru message to buyer", value=st.session_state.get("pack_message", default_msg), key="pack_message_input", height=80)
-        pack_fb  = st.text_area("Positive feedback text", value=st.session_state.get("pack_feedback", default_fb), key="pack_feedback_input", height=60)
-        if st.button("Save Settings", key="save_pack_settings"):
+        st.markdown(
+            '<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:4px;">'
+            'These are sent automatically to buyers when you mark orders packed. '
+            'Settings are saved permanently.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div style="font-size:0.72rem;color:#475569;margin-bottom:12px;">'
+            '<strong style="color:#a78bfa;">Available variables:</strong> '
+            '<code>&lt;BUYERNAME&gt;</code> &nbsp;'
+            '<code>&lt;ORDERID&gt;</code> &nbsp;'
+            '<code>&lt;CURRENTDATE&gt;</code> &nbsp;'
+            '<code>&lt;TOMORROWDATE&gt;</code> &nbsp;'
+            '<code>&lt;PIECES&gt;</code> &nbsp;'
+            '<code>&lt;TOTAL&gt;</code>'
+            '</div>', unsafe_allow_html=True)
+        pack_msg = st.text_area("Drive-thru message to buyer", value=st.session_state.get("pack_message", DEFAULT_DRIVE_THRU), key="pack_message_input", height=220)
+        pack_fb  = st.text_area("Positive feedback text", value=st.session_state.get("pack_feedback", DEFAULT_FEEDBACK), key="pack_feedback_input", height=60)
+        st.markdown('<div style="font-size:0.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 6px;">Live Preview (sample values)</div>', unsafe_allow_html=True)
+        preview = resolve_template(pack_msg, buyer_name="SampleBuyer", order_id="12345678", pieces="42", total="9.99")
+        st.markdown(
+            f'<div style="background:#0d1117;border:1px solid #1e2d45;border-radius:10px;'
+            f'padding:14px 16px;font-size:0.78rem;color:#cbd5e1;white-space:pre-wrap;line-height:1.6;">'
+            f'{preview}</div>', unsafe_allow_html=True)
+        if st.button("💾 Save Settings", key="save_pack_settings"):
             st.session_state["pack_message"] = pack_msg
             st.session_state["pack_feedback"] = pack_fb
-            st.success("Saved!")
+            if save_pack_settings(pack_msg, pack_fb):
+                st.success("✅ Saved permanently to database!")
+            else:
+                st.warning("Saved to session only — database unavailable.")
     st.write("")
 
     ORDER_COLORS = ["#f472b6","#60a5fa","#4ade80","#fb923c","#a78bfa","#f87171","#34d399","#fbbf24"]
@@ -1942,6 +2041,34 @@ if st.session_state.page == "orders":
                     f'<div>{status_html}</div>'
                     f'</div>', unsafe_allow_html=True)
             st.write("")
+            # Per-order message previews
+            with st.expander(f"{icon('eye',14,'#94a3b8')} Preview messages before sending", expanded=False):
+                msg_template = st.session_state.get("pack_message", DEFAULT_DRIVE_THRU)
+                fb_template  = st.session_state.get("pack_feedback", DEFAULT_FEEDBACK)
+                for order in orders:
+                    oid         = order.get("order_id","")
+                    buyer       = order.get("buyer_name","")
+                    grand_total = order.get("cost",{}).get("grand_total","?")
+                    o_items_prev= [i for b in queue for i in b["items"] if i["order_id"]==oid]
+                    total_pcs   = sum(i.get("quantity",1) for i in o_items_prev)
+                    letter      = letter_map[oid]
+                    color       = ORDER_COLORS[ord(letter)-65 if ord(letter)-65 < len(ORDER_COLORS) else 0]
+                    resolved    = resolve_template(msg_template, buyer_name=buyer, order_id=oid, pieces=total_pcs, total=grand_total)
+                    resolved_fb = resolve_template(fb_template,  buyer_name=buyer, order_id=oid, pieces=total_pcs, total=grand_total)
+                    st.markdown(
+                        f'<div style="margin-bottom:6px;">'
+                        f'<span style="color:{color};font-weight:800;">{letter}</span> '
+                        f'<span style="color:#e2e8f0;font-size:0.8rem;font-weight:600;">{buyer} #{oid}</span>'
+                        f'</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div style="background:#0d1117;border:1px solid #1e2d45;border-radius:8px;'
+                        f'padding:12px 14px;font-size:0.74rem;color:#cbd5e1;white-space:pre-wrap;'
+                        f'line-height:1.6;margin-bottom:4px;">{resolved}</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div style="background:#0d1117;border:1px solid #1e2d45;border-left:3px solid #4ade80;'
+                        f'border-radius:8px;padding:8px 14px;font-size:0.74rem;color:#4ade80;'
+                        f'margin-bottom:20px;">💬 Feedback: {resolved_fb}</div>', unsafe_allow_html=True)
+            st.write("")
             if st.button("📦 Mark All Orders Packed & Send Feedback", type="primary"):
                 auth = make_auth(*st.session_state.auth)
                 pack_errors = []
@@ -1951,24 +2078,29 @@ if st.session_state.page == "orders":
                         st.session_state.fulfilled_orders.add(oid)
                         continue
                     try:
+                        buyer        = order.get("buyer_name","")
+                        grand_total  = order.get("cost",{}).get("grand_total","?")
+                        o_items_send = [i for b in queue for i in b["items"] if i["order_id"]==oid]
+                        total_pcs    = sum(i.get("quantity",1) for i in o_items_send)
+                        msg_template = st.session_state.get("pack_message", DEFAULT_DRIVE_THRU)
+                        fb_template  = st.session_state.get("pack_feedback", DEFAULT_FEEDBACK)
+                        resolved_msg = resolve_template(msg_template, buyer_name=buyer, order_id=oid, pieces=total_pcs, total=grand_total)
+                        resolved_fb  = resolve_template(fb_template,  buyer_name=buyer, order_id=oid, pieces=total_pcs, total=grand_total)
                         # Set order status to PACKED
                         r1 = requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
                                           json={"field": "status", "value": "PACKED"}, timeout=30)
                         r1.raise_for_status()
-                        # Set shipping status to Packed
-                        r2 = requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
-                                          json={"field": "payment_status", "value": "Received"}, timeout=30)
                         # Post drive-thru message
-                        r3 = requests.post(f"{BASE}/orders/{oid}/messages", auth=auth,
-                                           json={"subject": "Order Packed",
-                                                 "body": st.session_state.get("pack_message", "Your order has been packed and will ship soon! Thank you for your purchase."),
-                                                 "to": "buyer"}, timeout=30)
+                        requests.post(f"{BASE}/orders/{oid}/messages", auth=auth,
+                                      json={"subject": "Order Packed",
+                                            "body": resolved_msg,
+                                            "to": "buyer"}, timeout=30)
                         # Post positive feedback
-                        r4 = requests.post(f"{BASE}/feedback", auth=auth,
-                                           json={"order_id": oid,
-                                                 "rating": "Praise",
-                                                 "comment": st.session_state.get("pack_feedback", "Great buyer — smooth transaction. Thank you!")},
-                                           timeout=30)
+                        requests.post(f"{BASE}/feedback", auth=auth,
+                                      json={"order_id": oid,
+                                            "rating": "Praise",
+                                            "comment": resolved_fb},
+                                      timeout=30)
                         st.session_state.fulfilled_orders.add(oid)
                     except Exception as e:
                         pack_errors.append(f"Order {oid}: {e}")
