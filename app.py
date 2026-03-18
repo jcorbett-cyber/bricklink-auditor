@@ -2561,7 +2561,12 @@ if st.session_state.page == "legal":
 
 def make_inventory_payload(pno, item_type, color_id, qty, price, condition, remarks):
     """Build a BrickLink inventory POST payload, omitting color_id for non-colored types."""
-    itype = item_type if item_type in ("P","S","M","G","B","C","I","O") else "P"
+    # BSX uses single-letter codes; BrickLink API needs full type strings
+    type_map = {
+        "P": "PART", "S": "SET", "M": "MINIFIG", "G": "GEAR",
+        "B": "BOOK", "C": "CATALOG", "I": "INSTRUCTION", "O": "ORIGINAL_BOX",
+    }
+    itype = type_map.get(item_type.upper(), "PART")
     try:
         price_fmt = f"{float(price):.3f}"
     except Exception:
@@ -2574,9 +2579,8 @@ def make_inventory_payload(pno, item_type, color_id, qty, price, condition, rema
         "remarks":     remarks,
         "is_retain":   True,
     }
-    # Only include color_id for types that use colors (Parts, Sets, Books, Gear, Catalogues, Instructions, Original Boxes)
-    # Minifigures (M) with color 0 = Not Applicable — omit color_id entirely
-    if not (itype == "M" and str(color_id) == "0"):
+    # Omit color_id for MINIFIG with color 0 (Not Applicable)
+    if not (itype == "MINIFIG" and str(color_id) == "0"):
         cid = int(color_id) if str(color_id).isdigit() else 0
         payload["color_id"] = cid
     return payload
