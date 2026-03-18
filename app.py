@@ -1925,7 +1925,7 @@ if st.session_state.page == "orders":
                         "color_name": item.get("color_name",""), "quantity": item.get("quantity",1),
                         "bin": item.get("bin_location","(no bin)"), "pick_key": pick_key,
                     })
-                single_items.sort(key=lambda x: (x["bin"], x["pno"]))
+                single_items.sort(key=lambda x: (x["bin"] == "(not in inventory)", x["bin"], x["pno"]))
                 from itertools import groupby as igrp
                 single_bins = []
                 for bin_name, bin_items in igrp(single_items, key=lambda x: x["bin"]):
@@ -1953,7 +1953,7 @@ if st.session_state.page == "orders":
                     "color_name": item.get("color_name",""), "quantity": item.get("quantity",1),
                     "bin": item.get("bin_location","(no bin)"), "pick_key": pick_key,
                 })
-        all_pick_items.sort(key=lambda x: (x["bin"], x["pno"]))
+        all_pick_items.sort(key=lambda x: (x["bin"] == "(not in inventory)", x["bin"], x["pno"]))
         from itertools import groupby as igrp
         pick_bins = []
         for bin_name, bin_items in igrp(all_pick_items, key=lambda x: x["bin"]):
@@ -1972,7 +1972,11 @@ if st.session_state.page == "orders":
         for bin_group in pick_bins:
             bin_name  = bin_group["bin"]
             bin_items = bin_group["items"]
-            st.markdown(f'<div class="bin-header" style="border-left-color:#f472b6;"><p class="bin-title" style="color:#f472b6;">{icon("box",14,"#f472b6")} {bin_name}</p></div>', unsafe_allow_html=True)
+            is_unknown = bin_name == "(not in inventory)"
+            hdr_color  = "#fb923c" if is_unknown else "#f472b6"
+            hdr_icon   = "alert-triangle" if is_unknown else "box"
+            hdr_label  = "⚠️ Not in inventory — check manually" if is_unknown else bin_name
+            st.markdown(f'<div class="bin-header" style="border-left-color:{hdr_color};"><p class="bin-title" style="color:{hdr_color};">{icon(hdr_icon,14,hdr_color)} {hdr_label}</p></div>', unsafe_allow_html=True)
             cols = st.columns(COLS)
             for i, item in enumerate(bin_items):
                 col = cols[i % COLS]
@@ -2142,10 +2146,14 @@ if st.session_state.page == "orders":
 
         all_total  = sum(len(b["items"]) for b in queue)
         all_picked = sum(1 for b in queue for i in b["items"] if i.get("pick_key","") in st.session_state.picked_items)
+        is_unknown_bin = current_bin == "(not in inventory)"
+        pick_hdr_color = "#fb923c" if is_unknown_bin else "#f472b6"
+        pick_hdr_icon  = "alert-triangle" if is_unknown_bin else "box"
+        pick_hdr_label = "⚠️ Not in inventory — locate manually" if is_unknown_bin else current_bin
         st.markdown(
             f'<div class="audit-mode-header">'
-            f'<div class="audit-mode-sub">{icon("box",14,"#f472b6")} Pick Mode · Bin {idx+1} of {len(queue)}</div>'
-            f'<div class="audit-mode-title" style="color:#f472b6;">{current_bin}</div>'
+            f'<div class="audit-mode-sub">{icon(pick_hdr_icon,14,pick_hdr_color)} Pick Mode · Bin {idx+1} of {len(queue)}</div>'
+            f'<div class="audit-mode-title" style="color:{pick_hdr_color};">{pick_hdr_label}</div>'
             f'<div style="margin-top:12px;">', unsafe_allow_html=True)
         st.progress(min(max(all_picked / all_total if all_total else 0, 0.0), 1.0))
         st.markdown(
