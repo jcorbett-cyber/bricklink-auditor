@@ -2297,7 +2297,7 @@ if st.session_state.page == "orders":
                         else:
                             st.write(f"DEBUG tracking {oid}: no tracking number, skipped")
                         # Post drive-thru message
-                        r_msg = requests.put(f"{BASE}/orders/{oid}/drive_thru", auth=auth,
+                        r_msg = requests.post(f"{BASE}/orders/{oid}/drive_thru", auth=auth,
                                       json={"body": resolved_msg, "subject": "Order Packed"},
                                       timeout=30)
                         st.write(f"DEBUG message {oid}: HTTP {r_msg.status_code} — {r_msg.text[:300]}")
@@ -2305,6 +2305,7 @@ if st.session_state.page == "orders":
                         r_fb = requests.post(f"{BASE}/feedback", auth=auth,
                                       json={"order_id": int(oid),
                                             "rating": "Positive",
+                                            "rating_of_bs": "S",
                                             "comment": resolved_fb},
                                       timeout=30)
                         st.write(f"DEBUG feedback {oid}: HTTP {r_fb.status_code} — {r_fb.text[:300]}")
