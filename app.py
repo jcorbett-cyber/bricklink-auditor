@@ -2289,27 +2289,22 @@ if st.session_state.page == "orders":
                         # BrickLink returns 204 No Content on success — no JSON body to check
                         # Submit tracking number if provided
                         tracking_no = st.session_state.get(f"tracking_{oid}", "").strip()
-                        carrier     = st.session_state.get(f"carrier_{oid}", "USPS")
                         if tracking_no:
                             r_track = requests.put(f"{BASE}/orders/{oid}", auth=auth,
-                                         json={"shipping": {
-                                             "tracking_no": tracking_no,
-                                             "tracking_link": "",
-                                             "method_id": 0
-                                         }}, timeout=30)
+                                         json={"shipping": {"tracking_no": tracking_no}},
+                                         timeout=30)
                             st.write(f"DEBUG tracking {oid}: HTTP {r_track.status_code} — {r_track.text[:300]}")
                         else:
-                            st.write(f"DEBUG tracking {oid}: no tracking number entered, skipped")
+                            st.write(f"DEBUG tracking {oid}: no tracking number, skipped")
                         # Post drive-thru message
-                        r_msg = requests.post(f"{BASE}/orders/{oid}/messages", auth=auth,
-                                      json={"subject": "Order Packed",
-                                            "body": resolved_msg,
-                                            "to": "buyer"}, timeout=30)
+                        r_msg = requests.put(f"{BASE}/orders/{oid}/drive_thru", auth=auth,
+                                      json={"body": resolved_msg, "subject": "Order Packed"},
+                                      timeout=30)
                         st.write(f"DEBUG message {oid}: HTTP {r_msg.status_code} — {r_msg.text[:300]}")
                         # Post positive feedback
                         r_fb = requests.post(f"{BASE}/feedback", auth=auth,
-                                      json={"order_id": oid,
-                                            "rating": "Praise",
+                                      json={"order_id": int(oid),
+                                            "rating": "Positive",
                                             "comment": resolved_fb},
                                       timeout=30)
                         st.write(f"DEBUG feedback {oid}: HTTP {r_fb.status_code} — {r_fb.text[:300]}")
