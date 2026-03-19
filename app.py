@@ -2304,7 +2304,7 @@ if st.session_state.page == "orders":
                         # Post positive feedback
                         r_fb = requests.post(f"{BASE}/feedback", auth=auth,
                                       json={"order_id": int(oid),
-                                            "rating": "Positive",
+                                            "rating": 0,
                                             "rating_of_bs": "S",
                                             "comment": resolved_fb},
                                       timeout=30)
