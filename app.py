@@ -2291,23 +2291,28 @@ if st.session_state.page == "orders":
                         tracking_no = st.session_state.get(f"tracking_{oid}", "").strip()
                         carrier     = st.session_state.get(f"carrier_{oid}", "USPS")
                         if tracking_no:
-                            requests.put(f"{BASE}/orders/{oid}", auth=auth,
+                            r_track = requests.put(f"{BASE}/orders/{oid}", auth=auth,
                                          json={"shipping": {
                                              "tracking_no": tracking_no,
                                              "tracking_link": "",
                                              "method_id": 0
                                          }}, timeout=30)
+                            st.write(f"DEBUG tracking {oid}: HTTP {r_track.status_code} — {r_track.text[:300]}")
+                        else:
+                            st.write(f"DEBUG tracking {oid}: no tracking number entered, skipped")
                         # Post drive-thru message
-                        requests.post(f"{BASE}/orders/{oid}/messages", auth=auth,
+                        r_msg = requests.post(f"{BASE}/orders/{oid}/messages", auth=auth,
                                       json={"subject": "Order Packed",
                                             "body": resolved_msg,
                                             "to": "buyer"}, timeout=30)
+                        st.write(f"DEBUG message {oid}: HTTP {r_msg.status_code} — {r_msg.text[:300]}")
                         # Post positive feedback
-                        requests.post(f"{BASE}/feedback", auth=auth,
+                        r_fb = requests.post(f"{BASE}/feedback", auth=auth,
                                       json={"order_id": oid,
                                             "rating": "Praise",
                                             "comment": resolved_fb},
                                       timeout=30)
+                        st.write(f"DEBUG feedback {oid}: HTTP {r_fb.status_code} — {r_fb.text[:300]}")
                         st.session_state.fulfilled_orders.add(oid)
                         pack_successes.append(oid)
                     except Exception as e:
@@ -2316,8 +2321,8 @@ if st.session_state.page == "orders":
                     for err in pack_errors:
                         st.error(f"⚠️ {err}")
                 if pack_successes:
-                    st.success(f"✅ {len(pack_successes)} order(s) marked packed, messages sent, and feedback posted!")
-                st.session_state.pick_mode = False
+                    st.success(f"✅ {len(pack_successes)} order(s) marked packed!")
+                st.stop()  # keep debug visible
                 st.rerun()
             if st.button("Back to Orders", use_container_width=False):
                 st.session_state.pick_mode = False; st.rerun()
