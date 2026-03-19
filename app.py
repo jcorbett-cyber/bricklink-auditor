@@ -2362,8 +2362,10 @@ if st.session_state.page == "orders":
 
         # Hidden trigger button for spacebar — only renders if there's something to pick
         if next_unpicked:
-            if st.button("__spacebar_pick__", key=f"spacebar_{next_unpicked['pick_key']}", label_visibility="hidden"):
+            st.markdown('<div style="height:0;overflow:hidden;opacity:0;position:absolute;">', unsafe_allow_html=True)
+            if st.button("__spacebar_pick__", key=f"spacebar_{next_unpicked['pick_key']}"):
                 st.session_state.picked_items.add(next_unpicked["pick_key"]); st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
         if total_count > 0 and done_count == total_count:
             st.markdown(
