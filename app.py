@@ -2326,6 +2326,37 @@ if st.session_state.page == "orders":
         total_count   = len(current_items)
         pct           = int(done_count/total_count*100) if total_count else 0
 
+        # Find next unpicked item for spacebar shortcut
+        next_unpicked = next((i for i in current_items if i.get("pick_key","") not in st.session_state.picked_items), None)
+
+        # Spacebar JS listener — clicks the hidden trigger button
+        st.markdown("""
+        <script>
+        (function() {
+            function handleKey(e) {
+                if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    const btns = window.parent.document.querySelectorAll('button');
+                    for (const btn of btns) {
+                        if (btn.innerText.trim() === '__spacebar_pick__') {
+                            btn.click(); break;
+                        }
+                    }
+                }
+            }
+            document.removeEventListener('keydown', handleKey);
+            document.addEventListener('keydown', handleKey);
+            window.parent.document.removeEventListener('keydown', handleKey);
+            window.parent.document.addEventListener('keydown', handleKey);
+        })();
+        </script>
+        """, unsafe_allow_html=True)
+
+        # Hidden trigger button for spacebar — only renders if there's something to pick
+        if next_unpicked:
+            if st.button("__spacebar_pick__", key=f"spacebar_{next_unpicked['pick_key']}", label_visibility="hidden"):
+                st.session_state.picked_items.add(next_unpicked["pick_key"]); st.rerun()
+
         if total_count > 0 and done_count == total_count:
             st.markdown(
                 f'<div style="background:linear-gradient(135deg,#0d2818,#112d1c);border:2px solid #2d6a4f;'
