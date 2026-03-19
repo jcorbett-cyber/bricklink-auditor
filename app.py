@@ -2064,6 +2064,16 @@ if st.session_state.page == "orders":
                 f'<div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">{buyer} — #{oid}</div>'
                 f'<div style="font-size:0.72rem;color:#475569;margin-top:2px;">{n_items} pieces · {len(items)} lots · ${total}</div>'
                 f'</div>{done_html}</div>', unsafe_allow_html=True)
+            # Tracking input — available before, during, and after picking
+            if not str(oid).startswith("BO-"):
+                tc1, tc2 = st.columns([3,1])
+                with tc1:
+                    st.text_input("Tracking", placeholder="Paste tracking number",
+                                  key=f"tracking_{oid}", label_visibility="collapsed")
+                with tc2:
+                    st.selectbox("Carrier", ["USPS","UPS","FedEx","DHL","Other"],
+                                 key=f"carrier_{oid}", label_visibility="collapsed")
+            st.write("")
             if st.button(f"▶ Pick Order {letter} — {buyer}", key=f"pickone_{oid}", use_container_width=True, type="primary"):
                 single_items = []
                 raw_items = [i for order in st.session_state.orders_data for i in order.get("items",[]) if order.get("order_id")==oid]
@@ -2208,7 +2218,7 @@ if st.session_state.page == "orders":
                     f'</div>', unsafe_allow_html=True)
             st.write("")
             # Per-order tracking number inputs
-            st.markdown('<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">📬 Tracking Numbers</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">📬 Tracking Numbers (confirm or update)</div>', unsafe_allow_html=True)
             CARRIERS = ["USPS", "UPS", "FedEx", "DHL", "Other"]
             for order in orders:
                 oid    = order.get("order_id")
