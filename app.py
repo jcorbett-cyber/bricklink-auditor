@@ -2416,13 +2416,19 @@ if st.session_state.page == "orders":
                             st.session_state.picked_items.add(pick_key); st.rerun()
 
         st.write("")
-        c1, c2 = st.columns([1,1])
+        c1, c2, c3 = st.columns([1,1,1])
         with c1:
             if st.button("Skip to Next Bin", use_container_width=True):
                 st.session_state.pick_index += 1; st.rerun()
         with c2:
             if st.button("Exit Pick Mode", use_container_width=True, type="primary"):
                 st.session_state.pick_mode = False; st.rerun()
+        with c3:
+            if st.button("✅ Mark All Pulled", use_container_width=True):
+                for b in queue:
+                    for i in b["items"]:
+                        st.session_state.picked_items.add(i.get("pick_key",""))
+                st.session_state.pick_index = len(queue); st.rerun()
 
     st.stop()
 
