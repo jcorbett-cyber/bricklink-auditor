@@ -2285,35 +2285,29 @@ if st.session_state.page == "orders":
                         # Set order status to PACKED
                         r1 = requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
                                           json={"field": "status", "value": "PACKED"}, timeout=30)
-                        st.write(f"DEBUG order {oid} status update: HTTP {r1.status_code} — {r1.text[:200]}")
                         r1.raise_for_status()
-                        data1 = r1.json()
-                        if data1.get("meta",{}).get("code") != 200:
-                            raise ValueError(f"Status update failed: {data1.get('meta',{}).get('description','unknown error')}")
+                        # BrickLink returns 204 No Content on success — no JSON body to check
                         # Submit tracking number if provided
                         tracking_no = st.session_state.get(f"tracking_{oid}", "").strip()
                         carrier     = st.session_state.get(f"carrier_{oid}", "USPS")
                         if tracking_no:
-                            r_track = requests.put(f"{BASE}/orders/{oid}", auth=auth,
+                            requests.put(f"{BASE}/orders/{oid}", auth=auth,
                                          json={"shipping": {
                                              "tracking_no": tracking_no,
                                              "tracking_link": "",
                                              "method_id": 0
                                          }}, timeout=30)
-                            st.write(f"DEBUG tracking: HTTP {r_track.status_code} — {r_track.text[:200]}")
                         # Post drive-thru message
-                        r_msg = requests.post(f"{BASE}/orders/{oid}/messages", auth=auth,
+                        requests.post(f"{BASE}/orders/{oid}/messages", auth=auth,
                                       json={"subject": "Order Packed",
                                             "body": resolved_msg,
                                             "to": "buyer"}, timeout=30)
-                        st.write(f"DEBUG message: HTTP {r_msg.status_code} — {r_msg.text[:200]}")
                         # Post positive feedback
-                        r_fb = requests.post(f"{BASE}/feedback", auth=auth,
+                        requests.post(f"{BASE}/feedback", auth=auth,
                                       json={"order_id": oid,
                                             "rating": "Praise",
                                             "comment": resolved_fb},
                                       timeout=30)
-                        st.write(f"DEBUG feedback: HTTP {r_fb.status_code} — {r_fb.text[:200]}")
                         st.session_state.fulfilled_orders.add(oid)
                         pack_successes.append(oid)
                     except Exception as e:
@@ -2322,8 +2316,9 @@ if st.session_state.page == "orders":
                     for err in pack_errors:
                         st.error(f"⚠️ {err}")
                 if pack_successes:
-                    st.success(f"✅ {len(pack_successes)} order(s) marked packed!")
-                st.stop()  # Keep debug visible — remove after debugging
+                    st.success(f"✅ {len(pack_successes)} order(s) marked packed, messages sent, and feedback posted!")
+                st.session_state.pick_mode = False
+                st.rerun()
             if st.button("Back to Orders", use_container_width=False):
                 st.session_state.pick_mode = False; st.rerun()
             st.stop()
