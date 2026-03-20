@@ -68,6 +68,7 @@ def icon(name, size=16, color="currentColor"):
         "clock":          '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
         "eye-off":        '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
         "arrow-up-circle": '<circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/>',
+        "scissors":        '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/>',
     }
     paths = icons.get(name, "")
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
@@ -1066,6 +1067,7 @@ with st.sidebar:
                 ("prices",    "tag",               "#4ade80", "Price Checker"),
                 ("orders",    "box",               "#f472b6", "Pull Orders"),
                 ("xmlimport", "arrow-up-circle",   "#34d399", "Upload"),
+                ("partout",   "scissors",          "#f59e0b", "Part Out"),
                 ("skipped",   "eye-off",           "#818cf8", "Skipped Items"),
                 ("history",   "calendar",          "#94a3b8", "Audit History"),
                 ("legal",     "file-text",         "#475569", "Legal"),
@@ -1367,7 +1369,8 @@ if st.session_state.page == "dashboard":
     # ── 4x2 grid of page tiles ─────────────────────────────────────────────
     TILE_COLORS = {
         "browse":    "#a78bfa", "stockroom": "#60a5fa", "dupes":    "#fb923c", "prices":   "#4ade80",
-        "orders":    "#f472b6", "xmlimport": "#34d399", "skipped":  "#818cf8", "history":  "#94a3b8",
+        "orders":    "#f472b6", "xmlimport": "#34d399", "partout":  "#f59e0b", "skipped":  "#818cf8",
+        "history":  "#94a3b8",
     }
     grid_actions = [
         ("browse",    "package",         TILE_COLORS["browse"],    "Browse",     f"{total:,} lots"),
@@ -1376,12 +1379,14 @@ if st.session_state.page == "dashboard":
         ("prices",    "tag",             TILE_COLORS["prices"],    "Prices",     "Market rates"),
         ("orders",    "box",             TILE_COLORS["orders"],    "Orders",     "Pick open orders"),
         ("xmlimport", "arrow-up-circle", TILE_COLORS["xmlimport"], "Upload",     "Add inventory"),
+        ("partout",   "scissors",        TILE_COLORS["partout"],   "Part Out",   "Value a set"),
         ("skipped",   "eye-off",         TILE_COLORS["skipped"],   "Skipped",    f"{skipped_n} items"),
         ("history",   "calendar",        TILE_COLORS["history"],   "History",    "Past audits"),
     ]
-    row1 = st.columns(4)
-    row2 = st.columns(4)
-    all_cols = row1 + row2
+    row1 = st.columns(3)
+    row2 = st.columns(3)
+    row3 = st.columns(3)
+    all_cols = row1 + row2 + row3
     for col, (page, ico, color, title, sub) in zip(all_cols, grid_actions):
         with col:
             st.markdown(
@@ -2753,6 +2758,220 @@ if st.session_state.page == "browse":
                                     save_progress(lid,"flagged","Wrong part",None,None,st.session_state.notes.get(lid)); st.rerun()
         st.divider()
         
+if st.session_state.page == "partout":
+    if st.session_state.get("loaded"): render_persistent_header()
+    h1, h2 = st.columns([8,1])
+    with h1:
+        st.markdown(f'{icon("scissors",22,"#f59e0b")} <span style="font-size:1.4rem;font-weight:800;color:#e2e8f0;vertical-align:middle;">Part Out</span>', unsafe_allow_html=True)
+    with h2:
+        if st.button("⌂", key="home_partout", help="Back to Dashboard"):
+            st.session_state.page = "dashboard"; st.rerun()
+    st.markdown('<div style="font-size:0.82rem;color:#94a3b8;margin-bottom:20px;">Enter a set number to see its parts, estimated value, and add them to your store.</div>', unsafe_allow_html=True)
+
+    if not st.session_state.get("loaded"):
+        st.warning("Load your inventory first.")
+        st.stop()
+
+    # Set number input
+    po1, po2 = st.columns([3,1])
+    with po1:
+        set_no = st.text_input("Set number", placeholder="e.g. 21301 or 75192-1", key="partout_set_no", label_visibility="collapsed")
+    with po2:
+        search_btn = st.button("🔍 Look Up Set", type="primary", use_container_width=True, key="partout_search")
+
+    if search_btn and set_no.strip():
+        auth = make_auth(*st.session_state.auth)
+        set_num = set_no.strip().split("-")[0]  # strip suffix if present
+        with st.spinner(f"Fetching set {set_num} from BrickLink…"):
+            try:
+                # Get set info
+                r_set = requests.get(f"{BASE}/items/set/{set_num}-1", auth=auth, timeout=30)
+                r_set.raise_for_status()
+                set_data = r_set.json().get("data", {})
+
+                # Get set price
+                r_price = requests.get(f"{BASE}/items/set/{set_num}-1/price", auth=auth,
+                                       params={"guide_type": "sold", "new_or_used": "N"}, timeout=30)
+                set_price_data = r_price.json().get("data", {}) if r_price.ok else {}
+                set_avg_price = float(set_price_data.get("avg_price", 0) or 0)
+
+                # Get subsets (parts)
+                r_parts = requests.get(f"{BASE}/items/set/{set_num}-1/subsets", auth=auth, timeout=30)
+                r_parts.raise_for_status()
+                subsets = r_parts.json().get("data", [])
+
+                st.session_state["partout_set_data"]   = set_data
+                st.session_state["partout_set_no"]     = set_num
+                st.session_state["partout_set_price"]  = set_avg_price
+                st.session_state["partout_subsets"]    = subsets
+                st.session_state["partout_conditions"] = {}
+                st.rerun()
+            except Exception as e:
+                st.error(f"Could not fetch set {set_num}: {e}")
+
+    if st.session_state.get("partout_subsets") and st.session_state.get("partout_set_no"):
+        auth       = make_auth(*st.session_state.auth)
+        set_data   = st.session_state["partout_set_data"]
+        set_num    = st.session_state["partout_set_no"]
+        set_price  = st.session_state["partout_set_price"]
+        subsets    = st.session_state["partout_subsets"]
+        conditions = st.session_state.get("partout_conditions", {})
+
+        set_name  = set_data.get("name", set_num)
+        set_image = f"https://img.bricklink.com/ItemImage/SN/0/{set_num}-1.png"
+
+        # Set header
+        sc1, sc2 = st.columns([1,4])
+        with sc1:
+            st.markdown(f'<img src="{set_image}" style="width:100%;max-width:160px;border-radius:10px;" onerror="this.style.opacity=\'0.2\'"/>', unsafe_allow_html=True)
+        with sc2:
+            st.markdown(
+                f'<div style="padding-top:8px;">'
+                f'<div style="font-size:1.4rem;font-weight:800;color:#e2e8f0;">{set_name}</div>'
+                f'<div style="font-size:0.85rem;color:#475569;margin-top:4px;">Set #{set_num} · {set_data.get("year_released","?")} · {set_data.get("weight","?")}g</div>'
+                f'<div style="font-size:0.9rem;color:#f59e0b;margin-top:8px;font-weight:700;">'
+                f'Current avg sale price: ${set_avg_price:.2f}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+        st.write("")
+
+        # Flatten subsets — each entry has entries list
+        parts = []
+        for entry in subsets:
+            for e in entry.get("entries", []):
+                item = e.get("item", {})
+                if item.get("type") != "PART": continue
+                parts.append({
+                    "pno":       item.get("no",""),
+                    "pname":     item.get("name",""),
+                    "color_id":  e.get("color_id", 0),
+                    "color_name": e.get("color_name",""),
+                    "qty":       e.get("quantity", 1),
+                    "extra_qty": e.get("extra_quantity", 0),
+                    "is_alternate": e.get("is_alternate", False),
+                })
+
+        # Fetch prices with progress
+        if "partout_prices" not in st.session_state:
+            pb = st.progress(0); txt = st.empty()
+            prices = {}
+            for i, p in enumerate(parts):
+                txt.text(f"Fetching prices {i+1}/{len(parts)}…")
+                key = (p["pno"], p["color_id"])
+                if key not in prices:
+                    pg = fetch_price_guide(auth, p["pno"], p["color_id"], "N")
+                    prices[key] = pg.get("qty_avg_price", 0) if pg else 0
+                pb.progress((i+1)/len(parts))
+            pb.empty(); txt.empty()
+            st.session_state["partout_prices"] = prices
+            st.rerun()
+
+        prices = st.session_state.get("partout_prices", {})
+
+        # Calculate totals
+        total_po_value = sum(
+            prices.get((p["pno"], p["color_id"]), 0) * p["qty"]
+            for p in parts if not p["is_alternate"]
+        )
+
+        # Value summary
+        v1, v2, v3 = st.columns(3)
+        diff = total_po_value - set_price
+        diff_color = "#4ade80" if diff > 0 else "#fb7185"
+        for col, val, label, color in [
+            (v1, f"${total_po_value:.2f}", "Est. Part-Out Value", "#f59e0b"),
+            (v2, f"${set_price:.2f}",      "Avg Set Sale Price",  "#60a5fa"),
+            (v3, f"${diff:+.2f}",          "Difference",          diff_color),
+        ]:
+            with col:
+                st.markdown(
+                    f'<div class="metric-card" style="padding:14px 10px;">'
+                    f'<div class="metric-value" style="font-size:1.6rem;color:{color}">{val}</div>'
+                    f'<div class="metric-label">{label}</div></div>', unsafe_allow_html=True)
+
+        st.write("")
+        st.markdown(f'<div style="font-size:0.72rem;color:#475569;margin-bottom:12px;">{len(parts)} parts · Alternates excluded from value calculation</div>', unsafe_allow_html=True)
+
+        # Parts table with condition selector
+        st.markdown('<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Parts List</div>', unsafe_allow_html=True)
+        for i, p in enumerate(parts):
+            pno      = p["pno"]
+            color_id = p["color_id"]
+            price_ea = prices.get((pno, color_id), 0)
+            line_val = price_ea * p["qty"]
+            alt_note = " · alternate" if p["is_alternate"] else ""
+            pc1, pc2, pc3, pc4, pc5 = st.columns([1,3,2,1,1])
+            with pc1:
+                st.markdown(f'<img src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" style="width:48px;height:48px;object-fit:contain;" onerror="this.style.opacity=\'0.15\'"/>', unsafe_allow_html=True)
+            with pc2:
+                st.markdown(f'<div style="padding-top:8px;font-size:0.8rem;font-weight:700;color:#e2e8f0;">{pno}</div><div style="font-size:0.7rem;color:#94a3b8;">{p["pname"][:30]} · {p["color_name"]}{alt_note}</div>', unsafe_allow_html=True)
+            with pc3:
+                st.markdown(f'<div style="padding-top:8px;font-size:0.8rem;color:#f59e0b;">${price_ea:.3f} ea · <b>${line_val:.2f}</b></div>', unsafe_allow_html=True)
+            with pc4:
+                st.markdown(f'<div style="padding-top:8px;font-size:0.9rem;font-weight:800;color:#60a5fa;">x{p["qty"]}</div>', unsafe_allow_html=True)
+            with pc5:
+                cond = st.selectbox("Cond", ["N","U"], key=f"po_cond_{i}",
+                                    index=0, label_visibility="collapsed")
+                conditions[i] = cond
+
+        st.session_state["partout_conditions"] = conditions
+        st.write("")
+
+        # Push to BrickLink
+        st.markdown(f'<div style="font-size:0.78rem;color:#94a3b8;margin-bottom:8px;">Parts will be added to bin <strong style="color:#f59e0b;">-INCOMING-{set_num}</strong>. Existing lots (same part+color+condition) will have quantities merged.</div>', unsafe_allow_html=True)
+
+        if st.button(f"✅ Add All Parts to BrickLink Store", type="primary", key="partout_push"):
+            inv = st.session_state.inventory
+            inv_lookup = {}
+            for lot in inv:
+                p2   = lot.get("item",{}).get("no","")
+                cid  = str(lot.get("color_id",0))
+                cond = lot.get("new_or_used","N")
+                inv_lookup[(p2.upper(), cid, cond)] = lot
+
+            target_bin = f"-INCOMING-{set_num}"
+            errors = []; merges = 0; creates = 0
+            pb = st.progress(0); txt = st.empty()
+            for i, p in enumerate(parts):
+                txt.text(f"Processing {p['pno']} ({p['color_name']})…")
+                cond     = conditions.get(i, "N")
+                exact_key = (p["pno"].upper(), str(p["color_id"]), cond)
+                try:
+                    if exact_key in inv_lookup:
+                        existing = inv_lookup[exact_key]
+                        new_qty  = existing.get("quantity",0) + p["qty"]
+                        r = requests.put(f"{BASE}/inventories/{existing['inventory_id']}", auth=auth,
+                                         json={"quantity": new_qty}, timeout=30)
+                        r.raise_for_status()
+                        existing["quantity"] = new_qty
+                        merges += 1
+                    else:
+                        payload = make_inventory_payload(
+                            p["pno"], "P", p["color_id"], p["qty"],
+                            f"{prices.get((p['pno'],p['color_id']),0):.3f}",
+                            cond, target_bin)
+                        r = requests.post(f"{BASE}/inventories", auth=auth, json=payload, timeout=30)
+                        r.raise_for_status()
+                        creates += 1
+                except Exception as e:
+                    errors.append(f"{p['pno']}: {e}")
+                pb.progress((i+1)/len(parts))
+                time.sleep(0.1)
+            pb.empty(); txt.empty()
+            if merges:  st.success(f"✅ Merged {merges} existing lot(s)")
+            if creates: st.success(f"✅ Created {creates} new lot(s) in {target_bin}")
+            for err in errors: st.error(f"⚠️ {err}")
+            if not errors: st.balloons()
+            # Clear cached prices so next set starts fresh
+            if "partout_prices" in st.session_state: del st.session_state["partout_prices"]
+
+        if st.button("🔄 Look Up a Different Set", key="partout_reset"):
+            for k in ["partout_set_data","partout_set_no","partout_set_price","partout_subsets","partout_prices","partout_conditions"]:
+                if k in st.session_state: del st.session_state[k]
+            st.rerun()
+
+    st.stop()
+
 if st.session_state.page == "legal":
     if st.session_state.get("loaded"): render_persistent_header()
     h1,h2=st.columns([8,1])
