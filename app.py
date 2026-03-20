@@ -2065,14 +2065,13 @@ if st.session_state.page == "orders":
                 f'<div style="font-size:0.72rem;color:#475569;margin-top:2px;">{n_items} pieces · {len(items)} lots · ${total}</div>'
                 f'</div>{done_html}</div>', unsafe_allow_html=True)
             # Tracking input — available before, during, and after picking
-            if not str(oid).startswith("BO-"):
-                tc1, tc2 = st.columns([3,1])
-                with tc1:
-                    st.text_input("Tracking", placeholder="Paste tracking number",
-                                  key=f"tracking_{oid}", label_visibility="collapsed")
-                with tc2:
-                    st.selectbox("Carrier", ["USPS","UPS","FedEx","DHL","Other"],
-                                 key=f"carrier_{oid}", label_visibility="collapsed")
+            tc1, tc2 = st.columns([3,1])
+            with tc1:
+                st.text_input("Tracking", placeholder="Paste tracking number",
+                              key=f"tracking_{oid}", label_visibility="collapsed")
+            with tc2:
+                st.selectbox("Carrier", ["USPS","UPS","FedEx","DHL","Other"],
+                             key=f"carrier_{oid}", label_visibility="collapsed")
             st.write("")
             if st.button(f"▶ Pick Order {letter} — {buyer}", key=f"pickone_{oid}", use_container_width=True, type="primary"):
                 single_items = []
@@ -2270,25 +2269,44 @@ if st.session_state.page == "orders":
                 pack_successes = []
                 for order in orders:
                     oid = order.get("order_id","")
+                    buyer       = order.get("buyer_name","")
+                    grand_total = order.get("cost",{}).get("grand_total","?")
+                    o_items_send = [i for b in queue for i in b["items"] if i["order_id"]==oid]
+                    total_pcs   = sum(i.get("quantity",1) for i in o_items_send)
+                    msg_template = st.session_state.get("pack_message", DEFAULT_DRIVE_THRU)
+                    fb_template  = st.session_state.get("pack_feedback", DEFAULT_FEEDBACK)
+                    resolved_msg = resolve_template(msg_template, buyer_name=buyer, order_id=oid, pieces=total_pcs, total=grand_total)
+                    tracking_no  = st.session_state.get(f"tracking_{oid}", "").strip()
+
                     if str(oid).startswith("BO-"):
-                        st.session_state.fulfilled_orders.add(oid)
+                        # BrickOwl order
+                        real_oid = str(oid).replace("BO-", "")
+                        try:
+                            BO_API = "https://api.brickowl.com/v1"
+                            # Set status to Processed (shipped)
+                            requests.post(f"{BO_API}/order/set_status",
+                                          data={"key": BO_KEY, "order_id": real_oid, "status": "Processed"},
+                                          timeout=30)
+                            # Submit tracking if provided
+                            if tracking_no:
+                                requests.post(f"{BO_API}/order/update",
+                                              data={"key": BO_KEY, "order_id": real_oid,
+                                                    "tracking": tracking_no},
+                                              timeout=30)
+                            st.session_state.fulfilled_orders.add(oid)
+                            pack_successes.append(oid)
+                        except Exception as e:
+                            pack_errors.append(f"BO Order {oid}: {e}")
                         continue
+
+                    # BrickLink order
                     try:
-                        buyer        = order.get("buyer_name","")
-                        grand_total  = order.get("cost",{}).get("grand_total","?")
-                        o_items_send = [i for b in queue for i in b["items"] if i["order_id"]==oid]
-                        total_pcs    = sum(i.get("quantity",1) for i in o_items_send)
-                        msg_template = st.session_state.get("pack_message", DEFAULT_DRIVE_THRU)
-                        fb_template  = st.session_state.get("pack_feedback", DEFAULT_FEEDBACK)
-                        resolved_msg = resolve_template(msg_template, buyer_name=buyer, order_id=oid, pieces=total_pcs, total=grand_total)
-                        resolved_fb  = resolve_template(fb_template,  buyer_name=buyer, order_id=oid, pieces=total_pcs, total=grand_total)
+                        resolved_fb = resolve_template(fb_template, buyer_name=buyer, order_id=oid, pieces=total_pcs, total=grand_total)
                         # Set order status to PACKED
                         r1 = requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
                                           json={"field": "status", "value": "PACKED"}, timeout=30)
                         r1.raise_for_status()
-                        # BrickLink returns 204 No Content on success — no JSON body to check
                         # Submit tracking number if provided
-                        tracking_no = st.session_state.get(f"tracking_{oid}", "").strip()
                         if tracking_no:
                             requests.put(f"{BASE}/orders/{oid}", auth=auth,
                                          json={"shipping": {"tracking_no": tracking_no}},
