@@ -2951,7 +2951,8 @@ if st.session_state.page == "partout":
 
         # Value summary
         total_po_value = sum(
-            overrides.get(i, prices.get((p["pno"], p["color_id"]), 0)) * p["qty"] * st.session_state.get("partout_copies", 1)
+            overrides.get(i, prices.get((p["pno"], p["color_id"]), 0)) *
+            st.session_state.get("partout_qtys", {}).get(i, p["qty"] * st.session_state.get("partout_copies", 1))
             for i, p in enumerate(parts) if not p["is_alternate"]
         )
         total_set_value = set_price * st.session_state.get("partout_copies", 1)
@@ -3029,6 +3030,7 @@ if st.session_state.page == "partout":
                 st.session_state[key] = f"{price_val:.3f}"
         new_overrides = dict(overrides)
         new_sales     = dict(st.session_state.get("partout_sales", {}))
+        new_qtys      = dict(st.session_state.get("partout_qtys", {}))
         for i, p in enumerate(parts):
             pno      = p["pno"]
             color_id   = p["color_id"]
@@ -3043,12 +3045,12 @@ if st.session_state.page == "partout":
             img_url = f"https://img.bricklink.com/ItemImage/MN/0/{pno}.png" if is_minifig else f"https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png"
 
             # Single row: image | name | price | qty | sale% | cond | btn
-            pc1, pc2, pc3, pc4, pc5, pc6 = st.columns([0.6, 2.5, 1.2, 0.6, 0.8, 0.5])
+            pc1, pc2, pc3, pc4, pc5, pc6, pc7 = st.columns([0.6, 2.2, 1.2, 0.7, 0.6, 0.8, 0.5])
             with pc1:
                 st.markdown(f'<img src="{img_url}" style="width:40px;height:40px;object-fit:contain;" onerror="this.style.opacity=\'0.15\'"/>', unsafe_allow_html=True)
             with pc2:
                 fig_badge = ' <span style="background:#f59e0b22;color:#f59e0b;font-size:0.6rem;border-radius:4px;padding:1px 5px;border:1px solid #f59e0b44;">MINIFIG</span>' if is_minifig else ""
-                st.markdown(f'<div style="padding-top:4px;font-size:0.78rem;font-weight:700;color:#e2e8f0;">{pno}{fig_badge} <span style="color:#60a5fa;font-weight:800;">×{p["qty"] * st.session_state.get("partout_copies",1)}</span></div><div style="font-size:0.68rem;color:#94a3b8;">{p["pname"][:32]} · {p["color_name"]}{alt_note}{fig_note}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="padding-top:4px;font-size:0.78rem;font-weight:700;color:#e2e8f0;">{pno}{fig_badge}</div><div style="font-size:0.68rem;color:#94a3b8;">{p["pname"][:32]} · {p["color_name"]}{alt_note}{fig_note}</div>', unsafe_allow_html=True)
             with pc3:
                 price_str = st.text_input("$", value=f"{cur_price:.3f}" if cur_price is not None else "",
                                           placeholder="—", key=f"po_price_{i}",
@@ -3059,15 +3061,21 @@ if st.session_state.page == "partout":
                 except ValueError:
                     new_overrides[i] = cur_price or 0.0
             with pc4:
+                default_qty = p["qty"] * st.session_state.get("partout_copies", 1)
+                adj_qty = st.number_input("Qty", value=int(new_qtys.get(i, default_qty)),
+                                          min_value=0, max_value=9999,
+                                          key=f"po_qty_{i}", label_visibility="collapsed")
+                new_qtys[i] = adj_qty
+            with pc5:
                 sale_val = st.number_input("%", value=int(new_sales.get(i, sale_default)),
                                            min_value=0, max_value=100,
                                            key=f"po_sale_{i}", label_visibility="collapsed")
                 new_sales[i] = sale_val
-            with pc5:
+            with pc6:
                 cond = st.selectbox("C", ["N","U"], key=f"po_cond_{i}",
                                     index=0, label_visibility="collapsed")
                 conditions[i] = cond
-            with pc6:
+            with pc7:
                     if is_minifig:
                         is_expanded = pno in expanded_figs
                         if st.button("🔼" if is_expanded else "🔽", key=f"po_expand_{i}_{pno}",
@@ -3108,6 +3116,7 @@ if st.session_state.page == "partout":
         st.session_state["partout_conditions"] = conditions
         st.session_state["partout_overrides"]  = new_overrides
         st.session_state["partout_sales"]      = new_sales
+        st.session_state["partout_qtys"]       = new_qtys
         st.write("")
 
         # Push to BrickLink
@@ -3132,11 +3141,15 @@ if st.session_state.page == "partout":
                 cond        = conditions.get(i, "N")
                 final_price = po_overrides.get(i, prices.get((p["pno"], p["color_id"]), 0))
                 sale_rate   = po_sales.get(i, sale_default)
+                po_qtys     = st.session_state.get("partout_qtys", {})
+                default_qty = p["qty"] * st.session_state.get("partout_copies", 1)
+                final_qty   = po_qtys.get(i, default_qty)
+                if final_qty <= 0: continue  # skip if zeroed out
                 exact_key   = (p["pno"].upper(), str(p["color_id"]), cond)
                 try:
                     if exact_key in inv_lookup:
                         existing = inv_lookup[exact_key]
-                        new_qty  = existing.get("quantity",0) + p["qty"] * st.session_state.get("partout_copies", 1)
+                        new_qty  = existing.get("quantity",0) + final_qty
                         r = requests.put(f"{BASE}/inventories/{existing['inventory_id']}", auth=auth,
                                          json={"quantity": new_qty}, timeout=30)
                         r.raise_for_status()
@@ -3144,7 +3157,7 @@ if st.session_state.page == "partout":
                         merges += 1
                     else:
                         payload = make_inventory_payload(
-                            p["pno"], p.get("item_type","PART"), p["color_id"], p["qty"] * st.session_state.get("partout_copies", 1),
+                            p["pno"], p.get("item_type","PART"), p["color_id"], final_qty,
                             f"{final_price:.3f}",
                             cond, target_bin,
                             sale_rate=int(sale_rate))
@@ -3166,7 +3179,7 @@ if st.session_state.page == "partout":
         if st.button("🔄 Look Up a Different Set", key="partout_reset"):
             for k in ["partout_set_data","partout_set_no","partout_set_price","partout_subsets",
                       "partout_prices","partout_conditions","partout_overrides","partout_sales",
-                      "partout_markup_loaded","partout_copies","partout_expanded_figs"]:
+                      "partout_markup_loaded","partout_copies","partout_expanded_figs","partout_qtys"]:
                 if k in st.session_state: del st.session_state[k]
             for k in list(st.session_state.keys()):
                 if k.startswith("partout_fig_"): del st.session_state[k]
