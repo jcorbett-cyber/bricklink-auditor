@@ -2893,31 +2893,156 @@ if st.session_state.page == "partout":
                     f'<div class="metric-label">{label}</div></div>', unsafe_allow_html=True)
 
         st.write("")
-        st.markdown(f'<div style="font-size:0.72rem;color:#475569;margin-bottom:12px;">{len(parts)} parts · Alternates excluded from value calculation</div>', unsafe_allow_html=True)
 
-        # Parts table with condition selector
-        st.markdown('<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Parts List</div>', unsafe_allow_html=True)
+        # Flatten subsets
+        parts = []
+        for entry in subsets:
+            for e in entry.get("entries", []):
+                item = e.get("item", {})
+                if item.get("type") != "PART": continue
+                parts.append({
+                    "pno":          item.get("no",""),
+                    "pname":        item.get("name",""),
+                    "color_id":     e.get("color_id", 0),
+                    "color_name":   e.get("color_name",""),
+                    "qty":          e.get("quantity", 1),
+                    "is_alternate": e.get("is_alternate", False),
+                })
+
+        # Load markup and discount rates once
+        if "partout_markup_loaded" not in st.session_state:
+            st.session_state["partout_markup"]  = load_markup_rate()
+            p_pct, o_pct = load_discount_settings()
+            st.session_state["partout_sale_default"] = p_pct
+            st.session_state["partout_markup_loaded"] = True
+
+        # Pricing settings expander
+        with st.expander("⚙️ Pricing Settings", expanded=False):
+            col_m, col_s = st.columns(2)
+            with col_m:
+                markup = st.number_input("Markup % (price = 6-mo avg × this)",
+                                         min_value=100, max_value=500,
+                                         value=st.session_state.get("partout_markup", 125),
+                                         key="partout_markup_input")
+            with col_s:
+                sale_def = st.number_input("Default sale rate %",
+                                           min_value=0, max_value=100,
+                                           value=st.session_state.get("partout_sale_default", 30),
+                                           key="partout_sale_default_input")
+            if st.button("💾 Save Settings", key="save_partout_settings"):
+                st.session_state["partout_markup"]       = markup
+                st.session_state["partout_sale_default"] = sale_def
+                save_markup_rate(markup)
+                st.success("Saved!")
+
+        markup_rate  = st.session_state.get("partout_markup", 125) / 100.0
+        sale_default = st.session_state.get("partout_sale_default", 30)
+        prices       = st.session_state.get("partout_prices", {})
+        overrides    = st.session_state.get("partout_overrides", {})
+
+        # Value summary
+        total_po_value = sum(
+            overrides.get(i, prices.get((p["pno"], p["color_id"]), 0)) * p["qty"]
+            for i, p in enumerate(parts) if not p["is_alternate"]
+        )
+        v1, v2, v3 = st.columns(3)
+        diff = total_po_value - set_price
+        diff_color = "#4ade80" if diff > 0 else "#fb7185"
+        for col, val, label, color in [
+            (v1, f"${total_po_value:.2f}", "Est. Part-Out Value", "#f59e0b"),
+            (v2, f"${set_price:.2f}",      "Avg Set Sale Price",  "#60a5fa"),
+            (v3, f"${diff:+.2f}",          "Difference",          diff_color),
+        ]:
+            with col:
+                st.markdown(
+                    f'<div class="metric-card" style="padding:14px 10px;">'
+                    f'<div class="metric-value" style="font-size:1.6rem;color:{color}">{val}</div>'
+                    f'<div class="metric-label">{label}</div></div>', unsafe_allow_html=True)
+
+        st.write("")
+
+        # Pull All button
+        pa1, pa2 = st.columns([2,4])
+        with pa1:
+            if st.button("📥 Pull All Prices", key="partout_pull_all", use_container_width=True):
+                new_prices = dict(prices)
+                pb = st.progress(0); txt = st.empty()
+                for i, p in enumerate(parts):
+                    txt.text(f"Fetching {i+1}/{len(parts)}: {p['pno']}…")
+                    key = (p["pno"], p["color_id"])
+                    if key not in new_prices:
+                        pg  = fetch_price_guide(auth, p["pno"], p["color_id"], "N")
+                        raw = pg.get("qty_avg_price", 0) if pg else 0
+                        new_prices[key] = round(float(raw) * markup_rate, 3)
+                    pb.progress((i+1)/len(parts))
+                    time.sleep(0.15)
+                pb.empty(); txt.empty()
+                st.session_state["partout_prices"] = new_prices
+                st.rerun()
+        with pa2:
+            priced_count = sum(1 for p in parts if (p["pno"], p["color_id"]) in prices)
+            st.markdown(f'<div style="padding-top:10px;font-size:0.78rem;color:#475569;">{priced_count}/{len(parts)} priced · markup {int(markup_rate*100)}% · default sale {sale_default}%</div>', unsafe_allow_html=True)
+
+        st.markdown(f'<div style="font-size:0.72rem;color:#475569;margin-bottom:8px;">{len(parts)} parts · Alternates excluded · Price = 6-mo avg × {int(markup_rate*100)}%</div>', unsafe_allow_html=True)
+
+        # Column headers
+        st.markdown(
+            '<div style="display:flex;gap:4px;font-size:0.65rem;font-weight:700;color:#475569;'
+            'text-transform:uppercase;letter-spacing:0.06em;padding:0 4px;margin-bottom:4px;">'
+            '<div style="flex:0.6;"></div>'
+            '<div style="flex:2;">Part</div>'
+            '<div style="flex:1.5;">Price ($)</div>'
+            '<div style="flex:0.6;">Qty</div>'
+            '<div style="flex:0.8;">Sale %</div>'
+            '<div style="flex:0.8;">Cond</div>'
+            '<div style="flex:0.5;"></div>'
+            '</div>', unsafe_allow_html=True)
+
+        # Parts list
+        new_overrides = dict(overrides)
+        new_sales     = dict(st.session_state.get("partout_sales", {}))
         for i, p in enumerate(parts):
             pno      = p["pno"]
             color_id = p["color_id"]
-            price_ea = prices.get((pno, color_id), 0)
-            line_val = price_ea * p["qty"]
-            alt_note = " · alternate" if p["is_alternate"] else ""
-            pc1, pc2, pc3, pc4, pc5 = st.columns([1,3,2,1,1])
+            raw_price = prices.get((pno, color_id), None)
+            cur_price = overrides.get(i, raw_price)
+            alt_note  = " · alt" if p["is_alternate"] else ""
+            pc1, pc2, pc3, pc4, pc5, pc6, pc7 = st.columns([0.6, 2, 1.5, 0.6, 0.8, 0.8, 0.5])
             with pc1:
-                st.markdown(f'<img src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" style="width:48px;height:48px;object-fit:contain;" onerror="this.style.opacity=\'0.15\'"/>', unsafe_allow_html=True)
+                st.markdown(f'<img src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" style="width:40px;height:40px;object-fit:contain;" onerror="this.style.opacity=\'0.15\'"/>', unsafe_allow_html=True)
             with pc2:
-                st.markdown(f'<div style="padding-top:8px;font-size:0.8rem;font-weight:700;color:#e2e8f0;">{pno}</div><div style="font-size:0.7rem;color:#94a3b8;">{p["pname"][:30]} · {p["color_name"]}{alt_note}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="padding-top:6px;font-size:0.78rem;font-weight:700;color:#e2e8f0;">{pno}</div><div style="font-size:0.68rem;color:#94a3b8;">{p["pname"][:26]} · {p["color_name"][:16]}{alt_note}</div>', unsafe_allow_html=True)
             with pc3:
-                st.markdown(f'<div style="padding-top:8px;font-size:0.8rem;color:#f59e0b;">${price_ea:.3f} ea · <b>${line_val:.2f}</b></div>', unsafe_allow_html=True)
+                if cur_price is not None:
+                    new_val = st.number_input("$", value=float(cur_price), min_value=0.0,
+                                              step=0.001, format="%.3f",
+                                              key=f"po_price_{i}", label_visibility="collapsed")
+                    new_overrides[i] = new_val
+                else:
+                    st.markdown('<div style="padding-top:8px;font-size:0.72rem;color:#475569;">—</div>', unsafe_allow_html=True)
             with pc4:
-                st.markdown(f'<div style="padding-top:8px;font-size:0.9rem;font-weight:800;color:#60a5fa;">x{p["qty"]}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="padding-top:8px;font-size:0.85rem;font-weight:800;color:#60a5fa;">×{p["qty"]}</div>', unsafe_allow_html=True)
             with pc5:
-                cond = st.selectbox("Cond", ["N","U"], key=f"po_cond_{i}",
+                sale_val = st.number_input("%", value=int(new_sales.get(i, sale_default)),
+                                           min_value=0, max_value=100,
+                                           key=f"po_sale_{i}", label_visibility="collapsed")
+                new_sales[i] = sale_val
+            with pc6:
+                cond = st.selectbox("C", ["N","U"], key=f"po_cond_{i}",
                                     index=0, label_visibility="collapsed")
                 conditions[i] = cond
+            with pc7:
+                if st.button("↻", key=f"po_pull_{i}", help="Pull price"):
+                    pg  = fetch_price_guide(auth, pno, color_id, "N")
+                    raw = pg.get("qty_avg_price", 0) if pg else 0
+                    np2 = round(float(raw) * markup_rate, 3)
+                    new_p = dict(prices); new_p[(pno, color_id)] = np2
+                    st.session_state["partout_prices"] = new_p
+                    st.rerun()
 
         st.session_state["partout_conditions"] = conditions
+        st.session_state["partout_overrides"]  = new_overrides
+        st.session_state["partout_sales"]      = new_sales
         st.write("")
 
         # Push to BrickLink
@@ -2934,11 +3059,15 @@ if st.session_state.page == "partout":
 
             target_bin = f"-INCOMING-{set_num}"
             errors = []; merges = 0; creates = 0
+            po_overrides = st.session_state.get("partout_overrides", {})
+            po_sales     = st.session_state.get("partout_sales", {})
             pb = st.progress(0); txt = st.empty()
             for i, p in enumerate(parts):
                 txt.text(f"Processing {p['pno']} ({p['color_name']})…")
-                cond     = conditions.get(i, "N")
-                exact_key = (p["pno"].upper(), str(p["color_id"]), cond)
+                cond        = conditions.get(i, "N")
+                final_price = po_overrides.get(i, prices.get((p["pno"], p["color_id"]), 0))
+                sale_rate   = po_sales.get(i, sale_default)
+                exact_key   = (p["pno"].upper(), str(p["color_id"]), cond)
                 try:
                     if exact_key in inv_lookup:
                         existing = inv_lookup[exact_key]
@@ -2951,8 +3080,9 @@ if st.session_state.page == "partout":
                     else:
                         payload = make_inventory_payload(
                             p["pno"], "P", p["color_id"], p["qty"],
-                            f"{prices.get((p['pno'],p['color_id']),0):.3f}",
-                            cond, target_bin)
+                            f"{final_price:.3f}",
+                            cond, target_bin,
+                            sale_rate=int(sale_rate))
                         r = requests.post(f"{BASE}/inventories", auth=auth, json=payload, timeout=30)
                         r.raise_for_status()
                         creates += 1
@@ -2969,7 +3099,8 @@ if st.session_state.page == "partout":
             if "partout_prices" in st.session_state: del st.session_state["partout_prices"]
 
         if st.button("🔄 Look Up a Different Set", key="partout_reset"):
-            for k in ["partout_set_data","partout_set_no","partout_set_price","partout_subsets","partout_prices","partout_conditions"]:
+            for k in ["partout_set_data","partout_set_no","partout_set_price","partout_subsets",
+                      "partout_prices","partout_conditions","partout_overrides","partout_sales","partout_markup_loaded"]:
                 if k in st.session_state: del st.session_state[k]
             st.rerun()
 
