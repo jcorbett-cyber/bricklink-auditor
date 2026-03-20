@@ -672,6 +672,28 @@ def load_discount_settings():
     except Exception:
         return 30, 20
 
+def save_markup_rate(rate):
+    if not DB_LOADED: return False
+    try:
+        existing = supabase.table("app_settings").select("id").eq("key", "partout_markup").execute()
+        if existing.data:
+            supabase.table("app_settings").update({"value": str(rate)}).eq("key", "partout_markup").execute()
+        else:
+            supabase.table("app_settings").insert({"key": "partout_markup", "value": str(rate)}).execute()
+        return True
+    except Exception:
+        return False
+
+def load_markup_rate():
+    if not DB_LOADED: return 125
+    try:
+        rows = supabase.table("app_settings").select("value").eq("key", "partout_markup").execute()
+        if rows.data:
+            return int(rows.data[0]["value"])
+        return 125
+    except Exception:
+        return 125
+
 def get_sale_rate(item_type_bsx, parts_pct, other_pct):
     """Return the correct sale % based on item type from BSX."""
     return parts_pct if item_type_bsx.upper() == "P" else other_pct
