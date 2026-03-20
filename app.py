@@ -2306,10 +2306,18 @@ if st.session_state.page == "orders":
                         r1 = requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
                                           json={"field": "status", "value": "PACKED"}, timeout=30)
                         r1.raise_for_status()
+                        # Update payment status to Completed
+                        requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
+                                     json={"field": "payment_status", "value": "Completed"},
+                                     timeout=30)
                         # Submit tracking number if provided
                         if tracking_no:
+                            from datetime import datetime
                             requests.put(f"{BASE}/orders/{oid}", auth=auth,
-                                         json={"shipping": {"tracking_no": tracking_no}},
+                                         json={"shipping": {
+                                             "tracking_no": tracking_no,
+                                             "date_shipped": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+                                         }},
                                          timeout=30)
                         # Post drive-thru message
                         requests.post(f"{BASE}/orders/{oid}/drive_thru", auth=auth,
