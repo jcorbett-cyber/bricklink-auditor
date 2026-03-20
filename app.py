@@ -422,9 +422,6 @@ def fetch_price_guide(auth, part_no, color_id, condition="N"):
             avg     = float(pg2.get("avg_price", 0) or 0)
     return {"avg_price": avg, "qty_avg_price": qty_avg or avg}
 
-    return {"avg_price": float(pg.get("avg_price", 0) or 0),
-            "qty_avg_price": float(pg.get("qty_avg_price", 0) or 0)}
-
 def save_progress(inventory_id, status, flag_reason=None, actual_qty=None,
                   correct_bin=None, notes=None):
     if not DB_LOADED: return
