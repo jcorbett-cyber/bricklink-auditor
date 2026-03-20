@@ -2864,37 +2864,6 @@ if st.session_state.page == "partout":
 
         st.write("")
 
-        # Flatten subsets — each entry has entries list
-        parts = []
-        for entry in subsets:
-            for e in entry.get("entries", []):
-                item = e.get("item", {})
-                if item.get("type") != "PART": continue
-                parts.append({
-                    "pno":       item.get("no",""),
-                    "pname":     item.get("name",""),
-                    "color_id":  e.get("color_id", 0),
-                    "color_name": e.get("color_name",""),
-                    "qty":       e.get("quantity", 1),
-                    "extra_qty": e.get("extra_quantity", 0),
-                    "is_alternate": e.get("is_alternate", False),
-                })
-
-        # Fetch prices with progress
-        if "partout_prices" not in st.session_state:
-            pb = st.progress(0); txt = st.empty()
-            prices = {}
-            for i, p in enumerate(parts):
-                txt.text(f"Fetching prices {i+1}/{len(parts)}…")
-                key = (p["pno"], p["color_id"])
-                if key not in prices:
-                    pg = fetch_price_guide(auth, p["pno"], p["color_id"], "N")
-                    prices[key] = pg.get("qty_avg_price", 0) if pg else 0
-                pb.progress((i+1)/len(parts))
-            pb.empty(); txt.empty()
-            st.session_state["partout_prices"] = prices
-            st.rerun()
-
         prices = st.session_state.get("partout_prices", {})
 
         # Flatten subsets
