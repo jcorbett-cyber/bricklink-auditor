@@ -2897,29 +2897,6 @@ if st.session_state.page == "partout":
 
         prices = st.session_state.get("partout_prices", {})
 
-        # Calculate totals
-        total_po_value = sum(
-            prices.get((p["pno"], p["color_id"]), 0) * p["qty"]
-            for p in parts if not p["is_alternate"]
-        )
-
-        # Value summary
-        v1, v2, v3 = st.columns(3)
-        diff = total_po_value - set_price
-        diff_color = "#4ade80" if diff > 0 else "#fb7185"
-        for col, val, label, color in [
-            (v1, f"${total_po_value:.2f}", "Est. Part-Out Value", "#f59e0b"),
-            (v2, f"${set_price:.2f}",      "Avg Set Sale Price",  "#60a5fa"),
-            (v3, f"${diff:+.2f}",          "Difference",          diff_color),
-        ]:
-            with col:
-                st.markdown(
-                    f'<div class="metric-card" style="padding:14px 10px;">'
-                    f'<div class="metric-value" style="font-size:1.6rem;color:{color}">{val}</div>'
-                    f'<div class="metric-label">{label}</div></div>', unsafe_allow_html=True)
-
-        st.write("")
-
         # Flatten subsets
         parts = []
         for entry in subsets:
@@ -2971,13 +2948,15 @@ if st.session_state.page == "partout":
             overrides.get(i, prices.get((p["pno"], p["color_id"]), 0)) * p["qty"] * st.session_state.get("partout_copies", 1)
             for i, p in enumerate(parts) if not p["is_alternate"]
         )
+        total_set_value = set_price * st.session_state.get("partout_copies", 1)
         v1, v2, v3 = st.columns(3)
-        diff = total_po_value - set_price
+        diff = total_po_value - total_set_value
         diff_color = "#4ade80" if diff > 0 else "#fb7185"
+        copies_label = f" × {st.session_state.get('partout_copies',1)}" if st.session_state.get("partout_copies",1) > 1 else ""
         for col, val, label, color in [
-            (v1, f"${total_po_value:.2f}", "Est. Part-Out Value", "#f59e0b"),
-            (v2, f"${set_price:.2f}",      "Avg Set Sale Price",  "#60a5fa"),
-            (v3, f"${diff:+.2f}",          "Difference",          diff_color),
+            (v1, f"${total_po_value:.2f}",   f"Est. Part-Out Value{copies_label}", "#f59e0b"),
+            (v2, f"${total_set_value:.2f}",  f"Avg Set Sale Price{copies_label}",  "#60a5fa"),
+            (v3, f"${diff:+.2f}",             "Difference",                         diff_color),
         ]:
             with col:
                 st.markdown(
