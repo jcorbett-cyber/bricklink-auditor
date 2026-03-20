@@ -401,6 +401,7 @@ def move_out_of_stockroom(auth, inventory_id):
     return True
 
 def fetch_price_guide(auth, part_no, color_id, condition="N"):
+    # Try 6-month sold avg first
     r = requests.get(f"{BASE}/items/part/{part_no}/price", auth=auth,
                      params={"color_id": color_id, "guide_type": "sold",
                              "new_or_used": condition}, timeout=30)
@@ -408,6 +409,19 @@ def fetch_price_guide(auth, part_no, color_id, condition="N"):
     data = r.json()
     if data.get("meta", {}).get("code") != 200: return None
     pg = data.get("data", {})
+    qty_avg = float(pg.get("qty_avg_price", 0) or 0)
+    avg     = float(pg.get("avg_price", 0) or 0)
+    # Fall back to stock (current listings) avg if no sold history
+    if qty_avg == 0 and avg == 0:
+        r2 = requests.get(f"{BASE}/items/part/{part_no}/price", auth=auth,
+                          params={"color_id": color_id, "guide_type": "stock",
+                                  "new_or_used": condition}, timeout=30)
+        if r2.ok:
+            pg2 = r2.json().get("data", {})
+            qty_avg = float(pg2.get("qty_avg_price", 0) or 0)
+            avg     = float(pg2.get("avg_price", 0) or 0)
+    return {"avg_price": avg, "qty_avg_price": qty_avg or avg}
+
     return {"avg_price": float(pg.get("avg_price", 0) or 0),
             "qty_avg_price": float(pg.get("qty_avg_price", 0) or 0)}
 
@@ -2978,7 +2992,13 @@ if st.session_state.page == "partout":
                                                     params={"guide_type": "sold", "new_or_used": "N"}, timeout=30)
                                 if r_pg.ok:
                                     pg_data = r_pg.json().get("data", {})
-                                    raw = float(pg_data.get("qty_avg_price", 0) or 0)
+                                    raw = float(pg_data.get("qty_avg_price", 0) or 0) or float(pg_data.get("avg_price", 0) or 0)
+                                    if raw == 0:
+                                        r_pg2 = requests.get(f"{BASE}/items/minifig/{p['pno']}/price", auth=auth,
+                                                             params={"guide_type": "stock", "new_or_used": "N"}, timeout=30)
+                                        if r_pg2.ok:
+                                            pg2 = r_pg2.json().get("data", {})
+                                            raw = float(pg2.get("qty_avg_price", 0) or 0) or float(pg2.get("avg_price", 0) or 0)
                                 else:
                                     raw = 0.0
                             else:
@@ -3014,31 +3034,32 @@ if st.session_state.page == "partout":
             expanded_figs = st.session_state.get("partout_expanded_figs", set())
             img_url = f"https://img.bricklink.com/ItemImage/MN/0/{pno}.png" if is_minifig else f"https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png"
 
-            # Single row: image | name+price | qty | sale% | cond | btn
-            pc1, pc2, pc3, pc4, pc5 = st.columns([0.6, 3, 0.6, 0.8, 0.5])
+            # Single row: image | name | price | qty | sale% | cond | btn
+            pc1, pc2, pc3, pc4, pc5, pc6 = st.columns([0.6, 2.5, 1.2, 0.6, 0.8, 0.5])
             with pc1:
                 st.markdown(f'<img src="{img_url}" style="width:40px;height:40px;object-fit:contain;" onerror="this.style.opacity=\'0.15\'"/>', unsafe_allow_html=True)
             with pc2:
                 fig_badge = ' <span style="background:#f59e0b22;color:#f59e0b;font-size:0.6rem;border-radius:4px;padding:1px 5px;border:1px solid #f59e0b44;">MINIFIG</span>' if is_minifig else ""
-                st.markdown(f'<div style="font-size:0.78rem;font-weight:700;color:#e2e8f0;">{pno}{fig_badge} <span style="color:#60a5fa;font-weight:800;">×{p["qty"] * st.session_state.get("partout_copies",1)}</span></div><div style="font-size:0.68rem;color:#94a3b8;">{p["pname"][:36]} · {p["color_name"]}{alt_note}{fig_note}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="padding-top:4px;font-size:0.78rem;font-weight:700;color:#e2e8f0;">{pno}{fig_badge} <span style="color:#60a5fa;font-weight:800;">×{p["qty"] * st.session_state.get("partout_copies",1)}</span></div><div style="font-size:0.68rem;color:#94a3b8;">{p["pname"][:32]} · {p["color_name"]}{alt_note}{fig_note}</div>', unsafe_allow_html=True)
+            with pc3:
                 price_str = st.text_input("$", value=f"{cur_price:.3f}" if cur_price is not None else "",
-                                          placeholder="pull price", key=f"po_price_{i}",
+                                          placeholder="—", key=f"po_price_{i}",
                                           label_visibility="collapsed")
                 try:
                     new_val = float(price_str) if price_str.strip() else 0.0
                     new_overrides[i] = new_val
                 except ValueError:
                     new_overrides[i] = cur_price or 0.0
-            with pc3:
+            with pc4:
                 sale_val = st.number_input("%", value=int(new_sales.get(i, sale_default)),
                                            min_value=0, max_value=100,
                                            key=f"po_sale_{i}", label_visibility="collapsed")
                 new_sales[i] = sale_val
-            with pc4:
+            with pc5:
                 cond = st.selectbox("C", ["N","U"], key=f"po_cond_{i}",
                                     index=0, label_visibility="collapsed")
                 conditions[i] = cond
-            with pc5:
+            with pc6:
                     if is_minifig:
                         is_expanded = pno in expanded_figs
                         if st.button("🔼" if is_expanded else "🔽", key=f"po_expand_{i}_{pno}",
