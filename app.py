@@ -2841,6 +2841,10 @@ if st.session_state.page == "partout":
         set_price  = st.session_state["partout_set_price"]
         subsets    = st.session_state["partout_subsets"]
         conditions = st.session_state.get("partout_conditions", {})
+        set_copies = st.number_input("How many copies of this set?", min_value=1, max_value=50,
+                                     value=st.session_state.get("partout_copies", 1),
+                                     key="partout_copies_input", step=1)
+        st.session_state["partout_copies"] = set_copies
 
         set_name  = set_data.get("name", set_num)
         set_image = f"https://img.bricklink.com/ItemImage/SN/0/{set_num}-1.png"
@@ -2964,7 +2968,7 @@ if st.session_state.page == "partout":
 
         # Value summary
         total_po_value = sum(
-            overrides.get(i, prices.get((p["pno"], p["color_id"]), 0)) * p["qty"]
+            overrides.get(i, prices.get((p["pno"], p["color_id"]), 0)) * p["qty"] * st.session_state.get("partout_copies", 1)
             for i, p in enumerate(parts) if not p["is_alternate"]
         )
         v1, v2, v3 = st.columns(3)
@@ -3043,7 +3047,7 @@ if st.session_state.page == "partout":
                 else:
                     st.markdown('<div style="padding-top:8px;font-size:0.72rem;color:#475569;">—</div>', unsafe_allow_html=True)
             with pc4:
-                st.markdown(f'<div style="padding-top:8px;font-size:0.85rem;font-weight:800;color:#60a5fa;">×{p["qty"]}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="padding-top:8px;font-size:0.85rem;font-weight:800;color:#60a5fa;">×{p["qty"] * st.session_state.get("partout_copies", 1)}</div>', unsafe_allow_html=True)
             with pc5:
                 sale_val = st.number_input("%", value=int(new_sales.get(i, sale_default)),
                                            min_value=0, max_value=100,
@@ -3093,7 +3097,7 @@ if st.session_state.page == "partout":
                 try:
                     if exact_key in inv_lookup:
                         existing = inv_lookup[exact_key]
-                        new_qty  = existing.get("quantity",0) + p["qty"]
+                        new_qty  = existing.get("quantity",0) + p["qty"] * st.session_state.get("partout_copies", 1)
                         r = requests.put(f"{BASE}/inventories/{existing['inventory_id']}", auth=auth,
                                          json={"quantity": new_qty}, timeout=30)
                         r.raise_for_status()
@@ -3101,7 +3105,7 @@ if st.session_state.page == "partout":
                         merges += 1
                     else:
                         payload = make_inventory_payload(
-                            p["pno"], "P", p["color_id"], p["qty"],
+                            p["pno"], "P", p["color_id"], p["qty"] * st.session_state.get("partout_copies", 1),
                             f"{final_price:.3f}",
                             cond, target_bin,
                             sale_rate=int(sale_rate))
@@ -3122,7 +3126,8 @@ if st.session_state.page == "partout":
 
         if st.button("🔄 Look Up a Different Set", key="partout_reset"):
             for k in ["partout_set_data","partout_set_no","partout_set_price","partout_subsets",
-                      "partout_prices","partout_conditions","partout_overrides","partout_sales","partout_markup_loaded"]:
+                      "partout_prices","partout_conditions","partout_overrides","partout_sales",
+                      "partout_markup_loaded","partout_copies"]:
                 if k in st.session_state: del st.session_state[k]
             st.rerun()
 
