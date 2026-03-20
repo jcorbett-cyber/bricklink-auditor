@@ -2866,12 +2866,13 @@ if st.session_state.page == "partout":
 
         prices = st.session_state.get("partout_prices", {})
 
-        # Flatten subsets
+        # Flatten subsets — include PART and MINIFIG
         parts = []
         for entry in subsets:
             for e in entry.get("entries", []):
                 item = e.get("item", {})
-                if item.get("type") != "PART": continue
+                itype = item.get("type","")
+                if itype not in ("PART","MINIFIG"): continue
                 parts.append({
                     "pno":          item.get("no",""),
                     "pname":        item.get("name",""),
@@ -2879,7 +2880,32 @@ if st.session_state.page == "partout":
                     "color_name":   e.get("color_name",""),
                     "qty":          e.get("quantity", 1),
                     "is_alternate": e.get("is_alternate", False),
+                    "item_type":    itype,
                 })
+
+        # Expand minifigures that have been toggled
+        expanded_figs = st.session_state.get("partout_expanded_figs", set())
+        if expanded_figs:
+            expanded_parts = []
+            for p in parts:
+                if p.get("item_type") == "MINIFIG" and p["pno"] in expanded_figs:
+                    fig_subs = st.session_state.get(f"partout_fig_{p['pno']}", [])
+                    for fe in fig_subs:
+                        fitem = fe.get("item", {})
+                        if fitem.get("type") != "PART": continue
+                        expanded_parts.append({
+                            "pno":          fitem.get("no",""),
+                            "pname":        fitem.get("name",""),
+                            "color_id":     fe.get("color_id", 0),
+                            "color_name":   fe.get("color_name",""),
+                            "qty":          fe.get("quantity", 1) * p["qty"],
+                            "is_alternate": False,
+                            "item_type":    "PART",
+                            "from_fig":     p["pno"],
+                        })
+                else:
+                    expanded_parts.append(p)
+            parts = expanded_parts
 
         # Load markup and discount rates once
         if "partout_markup_loaded" not in st.session_state:
@@ -2977,42 +3003,72 @@ if st.session_state.page == "partout":
         new_sales     = dict(st.session_state.get("partout_sales", {}))
         for i, p in enumerate(parts):
             pno      = p["pno"]
-            color_id = p["color_id"]
-            raw_price = prices.get((pno, color_id), None)
-            cur_price = overrides.get(i, raw_price)
-            alt_note  = " · alt" if p["is_alternate"] else ""
-            pc1, pc2, pc3, pc4, pc5, pc6, pc7 = st.columns([0.6, 2, 1.5, 0.6, 0.8, 0.8, 0.5])
+            color_id   = p["color_id"]
+            itype      = p.get("item_type", "PART")
+            is_minifig = itype == "MINIFIG"
+            from_fig   = p.get("from_fig", "")
+            raw_price  = prices.get((pno, color_id), None)
+            cur_price  = overrides.get(i, raw_price)
+            alt_note   = " · alt" if p["is_alternate"] else ""
+            fig_note   = f" · from {from_fig}" if from_fig else ""
+            expanded_figs = st.session_state.get("partout_expanded_figs", set())
+            img_url = f"https://img.bricklink.com/ItemImage/MN/0/{pno}.png" if is_minifig else f"https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png"
+
+            pc1, pc2, pc3, pc4, pc5 = st.columns([0.7, 2.5, 1.8, 0.7, 1.5])
             with pc1:
-                st.markdown(f'<img src="https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png" style="width:40px;height:40px;object-fit:contain;" onerror="this.style.opacity=\'0.15\'"/>', unsafe_allow_html=True)
+                st.markdown(f'<img src="{img_url}" style="width:40px;height:40px;object-fit:contain;" onerror="this.style.opacity=\'0.15\'"/>', unsafe_allow_html=True)
             with pc2:
-                st.markdown(f'<div style="padding-top:6px;font-size:0.78rem;font-weight:700;color:#e2e8f0;">{pno}</div><div style="font-size:0.68rem;color:#94a3b8;">{p["pname"][:26]} · {p["color_name"][:16]}{alt_note}</div>', unsafe_allow_html=True)
+                fig_badge = ' <span style="background:#f59e0b22;color:#f59e0b;font-size:0.6rem;border-radius:4px;padding:1px 5px;border:1px solid #f59e0b44;">MINIFIG</span>' if is_minifig else ""
+                st.markdown(f'<div style="padding-top:6px;font-size:0.78rem;font-weight:700;color:#e2e8f0;">{pno}{fig_badge}</div><div style="font-size:0.68rem;color:#94a3b8;">{p["pname"][:30]} · {p["color_name"][:18]}{alt_note}{fig_note}</div>', unsafe_allow_html=True)
             with pc3:
                 if cur_price is not None:
-                    new_val = st.number_input("$", value=float(cur_price), min_value=0.0,
+                    new_val = st.number_input("Price $", value=float(cur_price), min_value=0.0,
                                               step=0.001, format="%.3f",
                                               key=f"po_price_{i}", label_visibility="collapsed")
                     new_overrides[i] = new_val
                 else:
-                    st.markdown('<div style="padding-top:8px;font-size:0.72rem;color:#475569;">—</div>', unsafe_allow_html=True)
+                    st.markdown('<div style="padding-top:10px;font-size:0.72rem;color:#475569;">no price</div>', unsafe_allow_html=True)
             with pc4:
                 st.markdown(f'<div style="padding-top:8px;font-size:0.85rem;font-weight:800;color:#60a5fa;">×{p["qty"] * st.session_state.get("partout_copies", 1)}</div>', unsafe_allow_html=True)
             with pc5:
-                sale_val = st.number_input("%", value=int(new_sales.get(i, sale_default)),
-                                           min_value=0, max_value=100,
-                                           key=f"po_sale_{i}", label_visibility="collapsed")
-                new_sales[i] = sale_val
-            with pc6:
-                cond = st.selectbox("C", ["N","U"], key=f"po_cond_{i}",
-                                    index=0, label_visibility="collapsed")
-                conditions[i] = cond
-            with pc7:
-                if st.button("↻", key=f"po_pull_{i}", help="Pull price"):
-                    pg  = fetch_price_guide(auth, pno, color_id, "N")
-                    raw = pg.get("qty_avg_price", 0) if pg else 0
-                    np2 = round(float(raw) * markup_rate, 3)
-                    new_p = dict(prices); new_p[(pno, color_id)] = np2
-                    st.session_state["partout_prices"] = new_p
-                    st.rerun()
+                b1, b2, b3 = st.columns(3)
+                with b1:
+                    sale_val = st.number_input("%", value=int(new_sales.get(i, sale_default)),
+                                               min_value=0, max_value=100,
+                                               key=f"po_sale_{i}", label_visibility="collapsed")
+                    new_sales[i] = sale_val
+                with b2:
+                    cond = st.selectbox("C", ["N","U"], key=f"po_cond_{i}",
+                                        index=0, label_visibility="collapsed")
+                    conditions[i] = cond
+                with b3:
+                    if is_minifig:
+                        is_expanded = pno in expanded_figs
+                        if st.button("🔼" if is_expanded else "🔽", key=f"po_expand_{i}_{pno}",
+                                     help="Collapse" if is_expanded else "Expand into parts"):
+                            new_expanded = set(expanded_figs)
+                            if is_expanded:
+                                new_expanded.discard(pno)
+                            else:
+                                if f"partout_fig_{pno}" not in st.session_state:
+                                    r_fig = requests.get(f"{BASE}/items/minifig/{pno}/subsets", auth=auth, timeout=30)
+                                    if r_fig.ok:
+                                        fig_parts = []
+                                        for fe_entry in r_fig.json().get("data", []):
+                                            for fe in fe_entry.get("entries", []):
+                                                fig_parts.append(fe)
+                                        st.session_state[f"partout_fig_{pno}"] = fig_parts
+                                new_expanded.add(pno)
+                            st.session_state["partout_expanded_figs"] = new_expanded
+                            st.rerun()
+                    else:
+                        if st.button("↻", key=f"po_pull_{i}", help="Pull price"):
+                            pg  = fetch_price_guide(auth, pno, color_id, "N")
+                            raw = pg.get("qty_avg_price", 0) if pg else 0
+                            np2 = round(float(raw) * markup_rate, 3)
+                            new_p = dict(prices); new_p[(pno, color_id)] = np2
+                            st.session_state["partout_prices"] = new_p
+                            st.rerun()
 
         st.session_state["partout_conditions"] = conditions
         st.session_state["partout_overrides"]  = new_overrides
@@ -3053,7 +3109,7 @@ if st.session_state.page == "partout":
                         merges += 1
                     else:
                         payload = make_inventory_payload(
-                            p["pno"], "P", p["color_id"], p["qty"] * st.session_state.get("partout_copies", 1),
+                            p["pno"], p.get("item_type","PART"), p["color_id"], p["qty"] * st.session_state.get("partout_copies", 1),
                             f"{final_price:.3f}",
                             cond, target_bin,
                             sale_rate=int(sale_rate))
@@ -3075,8 +3131,10 @@ if st.session_state.page == "partout":
         if st.button("🔄 Look Up a Different Set", key="partout_reset"):
             for k in ["partout_set_data","partout_set_no","partout_set_price","partout_subsets",
                       "partout_prices","partout_conditions","partout_overrides","partout_sales",
-                      "partout_markup_loaded","partout_copies"]:
+                      "partout_markup_loaded","partout_copies","partout_expanded_figs"]:
                 if k in st.session_state: del st.session_state[k]
+            for k in list(st.session_state.keys()):
+                if k.startswith("partout_fig_"): del st.session_state[k]
             st.rerun()
 
     st.stop()
