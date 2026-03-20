@@ -3014,34 +3014,35 @@ if st.session_state.page == "partout":
             expanded_figs = st.session_state.get("partout_expanded_figs", set())
             img_url = f"https://img.bricklink.com/ItemImage/MN/0/{pno}.png" if is_minifig else f"https://img.bricklink.com/ItemImage/PN/{color_id}/{pno}.png"
 
-            pc1, pc2, pc3, pc4, pc5 = st.columns([0.7, 2.5, 1.8, 0.7, 1.5])
-            with pc1:
+            # Row 1: image + name + qty
+            r1c1, r1c2, r1c3 = st.columns([0.7, 3.5, 0.7])
+            with r1c1:
                 st.markdown(f'<img src="{img_url}" style="width:40px;height:40px;object-fit:contain;" onerror="this.style.opacity=\'0.15\'"/>', unsafe_allow_html=True)
-            with pc2:
+            with r1c2:
                 fig_badge = ' <span style="background:#f59e0b22;color:#f59e0b;font-size:0.6rem;border-radius:4px;padding:1px 5px;border:1px solid #f59e0b44;">MINIFIG</span>' if is_minifig else ""
-                st.markdown(f'<div style="padding-top:6px;font-size:0.78rem;font-weight:700;color:#e2e8f0;">{pno}{fig_badge}</div><div style="font-size:0.68rem;color:#94a3b8;">{p["pname"][:30]} · {p["color_name"][:18]}{alt_note}{fig_note}</div>', unsafe_allow_html=True)
-            with pc3:
+                st.markdown(f'<div style="padding-top:4px;font-size:0.78rem;font-weight:700;color:#e2e8f0;">{pno}{fig_badge}</div><div style="font-size:0.68rem;color:#94a3b8;">{p["pname"][:40]} · {p["color_name"]}{alt_note}{fig_note}</div>', unsafe_allow_html=True)
+            with r1c3:
+                st.markdown(f'<div style="padding-top:8px;font-size:0.85rem;font-weight:800;color:#60a5fa;text-align:right;">×{p["qty"] * st.session_state.get("partout_copies", 1)}</div>', unsafe_allow_html=True)
+            # Row 2: price + sale % + condition + action button
+            r2c1, r2c2, r2c3, r2c4 = st.columns([2, 1, 1, 0.7])
+            with r2c1:
                 if cur_price is not None:
                     new_val = st.number_input("Price $", value=float(cur_price), min_value=0.0,
                                               step=0.001, format="%.3f",
                                               key=f"po_price_{i}", label_visibility="collapsed")
                     new_overrides[i] = new_val
                 else:
-                    st.markdown('<div style="padding-top:10px;font-size:0.72rem;color:#475569;">no price</div>', unsafe_allow_html=True)
-            with pc4:
-                st.markdown(f'<div style="padding-top:8px;font-size:0.85rem;font-weight:800;color:#60a5fa;">×{p["qty"] * st.session_state.get("partout_copies", 1)}</div>', unsafe_allow_html=True)
-            with pc5:
-                b1, b2, b3 = st.columns(3)
-                with b1:
-                    sale_val = st.number_input("%", value=int(new_sales.get(i, sale_default)),
-                                               min_value=0, max_value=100,
-                                               key=f"po_sale_{i}", label_visibility="collapsed")
-                    new_sales[i] = sale_val
-                with b2:
-                    cond = st.selectbox("C", ["N","U"], key=f"po_cond_{i}",
-                                        index=0, label_visibility="collapsed")
-                    conditions[i] = cond
-                with b3:
+                    st.markdown('<div style="font-size:0.72rem;color:#475569;padding-top:4px;">no price — pull to set</div>', unsafe_allow_html=True)
+            with r2c2:
+                sale_val = st.number_input("Sale %", value=int(new_sales.get(i, sale_default)),
+                                           min_value=0, max_value=100,
+                                           key=f"po_sale_{i}", label_visibility="collapsed")
+                new_sales[i] = sale_val
+            with r2c3:
+                cond = st.selectbox("Cond", ["N","U"], key=f"po_cond_{i}",
+                                    index=0, label_visibility="collapsed")
+                conditions[i] = cond
+            with r2c4:
                     if is_minifig:
                         is_expanded = pno in expanded_figs
                         if st.button("🔼" if is_expanded else "🔽", key=f"po_expand_{i}_{pno}",
