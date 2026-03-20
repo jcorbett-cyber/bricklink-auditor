@@ -2775,7 +2775,7 @@ if st.session_state.page == "partout":
     # Set number input
     po1, po2 = st.columns([3,1])
     with po1:
-        set_no = st.text_input("Set number", placeholder="e.g. 21301 or 75192-1", key="partout_set_no", label_visibility="collapsed")
+        set_no = st.text_input("Set number", placeholder="e.g. 21301 or 75192-1", key="partout_set_input", label_visibility="collapsed")
     with po2:
         search_btn = st.button("🔍 Look Up Set", type="primary", use_container_width=True, key="partout_search")
 
