@@ -2976,39 +2976,41 @@ if st.session_state.page == "partout":
         pa1, pa2 = st.columns([2,4])
         with pa1:
             if st.button("📥 Pull All Prices", key="partout_pull_all", use_container_width=True):
-                new_prices = dict(prices)
+                new_prices = {}  # always start fresh
                 pb = st.progress(0); txt = st.empty()
+                debug_lines = []
                 for i, p in enumerate(parts):
                     txt.text(f"Fetching {i+1}/{len(parts)}: {p['pno']}…")
-                    key = (p["pno"], p["color_id"])
-                    if key not in new_prices:
-                        itype = p.get("item_type", "PART")
-                        try:
-                            if itype == "MINIFIG":
-                                r_pg = requests.get(f"{BASE}/items/minifig/{p['pno']}/price", auth=auth,
-                                                    params={"guide_type": "sold", "new_or_used": "N"}, timeout=30)
-                                if r_pg.ok:
-                                    pg_data = r_pg.json().get("data", {})
-                                    raw = float(pg_data.get("qty_avg_price", 0) or 0) or float(pg_data.get("avg_price", 0) or 0)
-                                    if raw == 0:
-                                        r_pg2 = requests.get(f"{BASE}/items/minifig/{p['pno']}/price", auth=auth,
-                                                             params={"guide_type": "stock", "new_or_used": "N"}, timeout=30)
-                                        if r_pg2.ok:
-                                            pg2 = r_pg2.json().get("data", {})
-                                            raw = float(pg2.get("qty_avg_price", 0) or 0) or float(pg2.get("avg_price", 0) or 0)
-                                else:
-                                    raw = 0.0
-                            else:
-                                pg = fetch_price_guide(auth, p["pno"], p["color_id"], "N")
-                                raw = pg.get("qty_avg_price", 0) if pg else 0
-                            new_prices[key] = round(float(raw) * markup_rate, 3)
-                        except Exception:
-                            new_prices[key] = 0.0
+                    key = (p["pno"], int(p["color_id"]))
+                    itype = p.get("item_type", "PART")
+                    try:
+                        if itype == "MINIFIG":
+                            r_pg = requests.get(f"{BASE}/items/minifig/{p['pno']}/price", auth=auth,
+                                                params={"guide_type": "sold", "new_or_used": "N"}, timeout=30)
+                            pg_data = r_pg.json().get("data", {}) if r_pg.ok else {}
+                            raw = float(pg_data.get("qty_avg_price", 0) or 0) or float(pg_data.get("avg_price", 0) or 0)
+                            if raw == 0:
+                                r_pg2 = requests.get(f"{BASE}/items/minifig/{p['pno']}/price", auth=auth,
+                                                     params={"guide_type": "stock", "new_or_used": "N"}, timeout=30)
+                                pg2 = r_pg2.json().get("data", {}) if r_pg2.ok else {}
+                                raw = float(pg2.get("qty_avg_price", 0) or 0) or float(pg2.get("avg_price", 0) or 0)
+                        else:
+                            pg = fetch_price_guide(auth, p["pno"], p["color_id"], "N")
+                            raw = pg.get("qty_avg_price", 0) if pg else 0
+                            if i < 3:
+                                debug_lines.append(f"{p['pno']} color={p['color_id']}: pg={pg}, raw={raw}")
+                        new_prices[key] = round(float(raw) * markup_rate, 3)
+                    except Exception as e:
+                        new_prices[key] = 0.0
+                        if i < 3: debug_lines.append(f"{p['pno']} ERROR: {e}")
                     pb.progress((i+1)/len(parts))
                     time.sleep(0.15)
                 pb.empty(); txt.empty()
+                for d in debug_lines:
+                    st.write(f"DEBUG: {d}")
+                st.write(f"DEBUG: saved {len(new_prices)} prices, sample: {list(new_prices.items())[:3]}")
                 st.session_state["partout_prices"] = new_prices
-                st.rerun()
+                st.stop()
         with pa2:
             priced_count = sum(1 for p in parts if (p["pno"], p["color_id"]) in prices)
             st.markdown(f'<div style="padding-top:10px;font-size:0.78rem;color:#475569;">{priced_count}/{len(parts)} priced · markup {int(markup_rate*100)}% · default sale {sale_default}%</div>', unsafe_allow_html=True)
