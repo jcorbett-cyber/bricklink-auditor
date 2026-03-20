@@ -2971,9 +2971,22 @@ if st.session_state.page == "partout":
                     txt.text(f"Fetching {i+1}/{len(parts)}: {p['pno']}…")
                     key = (p["pno"], p["color_id"])
                     if key not in new_prices:
-                        pg  = fetch_price_guide(auth, p["pno"], p["color_id"], "N")
-                        raw = pg.get("qty_avg_price", 0) if pg else 0
-                        new_prices[key] = round(float(raw) * markup_rate, 3)
+                        itype = p.get("item_type", "PART")
+                        try:
+                            if itype == "MINIFIG":
+                                r_pg = requests.get(f"{BASE}/items/minifig/{p['pno']}/price", auth=auth,
+                                                    params={"guide_type": "sold", "new_or_used": "N"}, timeout=30)
+                                if r_pg.ok:
+                                    pg_data = r_pg.json().get("data", {})
+                                    raw = float(pg_data.get("qty_avg_price", 0) or 0)
+                                else:
+                                    raw = 0.0
+                            else:
+                                pg = fetch_price_guide(auth, p["pno"], p["color_id"], "N")
+                                raw = pg.get("qty_avg_price", 0) if pg else 0
+                            new_prices[key] = round(float(raw) * markup_rate, 3)
+                        except Exception:
+                            new_prices[key] = 0.0
                     pb.progress((i+1)/len(parts))
                     time.sleep(0.15)
                 pb.empty(); txt.empty()
@@ -3047,12 +3060,20 @@ if st.session_state.page == "partout":
                             st.rerun()
                     else:
                         if st.button("↻", key=f"po_pull_{i}", help="Pull price"):
-                            pg  = fetch_price_guide(auth, pno, color_id, "N")
-                            raw = pg.get("qty_avg_price", 0) if pg else 0
-                            np2 = round(float(raw) * markup_rate, 3)
-                            new_p = dict(prices); new_p[(pno, color_id)] = np2
-                            st.session_state["partout_prices"] = new_p
-                            st.rerun()
+                            try:
+                                if itype == "MINIFIG":
+                                    r_pg = requests.get(f"{BASE}/items/minifig/{pno}/price", auth=auth,
+                                                        params={"guide_type": "sold", "new_or_used": "N"}, timeout=30)
+                                    raw = float(r_pg.json().get("data",{}).get("qty_avg_price",0) or 0) if r_pg.ok else 0.0
+                                else:
+                                    pg  = fetch_price_guide(auth, pno, color_id, "N")
+                                    raw = pg.get("qty_avg_price", 0) if pg else 0
+                                np2 = round(float(raw) * markup_rate, 3)
+                                new_p = dict(prices); new_p[(pno, color_id)] = np2
+                                st.session_state["partout_prices"] = new_p
+                                st.rerun()
+                            except Exception:
+                                pass
 
         st.session_state["partout_conditions"] = conditions
         st.session_state["partout_overrides"]  = new_overrides
