@@ -2790,10 +2790,13 @@ if st.session_state.page == "partout":
                 set_data = r_set.json().get("data", {})
 
                 # Get set price
-                r_price = requests.get(f"{BASE}/items/set/{set_num}-1/price", auth=auth,
-                                       params={"guide_type": "sold", "new_or_used": "N"}, timeout=30)
-                set_price_data = r_price.json().get("data", {}) if r_price.ok else {}
-                set_avg_price = float(set_price_data.get("avg_price", 0) or 0)
+                try:
+                    r_price = requests.get(f"{BASE}/items/set/{set_num}-1/price", auth=auth,
+                                           params={"guide_type": "sold", "new_or_used": "N"}, timeout=30)
+                    set_price_data = r_price.json().get("data", {}) if r_price.ok else {}
+                    set_avg_price = float(set_price_data.get("avg_price", 0) or 0)
+                except Exception:
+                    set_avg_price = 0.0
 
                 # Get subsets (parts)
                 r_parts = requests.get(f"{BASE}/items/set/{set_num}-1/subsets", auth=auth, timeout=30)
@@ -2830,7 +2833,7 @@ if st.session_state.page == "partout":
                 f'<div style="font-size:1.4rem;font-weight:800;color:#e2e8f0;">{set_name}</div>'
                 f'<div style="font-size:0.85rem;color:#475569;margin-top:4px;">Set #{set_num} · {set_data.get("year_released","?")} · {set_data.get("weight","?")}g</div>'
                 f'<div style="font-size:0.9rem;color:#f59e0b;margin-top:8px;font-weight:700;">'
-                f'Current avg sale price: ${set_avg_price:.2f}</div>'
+                f'Current avg sale price: ${set_price:.2f}</div>'
                 f'</div>', unsafe_allow_html=True)
 
         st.write("")
