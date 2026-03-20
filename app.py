@@ -3006,18 +3006,27 @@ if st.session_state.page == "partout":
                     pb.progress((i+1)/len(parts))
                     time.sleep(0.15)
                 pb.empty(); txt.empty()
-                for d in debug_lines:
-                    st.write(f"DEBUG: {d}")
-                st.write(f"DEBUG: saved {len(new_prices)} prices, sample: {list(new_prices.items())[:3]}")
                 st.session_state["partout_prices"] = new_prices
-                st.stop()
+                # Pre-populate widget state so prices show immediately after rerun
+                for i, p in enumerate(parts):
+                    wkey = f"po_price_{i}"
+                    pval = new_prices.get((p["pno"], int(p["color_id"])), None)
+                    if pval is not None:
+                        st.session_state[wkey] = f"{pval:.3f}"
+                st.rerun()
         with pa2:
-            priced_count = sum(1 for p in parts if (p["pno"], p["color_id"]) in prices)
+            priced_count = sum(1 for p in parts if (p["pno"], int(p["color_id"])) in prices)
             st.markdown(f'<div style="padding-top:10px;font-size:0.78rem;color:#475569;">{priced_count}/{len(parts)} priced · markup {int(markup_rate*100)}% · default sale {sale_default}%</div>', unsafe_allow_html=True)
 
         st.markdown(f'<div style="font-size:0.72rem;color:#475569;margin-bottom:8px;">{len(parts)} parts · Alternates excluded · Price = 6-mo avg × {int(markup_rate*100)}%</div>', unsafe_allow_html=True)
 
         # Parts list
+        # Pre-populate price widget state so values show after Pull All
+        for i, p in enumerate(parts):
+            key = f"po_price_{i}"
+            price_val = overrides.get(i, prices.get((p["pno"], int(p["color_id"])), None))
+            if price_val is not None and key not in st.session_state:
+                st.session_state[key] = f"{price_val:.3f}"
         new_overrides = dict(overrides)
         new_sales     = dict(st.session_state.get("partout_sales", {}))
         for i, p in enumerate(parts):
@@ -3089,8 +3098,9 @@ if st.session_state.page == "partout":
                                     pg  = fetch_price_guide(auth, pno, color_id, "N")
                                     raw = pg.get("qty_avg_price", 0) if pg else 0
                                 np2 = round(float(raw) * markup_rate, 3)
-                                new_p = dict(prices); new_p[(pno, color_id)] = np2
+                                new_p = dict(prices); new_p[(pno, int(color_id))] = np2
                                 st.session_state["partout_prices"] = new_p
+                                st.session_state[f"po_price_{i}"] = f"{np2:.3f}"
                                 st.rerun()
                             except Exception:
                                 pass
