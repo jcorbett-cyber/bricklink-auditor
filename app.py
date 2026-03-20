@@ -2121,13 +2121,37 @@ if st.session_state.page == "orders":
         for bin_name, bin_items in igrp(all_pick_items, key=lambda x: x["bin"]):
             pick_bins.append({"bin": bin_name, "items": list(bin_items)})
 
-        col_all, col_spacer = st.columns([2,4])
+        col_all, col_ship, col_spacer = st.columns([2,2,2])
         with col_all:
             if st.button("Start Full Pick Run", type="primary", use_container_width=True):
                 st.session_state.pick_mode   = True
                 st.session_state.pick_queue  = pick_bins
                 st.session_state.pick_index  = 0
                 st.rerun()
+        with col_ship:
+            # Only show for BrickLink orders that have been fulfilled (packed)
+            packed_bl_orders = [o for o in orders
+                                if o.get("order_id","") in st.session_state.fulfilled_orders
+                                and not str(o.get("order_id","")).startswith("BO-")]
+            if packed_bl_orders:
+                if st.button(f"🚚 Mark {len(packed_bl_orders)} Order(s) Shipped", use_container_width=True):
+                    auth = make_auth(*st.session_state.auth)
+                    ship_errors = []
+                    for order in packed_bl_orders:
+                        oid = order.get("order_id","")
+                        try:
+                            r = requests.put(f"{BASE}/orders/{oid}/status", auth=auth,
+                                             json={"field": "status", "value": "SHIPPED"},
+                                             timeout=30)
+                            r.raise_for_status()
+                        except Exception as e:
+                            ship_errors.append(f"Order {oid}: {e}")
+                    if ship_errors:
+                        for err in ship_errors:
+                            st.error(f"⚠️ {err}")
+                    else:
+                        st.success(f"✅ {len(packed_bl_orders)} order(s) marked shipped on BrickLink!")
+                        st.rerun()
 
         st.divider()
         st.markdown(f'<div style="font-size:0.7rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Full Pick List</div>', unsafe_allow_html=True)
