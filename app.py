@@ -2905,12 +2905,22 @@ if st.session_state.page == "xmlimport":
                         "bin": existing.get("remarks", ""), "item_type": itype,
                     })
                 elif pno.upper() in pno_bins:
-                    coloc_rows.append({
-                        "pno": pno, "pname": pname, "color_id": color_id, "color_name": color_nm,
-                        "condition": cond, "qty": qty, "price": price, "item_type": itype,
-                        "suggested_bins": sorted(pno_bins[pno.upper()]),
-                        "remarks_from_xml": remarks,
-                    })
+                    # Filter out tray bins from co-location suggestions
+                    non_tray_bins = [b for b in pno_bins[pno.upper()] if detect_zone(b) != "tray"]
+                    if non_tray_bins:
+                        coloc_rows.append({
+                            "pno": pno, "pname": pname, "color_id": color_id, "color_name": color_nm,
+                            "condition": cond, "qty": qty, "price": price, "item_type": itype,
+                            "suggested_bins": sorted(non_tray_bins),
+                            "remarks_from_xml": remarks,
+                        })
+                    else:
+                        # All matching bins are trays — send to -INCOMING
+                        new_rows.append({
+                            "pno": pno, "pname": pname, "color_id": color_id, "color_name": color_nm,
+                            "condition": cond, "qty": qty, "price": price,
+                            "bin": "-INCOMING", "item_type": itype, "remarks_from_xml": remarks,
+                        })
                 else:
                     new_rows.append({
                         "pno": pno, "pname": pname, "color_id": color_id, "color_name": color_nm,
