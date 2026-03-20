@@ -2985,19 +2985,6 @@ if st.session_state.page == "partout":
 
         st.markdown(f'<div style="font-size:0.72rem;color:#475569;margin-bottom:8px;">{len(parts)} parts · Alternates excluded · Price = 6-mo avg × {int(markup_rate*100)}%</div>', unsafe_allow_html=True)
 
-        # Column headers
-        st.markdown(
-            '<div style="display:flex;gap:4px;font-size:0.65rem;font-weight:700;color:#475569;'
-            'text-transform:uppercase;letter-spacing:0.06em;padding:0 4px;margin-bottom:4px;">'
-            '<div style="flex:0.6;"></div>'
-            '<div style="flex:2;">Part</div>'
-            '<div style="flex:1.5;">Price ($)</div>'
-            '<div style="flex:0.6;">Qty</div>'
-            '<div style="flex:0.8;">Sale %</div>'
-            '<div style="flex:0.8;">Cond</div>'
-            '<div style="flex:0.5;"></div>'
-            '</div>', unsafe_allow_html=True)
-
         # Parts list
         new_overrides = dict(overrides)
         new_sales     = dict(st.session_state.get("partout_sales", {}))
@@ -3024,7 +3011,7 @@ if st.session_state.page == "partout":
             with r1c3:
                 st.markdown(f'<div style="padding-top:8px;font-size:0.85rem;font-weight:800;color:#60a5fa;text-align:right;">×{p["qty"] * st.session_state.get("partout_copies", 1)}</div>', unsafe_allow_html=True)
             # Row 2: price + sale % + condition + action button
-            r2c1, r2c2, r2c3, r2c4 = st.columns([2, 1, 1, 0.7])
+            r2c1, r2c2, r2c3, r2c4 = st.columns([3, 1, 1, 0.7])
             with r2c1:
                 if cur_price is not None:
                     new_val = st.number_input("Price $", value=float(cur_price), min_value=0.0,
